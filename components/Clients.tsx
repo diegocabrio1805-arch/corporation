@@ -422,30 +422,40 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [showLegajo, state.collectionLogs, state.loans]);
 
   const getClientMetrics = (client: Client) => {
-    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasTP: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0 };
+    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasTP: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false };
     const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-    const activeLoan = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const activeLoan = sortedLoans[0];
+    const hasMultipleLoans = clientLoans.length > 1;
+
     let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasTP = '0/0', isFullyPaid = false, maxDaysOverdue = 0;
 
     if (activeLoan) {
+      // Calculamos métricas base del más reciente para visualización de cuotas/mora
       const installments = Array.isArray(activeLoan.installments) ? activeLoan.installments : [];
-
       totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
 
-      // Saldo Pendiente: Total Crédito - Suma de Abonos en Historial
-      balance = Math.max(0, activeLoan.totalAmount - totalPaid);
+      // Saldo Pendiente Consolidado: Sumamos saldos de todos los préstamos activos/mora
+      balance = clientLoans.reduce((sum, l) => {
+        const lPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+        return sum + Math.max(0, l.totalAmount - lPaid);
+      }, 0);
+
       isFullyPaid = balance <= 0.01;
 
-      // Progreso Cuotas: Total Abonado / Valor Cuota (para reflejar parciales)
+      // Progreso Cuotas (del principal/reciente)
       const progress = totalPaid / (activeLoan.installmentValue || 1);
       const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
       installmentsStr = `${formattedProgress} / ${activeLoan.totalInstallments}`;
 
-      // Cuotas T/P (Total / Pagadas de forma entera)
       const paidUnits = Math.floor(progress);
       cuotasTP = `${activeLoan.totalInstallments} / ${paidUnits}`;
 
-      daysOverdue = getDaysOverdue(activeLoan, state.settings, totalPaid);
+      // Mora: Tomamos la mayor de todos los préstamos para alertar peligro
+      daysOverdue = Math.max(...clientLoans.map(l => {
+        const lp = calculateTotalPaidFromLogs(l, state.collectionLogs);
+        return getDaysOverdue(l, state.settings, lp);
+      }));
 
       const daysOverdueArr = activeLoan.installments
         .filter(i => i.status !== PaymentStatus.PAID)
@@ -1576,7 +1586,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
                     <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-100 border-2 border-slate-200 overflow-hidden shrink-0 shadow-inner">{client.profilePic ? <img src={client.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl md:text-2xl"><i className="fa-solid fa-user"></i></div>}</div>
                     <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 items-center">
-                      <div><h3 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight truncate">{client.name}</h3><p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">ID: {client.documentId}</p></div>
+                      <div>
+                        <h3 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight truncate flex items-center gap-2">
+                          {client.name}
+                          {m.hasMultipleLoans && (
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] animate-pulse" title="Múltiples Préstamos Activos">
+                              <i className="fa-solid fa-triangle-exclamation"></i>
+                            </span>
+                          )}
+                        </h3>
+                        <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">ID: {client.documentId}</p>
+                      </div>
                       <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Saldo</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
                       <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Progreso</p><p className="text-xs md:text-sm font-black text-slate-800">{m.installmentsStr}</p></div>
                       <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Mora</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} Días</p></div>
