@@ -129,7 +129,7 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
   );
 };
 
-const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, forEdit?: boolean, disabled?: boolean }) => {
+const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean }) => {
   const isPdf = value && (value.startsWith('data:application/pdf') || value.includes('pdf'));
 
   return (
@@ -139,32 +139,41 @@ const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, 
         {value ? (
           <>
             {isPdf ? (
-              <div className="flex flex-col items-center justify-center p-2 text-center">
+              <div className="flex flex-col items-center justify-center p-2 text-center" onClick={() => onView?.(value)}>
                 <i className="fa-solid fa-file-pdf text-red-500 text-3xl mb-1"></i>
-                <span className="text-[7px] font-black text-slate-700 uppercase">DOCUMENTO PDF</span>
+                <span className="text-[7px] font-black text-slate-700 uppercase">VER PDF</span>
               </div>
             ) : (
-              <img src={value} className="w-full h-full object-cover" />
+              <img src={value} className="w-full h-full object-cover" onClick={() => onView?.(value)} />
             )}
             {!disabled && (
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">{isPdf ? 'Cambiar PDF' : 'Cambiar Foto'}</span>
+              <div className="absolute top-1 right-1 z-10">
+                <label className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-blue-700 active:scale-95 transition-all">
+                  <i className="fa-solid fa-camera text-[10px]"></i>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => onFileChange(e, field, forEdit)}
+                    className="hidden"
+                  />
+                </label>
               </div>
             )}
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+              <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-lg">Ampliar</span>
+            </div>
           </>
         ) : (
           <>
             <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
             <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => onFileChange(e, field, forEdit)}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
           </>
-        )}
-        {!disabled && (
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={(e) => onFileChange(e, field, forEdit)}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-          />
         )}
       </div>
     </div>
@@ -2020,10 +2029,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="space-y-3 pt-2 col-span-1 sm:col-span-2">
                         <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">IV. Documentación Fotográfica</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-200">
-                          <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} />
-                          <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} />
-                          <PhotoUploadField label="Fachada" field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} />
-                          <PhotoUploadField label="Negocio" field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} />
+                          <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', clientData)} />
+                          <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', clientData)} />
+                          <PhotoUploadField label="Fachada" field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', clientData)} />
+                          <PhotoUploadField label="Negocio" field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', clientData)} />
                         </div>
                       </div>
                     </div>
@@ -2496,10 +2505,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <div className="space-y-4">
                               <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">III. Documentación Fotográfica</h5>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
-                                <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
-                                <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
-                                <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
-                                <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} />
+                                <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
+                                <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
+                                <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', editClientFormData!)} />
+                                <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', editClientFormData!)} />
                               </div>
                             </div>
 
