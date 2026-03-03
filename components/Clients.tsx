@@ -1807,7 +1807,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL REGISTRO CLIENTE NUEVO */}
         {
           showModal && (
-            <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[150] p-2 overflow-hidden">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[150] p-2 overflow-hidden">
               <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[98vh] flex flex-col animate-scaleIn border border-white/20">
                 <div className="p-4 md:p-5 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-white/10 sticky top-0 z-20">
                   <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Planilla Registro Cliente</h3><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">Alta de expediente y documentación fotográfica</p></div>
@@ -1939,7 +1939,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* LEGAJO / EXPEDIENTE DEL CLIENTE */}
         {
           showLegajo && clientInLegajo && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[120] p-2 overflow-hidden">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[120] p-2 overflow-hidden">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-full md:h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
                 <div className="p-2 md:p-4 bg-[#0f172a] text-white shrink-0 flex flex-col md:flex-row md:justify-between md:items-center border-b border-white/10 sticky top-0 z-20 gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -2426,7 +2426,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL EDICIÓN LOG PAGO */}
         {
           showEditLogModal && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-4">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase">Corregir Pago</h3>
@@ -2447,7 +2447,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL NOTA NO PAGO */}
         {
           showCustomNoPayModal && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-4">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-md overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-amber-500 text-white flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase">Mensaje Personalizado Mora</h3>
@@ -2462,121 +2462,123 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           )
         }
         {/* TARJETA DE ESTADO DE CUENTA PROFESIONAL (OCULTA PARA CAPTURA) */}
-        <div id="share-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1 }}>
-          <div ref={shareCardRef} className="w-[640px] bg-white text-slate-900 font-sans relative" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>
-            {/* COMPACT HEADER */}
-            <div className="bg-[#1e293b] px-6 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-[#10b981] rounded-xl flex items-center justify-center text-2xl text-white shadow-lg overflow-hidden">
-                  <i className="fa-solid fa-sack-dollar"></i>
+        {isSharing && (
+          <div id="share-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1 }}>
+            <div ref={shareCardRef} className="w-[640px] bg-white text-slate-900 font-sans relative" style={{ WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}>
+              {/* COMPACT HEADER */}
+              <div className="bg-[#1e293b] px-6 py-4 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-[#10b981] rounded-xl flex items-center justify-center text-2xl text-white shadow-lg overflow-hidden">
+                    <i className="fa-solid fa-sack-dollar"></i>
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-white uppercase tracking-widest mb-1">{new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</p>
+                    <h1 className="text-2xl font-black text-white tracking-tight uppercase leading-none">{clientInLegajo?.name}</h1>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{clientInLegajo?.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''} / {clientInLegajo?.secondaryPhone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-black text-white uppercase tracking-widest mb-1">16 DE FEBRERO DE 2026</p>
-                  <h1 className="text-2xl font-black text-white tracking-tight uppercase leading-none">{clientInLegajo?.name}</h1>
-                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{clientInLegajo?.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''} / {clientInLegajo?.secondaryPhone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''}</p>
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">ACTIVO</span>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-white uppercase tracking-widest">TOTAL: {formatCurrency(activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
+                    <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">ABONADO: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
+                    <p className="text-xs font-black text-red-500 uppercase tracking-widest">SALDO: {formatCurrency(getClientMetrics(clientInLegajo!).balance, state.settings)}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">ACTIVO</span>
-                <div className="text-right">
-                  <p className="text-xs font-black text-white uppercase tracking-widest">TOTAL: {formatCurrency(activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
-                  <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">ABONADO: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
-                  <p className="text-xs font-black text-red-500 uppercase tracking-widest">SALDO: {formatCurrency(getClientMetrics(clientInLegajo!).balance, state.settings)}</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white p-6 space-y-4">
-              {/* INSTALLMENTS GRID */}
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">CRONOGRAMA - {(Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).length} CUOTAS</h3>
+              <div className="bg-white p-6 space-y-4">
+                {/* INSTALLMENTS GRID */}
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">CRONOGRAMA - {(Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).length} CUOTAS</h3>
 
-                <div className="grid grid-cols-6 gap-2">
-                  {(() => {
-                    const m = getClientMetrics(clientInLegajo!);
-                    let remainingToAllocate = m.totalPaid;
+                  <div className="grid grid-cols-6 gap-2">
+                    {(() => {
+                      const m = getClientMetrics(clientInLegajo!);
+                      let remainingToAllocate = m.totalPaid;
 
-                    return (Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).map((inst, idx) => {
+                      return (Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).map((inst, idx) => {
 
-                      const installmentAmount = inst.amount;
-                      let amountPaidForThisOne = 0;
+                        const installmentAmount = inst.amount;
+                        let amountPaidForThisOne = 0;
 
-                      if (remainingToAllocate >= installmentAmount) {
-                        amountPaidForThisOne = installmentAmount;
-                        remainingToAllocate -= installmentAmount;
-                      } else if (remainingToAllocate > 0) {
-                        amountPaidForThisOne = remainingToAllocate;
-                        remainingToAllocate = 0;
-                      }
+                        if (remainingToAllocate >= installmentAmount) {
+                          amountPaidForThisOne = installmentAmount;
+                          remainingToAllocate -= installmentAmount;
+                        } else if (remainingToAllocate > 0) {
+                          amountPaidForThisOne = remainingToAllocate;
+                          remainingToAllocate = 0;
+                        }
 
-                      const isPaid = amountPaidForThisOne >= installmentAmount;
-                      const isPartial = amountPaidForThisOne > 0 && amountPaidForThisOne < installmentAmount;
-                      const pendingAmount = installmentAmount - amountPaidForThisOne;
+                        const isPaid = amountPaidForThisOne >= installmentAmount;
+                        const isPartial = amountPaidForThisOne > 0 && amountPaidForThisOne < installmentAmount;
+                        const pendingAmount = installmentAmount - amountPaidForThisOne;
 
-                      return (
-                        <div key={idx} className={`flex flex-col p-2 rounded-lg border ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'}`}>
-                          <div className="flex justify-between items-center mb-0.5 leading-none">
-                            <span className={`text-[11px] font-black ${isPaid ? 'text-[#10b981]' : 'text-slate-800'}`}>#{inst.number}</span>
-                            <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
-                              {(() => {
-                                if (!inst || !inst.dueDate) return '---';
-                                try {
-                                  const d = new Date(inst.dueDate + 'T00:00:00');
-                                  return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' });
-                                } catch (e) {
-                                  return '---';
-                                }
-                              })()}
-                            </span>
-                          </div>
-                          <p className={`text-lg font-black leading-none mt-0.5 mb-1 ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
-                            {formatCurrency(installmentAmount, state.settings)}
-                          </p>
-                          {isPartial && (
-                            <div className="flex flex-col gap-0.5">
-                              <p className="text-[8px] font-black text-emerald-600 uppercase leading-none whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
-                              <p className="text-[8px] font-black text-red-600 uppercase leading-none whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                        return (
+                          <div key={idx} className={`flex flex-col p-2 rounded-lg border ${isPaid ? 'bg-[#f0fdf4] border-[#bbf7d0]' : isPartial ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'}`}>
+                            <div className="flex justify-between items-center mb-0.5 leading-none">
+                              <span className={`text-[11px] font-black ${isPaid ? 'text-[#10b981]' : 'text-slate-800'}`}>#{inst.number}</span>
+                              <span className={`text-[9px] font-black uppercase ${isPaid ? 'text-[#15803d]' : 'text-[#1e293b]'}`}>
+                                {(() => {
+                                  if (!inst || !inst.dueDate) return '---';
+                                  try {
+                                    const d = new Date(inst.dueDate + 'T00:00:00');
+                                    return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' });
+                                  } catch (e) {
+                                    return '---';
+                                  }
+                                })()}
+                              </span>
                             </div>
-                          )}
-                          {isPaid && (
-                            <p className="text-[8px] font-black text-[#10b981] uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
-                          )}
-                          {!isPaid && !isPartial && (
-                            <p className="text-[8px] font-black text-red-600 uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
-                          )}
-                        </div>
-                      );
-                    });
-                  })()}
+                            <p className={`text-lg font-black leading-none mt-0.5 mb-1 ${isPaid ? 'text-[#166534]' : 'text-[#1e293b]'}`}>
+                              {formatCurrency(installmentAmount, state.settings)}
+                            </p>
+                            {isPartial && (
+                              <div className="flex flex-col gap-0.5">
+                                <p className="text-[8px] font-black text-emerald-600 uppercase leading-none whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
+                                <p className="text-[8px] font-black text-red-600 uppercase leading-none whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                              </div>
+                            )}
+                            {isPaid && (
+                              <p className="text-[8px] font-black text-[#10b981] uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
+                            )}
+                            {!isPaid && !isPartial && (
+                              <p className="text-[8px] font-black text-red-600 uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* FOOTER */}
-            <div className="bg-[#d1fae5] px-6 py-3 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#10b981] rounded-full flex items-center justify-center text-white text-xl shadow-md">
-                  <i className="fa-brands fa-whatsapp"></i>
+              {/* FOOTER */}
+              <div className="bg-[#d1fae5] px-6 py-3 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#10b981] rounded-full flex items-center justify-center text-white text-xl shadow-md">
+                    <i className="fa-brands fa-whatsapp"></i>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">MARCA</p>
+                    <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyAlias || state.settings.companyName || 'ANEXO S.A'}</p>
+                    <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
+                    <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '3333333333'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">MARCA</p>
-                  <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyAlias || state.settings.companyName || 'ANEXO S.A'}</p>
-                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
-                  <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '3333333333'}</p>
+                <div className="text-right">
+                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">BANCO O FINANCIERA</p>
+                  <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareLabel || 'BANCO FAMILIAR'}</p>
+                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">NUMERO DE CUENTA O ALIAS DE LA EMPRESA</p>
+                  <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || '3.770.096'}</p>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">BANCO O FINANCIERA</p>
-                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareLabel || 'BANCO FAMILIAR'}</p>
-                <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">NUMERO DE CUENTA O ALIAS DE LA EMPRESA</p>
-                <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || '3.770.096'}</p>
               </div>
             </div>
           </div>
-        </div>
+        )}
         {
           receipt && (
-            <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center z-[210] p-4 overflow-y-auto">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[210] p-4 overflow-y-auto">
               <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
                 {/* Header de navegación en el ticket */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">

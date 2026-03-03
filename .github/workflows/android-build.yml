@@ -79,18 +79,16 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ steps.package-version.outputs.version }}-PWA"
-          name: "Release v${{ steps.package-version.outputs.version }}-PWA"
+          tag_name: v${{ steps.package-version.outputs.version }}-FIX
+          name: v${{ steps.package-version.outputs.version }} - Samsung A15 Patch
           body: |
-            Nueva versión v6.1.165 optimizada para gama baja y privacidad total.
+            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Parche de Rendimiento
             
-            - **Privacidad Estricta**: Los administradores ahora solo ven su propia sucursal por defecto.
-            - **Optimización Gama Baja**:
-              - GPS: Intervalo de verificación relajado a 30s para ahorrar batería.
-              - Bluetooth: Keeper ajustado a 15s para mayor estabilidad.
-              - Registro de Pagos: Optimizado para ser instantáneo en dispositivos lentos.
-            - **Formato ZIP**: Incluido para descarga directa sin bloqueos.
-            - Versión string: v${{ steps.package-version.outputs.version }}-PWA
+            **Mejoras en esta versión:**
+            - 🚀 **Optimización Samsung A15**: Corregido error de pantalla blanca al entrar en Expediente.
+            - 💎 **Fluidez Mejorada**: Eliminación de filtros `backdrop-blur` pesados.
+            - 🧠 **Gestión de Memoria**: Carga bajo demanda del contenedor de captura de pantalla.
+            - 🛡️ **Privacidad**: Filtro por sucursal nivel núcleo.
           files: |
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.zip
