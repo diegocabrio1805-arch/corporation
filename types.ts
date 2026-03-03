@@ -116,6 +116,24 @@ export interface Client {
   createdAt?: string; // Fecha de registro del cliente
   capital?: number; // Added to sync initial loan capital directly on client
   currentBalance?: number; // Added to sync current balance directly on client
+  // Nuevos campos de Registro Extendido
+  nationality?: string;
+  birthDate?: string;
+  maritalStatus?: string;
+  profession?: string;
+  email?: string;
+  // Datos del Cónyuge
+  spouseName?: string;
+  spouseDocumentId?: string;
+  spouseBirthDate?: string;
+  spouseProfession?: string;
+  spouseWorkplace?: string;
+  spouseWorkPhone?: string;
+  spouseIncome?: number;
+  // Información de Vivienda
+  residenceType?: 'propia' | 'alquilada' | 'familiar';
+  residenceAntiquity?: string;
+  clientType?: string; // Código para tipo de cliente (Formal/Informal, Empleado/Dueño)
 }
 
 export interface Installment {

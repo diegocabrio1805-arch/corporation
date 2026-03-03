@@ -11,8 +11,9 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { jsPDF } from 'jspdf';
-import { saveAndOpenPDF } from '../utils/pdfHelper';
-import { RefreshCcw } from 'lucide-react';
+import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
+import { exportClientsToExcel, processExcelImport } from '../utils/excelHelper';
+import { RefreshCcw, Upload, Download } from 'lucide-react';
 
 interface ClientsProps {
   state: AppState;
@@ -128,36 +129,47 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
   );
 };
 
-const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, forEdit?: boolean, disabled?: boolean }) => (
-  <div className={`flex flex - col gap - 1.5 ${disabled ? 'opacity-50 grayscale' : ''} `}>
-    <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
-    <div className={`relative group aspect - square rounded - 2xl border - 2 border - dashed border - slate - 300 bg - slate - 50 overflow - hidden flex flex - col items - center justify - center transition - all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''} `}>
-      {value ? (
-        <>
-          <img src={value} className="w-full h-full object-cover" />
-          {!disabled && (
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-[10px] font-black text-white uppercase tracking-widest">Cambiar Foto</span>
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
-          <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
-        </>
-      )}
-      {!disabled && (
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => onFileChange(e, field, forEdit)}
-          className="absolute inset-0 opacity-0 cursor-pointer"
-        />
-      )}
+const PhotoUploadField = ({ label, field, value, onFileChange, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, forEdit?: boolean, disabled?: boolean }) => {
+  const isPdf = value && (value.startsWith('data:application/pdf') || value.includes('pdf'));
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
+      <label className="text-[8px] font-black text-slate-700 uppercase tracking-widest ml-1">{label}</label>
+      <div className={`relative group aspect-square rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 overflow-hidden flex flex-col items-center justify-center transition-all ${!disabled ? 'hover:border-blue-500 hover:bg-blue-50 cursor-pointer' : ''}`}>
+        {value ? (
+          <>
+            {isPdf ? (
+              <div className="flex flex-col items-center justify-center p-2 text-center">
+                <i className="fa-solid fa-file-pdf text-red-500 text-3xl mb-1"></i>
+                <span className="text-[7px] font-black text-slate-700 uppercase">DOCUMENTO PDF</span>
+              </div>
+            ) : (
+              <img src={value} className="w-full h-full object-cover" />
+            )}
+            {!disabled && (
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">{isPdf ? 'Cambiar PDF' : 'Cambiar Foto'}</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
+            <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
+          </>
+        )}
+        {!disabled && (
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) => onFileChange(e, field, forEdit)}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          />
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan, recalculateLoanStatus }) => {
   const { forceSync } = useSync();
@@ -165,6 +177,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
     try {
+      const isPdf = imageSrc.startsWith('data:application/pdf') || imageSrc.includes('pdf');
+      const fileName = `${client.name.replace(/\s+/g, '_')}_${title}_${state.currentUser?.name || 'user'}.pdf`;
+
+      if (isPdf) {
+        await saveAndOpenBase64PDF(imageSrc, fileName);
+        return;
+      }
+
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -185,16 +205,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
 
       doc.addImage(imageSrc, 'JPEG', 10, 25, imgWidth, imgHeight);
-
-      const fileName = `${client.name.replace(/\s+/g, '_')}_${title}_${state.currentUser?.name || 'user'}.pdf`;
       await saveAndOpenPDF(doc, fileName);
     } catch (e) {
-      console.error("Error generating PDF", e);
-      alert("Error al abrir la imagen en PDF.");
+      console.error("Error generating/opening PDF", e);
+      alert("Error al abrir el documento.");
     }
   };
 
-  const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera'>('gestion');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedCollectorForImport, setSelectedCollectorForImport] = useState('');
+  const [isProcessingExcel, setIsProcessingExcel] = useState(false);
+  const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos'>('cartera');
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
   const [selectedCollector, setSelectedCollector] = useState<string>('all');
@@ -232,7 +253,23 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     businessPic: '',
     documentPic: '',
     allowCollectorLocationUpdate: false,
-    isActive: true
+    isActive: true,
+    // Inicializar nuevos campos
+    nationality: '',
+    birthDate: '',
+    maritalStatus: '',
+    profession: '',
+    email: '',
+    spouseName: '',
+    spouseDocumentId: '',
+    spouseBirthDate: '',
+    spouseProfession: '',
+    spouseWorkplace: '',
+    spouseWorkPhone: '',
+    spouseIncome: 0,
+    residenceType: 'propia',
+    residenceAntiquity: '',
+    clientType: ''
   });
 
   const [editClientFormData, setEditClientFormData] = useState<Client | null>(null);
@@ -519,18 +556,24 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const end = new Date(filterEndDate + 'T23:59:59');
 
     const loans = Array.isArray(state.loans) ? state.loans : [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
 
     return (Array.isArray(state.clients) ? state.clients : []).map(client => {
       if (client.isHidden) return null;
 
-      // Un "Registro de Cliente" debe basarse en cuándo se creó el cliente
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').replace(/\s+/g, "");
+        const phoneNorm = (client.phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s)) return null;
+      }
+
       const cDate = new Date(client.createdAt || '');
       const inRange = cDate >= start && cDate <= end;
       if (!inRange) return null;
 
       const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-
-      // Si el préstamo activo es una renovación, no es un "Nuevo Cliente" para esta lista
       if (activeLoan?.isRenewal) return null;
 
       if (selectedCollector !== 'all') {
@@ -541,21 +584,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const metrics = getClientMetrics(client);
       return { ...client, _metrics: metrics };
-    }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan!.createdAt).getTime() - new Date(a._metrics.activeLoan!.createdAt).getTime());
-  }, [state.clients, filterStartDate, filterEndDate, viewMode]);
+    }).filter(Boolean).sort((a: any, b: any) => new Date(b._metrics.activeLoan?.createdAt || b.createdAt).getTime() - new Date(a._metrics.activeLoan?.createdAt || a.createdAt).getTime());
+  }, [state.clients, filterStartDate, filterEndDate, viewMode, debouncedSearch, selectedCollector, state.loans]);
 
   const renovacionesExcelData = useMemo(() => {
     if (viewMode !== 'renovaciones') return [];
-    // REVERSION TO STABLE LOGIC (Simplified)
     const start = new Date(filterStartDate + 'T00:00:00');
     const end = new Date(filterEndDate + 'T23:59:59');
 
     const loans = Array.isArray(state.loans) ? state.loans : [];
     const clients = Array.isArray(state.clients) ? state.clients : [];
-    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
 
-    // 1. Get explicit renewal loans
-    const renewalLoans = loans.filter(l =>
+    return loans.filter(l =>
       l.isRenewal &&
       new Date(l.createdAt) >= start &&
       new Date(l.createdAt) <= end &&
@@ -563,66 +604,39 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     ).map(loan => {
       const client = clients.find(c => c.id === loan.clientId);
       if (!client || client.isHidden) return null;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').replace(/\s+/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s)) return null;
+      }
+
       return {
         ...client,
         _loan: loan,
         _metrics: getClientMetrics(client),
-        _type: 'loan_creation'
+        _sortDate: new Date(loan.createdAt).getTime()
       };
-    }).filter(Boolean);
-
-    // 2. Get renewal payments that HAVE a subsequent loan (Validation for "Wilma")
-    const renewalPayments = logs.filter(log =>
-      log.type === CollectionLogType.PAYMENT &&
-      log.isRenewal &&
-      !log.deletedAt &&
-      new Date(log.date) >= start &&
-      new Date(log.date) <= end
-    ).map(log => {
-      const loan = loans.find(l => l.id === log.loanId);
-      if (!loan) return null;
-
-      const client = clients.find(c => c.id === loan.clientId);
-      if (!client || client.isHidden) return null;
-
-      if (selectedCollector !== 'all' && (loan.collectorId || (loan as any).collector_id)?.toLowerCase() !== selectedCollector.toLowerCase() && (client.addedBy || (client as any).added_by)?.toLowerCase() !== selectedCollector.toLowerCase()) return null;
-
-      // CRITICAL FIX: Ensure a NEW loan exists after this payment (approx 24h)
-      // This includes manual loans created by users like Fredy
-      const hasNewLoan = loans.some(l =>
-        l.clientId === client.id &&
-        new Date(l.createdAt).getTime() >= new Date(log.date).getTime() - 86400000
-      );
-
-      // EXCLUDE if we already caught the actual new loan in renewalLoans directly
-      const isAlreadyInRenewalLoans = renewalLoans.some(rl => rl.id === client.id);
-
-      if (!hasNewLoan || isAlreadyInRenewalLoans) return null;
-
-      return {
-        ...client,
-        _loan: {
-          ...loan,
-          createdAt: log.date,
-          principal: log.amount || 0,
-          totalInstallments: loan.totalInstallments,
-          totalAmount: loan.totalAmount
-        },
-        _metrics: getClientMetrics(client),
-        _type: 'renewal_payment'
-      };
-    }).filter(Boolean);
-
-    return [...renewalLoans, ...renewalPayments].sort((a: any, b: any) =>
-      new Date(b._loan.createdAt).getTime() - new Date(a._loan.createdAt).getTime()
-    );
-  }, [state.loans, state.collectionLogs, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector]);
+    }).filter(Boolean).sort((a: any, b: any) => b._sortDate - a._sortDate);
+  }, [state.loans, state.clients, filterStartDate, filterEndDate, viewMode, selectedCollector, debouncedSearch]);
 
   // VISTA EXCEL: CARTERA GENERAL (TODOS LOS CLIENTES POR FECHA DE REGISTRO)
   const carteraExcelData = useMemo(() => {
     if (viewMode !== 'cartera') return [];
+    const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden) return false;
+
+      // Búsqueda Global
+      if (s) {
+        const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').replace(/\s+/g, "");
+        const phoneNorm = (c.phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s)) return false;
+      }
+
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
@@ -650,7 +664,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
-  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy]);
+  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch]);
 
   const handleOpenMap = (loc?: { lat: number, lng: number }) => {
     if (loc && loc.lat && loc.lng) {
@@ -734,7 +748,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       if (onForceSync) onForceSync(false, "CREDITO SUBIDO CORRECTAMENTE");
       setShowModal(false);
       // No longer force resetting or changing viewMode manually here if not needed
-      setClientData({ id: '', documentId: '', name: '', phone: '', secondaryPhone: '', address: '', creditLimit: 1000000, location: undefined, domicilioLocation: undefined, profilePic: '', housePic: '', businessPic: '', documentPic: '', allowCollectorLocationUpdate: false, isActive: true, isHidden: false });
+      setClientData({
+        id: '', documentId: '', name: '', phone: '', secondaryPhone: '', address: '', creditLimit: 1000000,
+        location: undefined, domicilioLocation: undefined, profilePic: '', housePic: '', businessPic: '', documentPic: '',
+        allowCollectorLocationUpdate: false, isActive: true, isHidden: false,
+        nationality: '', birthDate: '', maritalStatus: '', profession: '', email: '',
+        spouseName: '', spouseDocumentId: '', spouseBirthDate: '', spouseProfession: '', spouseWorkplace: '', spouseWorkPhone: '', spouseIncome: 0,
+        residenceType: 'propia', residenceAntiquity: '', clientType: ''
+      });
     } catch (error) {
       alert("Error al crear el cliente.");
     } finally {
@@ -776,14 +797,59 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // If it's already a PDF, just read it as base64 and save it
+    if (file.type === 'application/pdf') {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (forEdit) {
+          setEditClientFormData(prev => prev ? { ...prev, [field]: base64 } : null);
+        } else {
+          setClientData(prev => ({ ...prev, [field]: base64 }));
+        }
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    // If it's an image, compress and convert to PDF
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const base64 = event.target?.result as string;
-      const compressed = await compressImage(base64);
-      if (forEdit) {
-        setEditClientFormData(prev => prev ? { ...prev, [field]: compressed } : null);
-      } else {
-        setClientData(prev => ({ ...prev, [field]: compressed }));
+      const base64Image = event.target?.result as string;
+      const compressed = await compressImage(base64Image);
+
+      // Convert image to PDF automatically
+      try {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        const imgProps = doc.getImageProperties(compressed);
+        const ratio = imgProps.width / imgProps.height;
+        let imgWidth = pageWidth - 20;
+        let imgHeight = imgWidth / ratio;
+
+        if (imgHeight > pageHeight - 20) {
+          imgHeight = pageHeight - 20;
+          imgWidth = imgHeight * ratio;
+        }
+
+        doc.addImage(compressed, 'JPEG', 10, 10, imgWidth, imgHeight);
+        const pdfBase64 = doc.output('datauristring');
+
+        if (forEdit) {
+          setEditClientFormData(prev => prev ? { ...prev, [field]: pdfBase64 } : null);
+        } else {
+          setClientData(prev => ({ ...prev, [field]: pdfBase64 }));
+        }
+      } catch (err) {
+        console.error("Error converting image to PDF", err);
+        // Fallback: save image if PDF fails
+        if (forEdit) {
+          setEditClientFormData(prev => prev ? { ...prev, [field]: compressed } : null);
+        } else {
+          setClientData(prev => ({ ...prev, [field]: compressed }));
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -921,7 +987,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           isRenewal: dossierIsRenewal,
           isVirtual: dossierIsVirtual,
           installmentValue: activeLoanInLegajo.installmentValue,
-          totalPaidAmount: totalPaidHistory
+          totalPaidAmount: totalPaidHistory,
+          principal: activeLoanInLegajo.totalAmount
         }, state.settings);
 
         // ALWAYS SHOW MODAL (Fixes "hanging" issue by avoiding window.open fallback)
@@ -1107,7 +1174,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         isRenewal: logToEdit.isRenewal,
         isVirtual: logToEdit.isVirtual,
         installmentValue: activeLoanInLegajo.installmentValue,
-        totalPaidAmount: newTotalPaid
+        totalPaidAmount: newTotalPaid,
+        principal: activeLoanInLegajo.totalAmount
       }, settingsToUse);
 
       const printWin = window.open('', '_blank', 'width=400,height=600');
@@ -1189,7 +1257,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       isRenewal: lastPaymentLog.isRenewal,
       isVirtual: lastPaymentLog.isVirtual,
       installmentValue: activeLoanInLegajo.installmentValue,
-      totalPaidAmount: totalPaidAtThatMoment
+      totalPaidAmount: totalPaidAtThatMoment,
+      principal: activeLoanInLegajo.totalAmount
     }, settingsToUse);
 
     // 4. Imprimir vía Bluetooth
@@ -1494,6 +1563,33 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
 
+  const handleFileUploadMasivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedCollectorForImport) return;
+
+    setIsProcessingExcel(true);
+    try {
+      const { clients, loans } = await processExcelImport(file, selectedCollectorForImport);
+
+      for (const client of clients) {
+        await addClient(client);
+      }
+      for (const loan of loans) {
+        await addLoan(loan);
+      }
+
+      alert(`IMPORTACIÓN EXITOSA: ${clients.length} CLIENTES Y ${loans.length} PRÉSTAMOS.`);
+      setShowImportModal(false);
+      setSelectedCollectorForImport('');
+    } catch (err) {
+      console.error(err);
+      alert("ERROR AL PROCESAR EL EXCEL. VERIFIQUE EL FORMATO.");
+    } finally {
+      setIsProcessingExcel(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
   return (
     <PullToRefresh onRefresh={async () => { await forceSync(); }}>
       <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
@@ -1512,7 +1608,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </h2>
 
             {viewMode === 'cartera' && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 <button
                   onClick={handlePrintCartera}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
@@ -1524,6 +1620,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
                   <i className="fa-solid fa-file-pdf text-xs"></i> PDF
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase border border-emerald-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Upload className="h-3 w-3" /> IMPORTAR
+                </button>
+                <button
+                  onClick={() => exportClientsToExcel(filteredClients, state.loans)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Download className="h-3 w-3" /> EXPORTAR
                 </button>
               </div>
             )}
@@ -1558,88 +1666,94 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           </div>
         </div>
 
-        {viewMode === 'gestion' && (
-          <div className="space-y-4">
-            <div className="relative">
-              <input type="text" value={globalSearch} onChange={(e) => setGlobalSearch(e.target.value)} placeholder="Buscar por nombre o ID..." className="w-full bg-white border border-slate-300 rounded-2xl py-4 pl-12 pr-6 text-base font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-slate-950" />
-              <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"></i>
-            </div>
-            <div className="px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2">
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
-                <i className="fa-solid fa-database mr-1"></i> Total: <span className="text-slate-700 font-bold">{filteredClients.length}</span> <span className="mx-2 text-slate-300">|</span> <i className="fa-solid fa-eye mr-1"></i> Viendo: <span className="text-slate-700 font-bold">{paginatedClients.length}</span>
-              </div>
-            </div>
+        <div className="space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              placeholder="Buscar por nombre o ID..."
+              className="w-full bg-white border border-slate-300 rounded-2xl py-4 pl-12 pr-6 text-base font-bold outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm text-slate-950"
+            />
+            <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"></i>
+          </div>
 
-            <div className="space-y-3 w-full max-w-5xl mx-auto">
-              {paginatedClients.length === 0 && (
-                <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                    <i className="fa-solid fa-users-slash text-slate-300 text-xl"></i>
+          {viewMode === 'gestion' && (
+            <div className="space-y-4">
+              <div className="px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2">
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
+                  <i className="fa-solid fa-database mr-1"></i> Total: <span className="text-slate-700 font-bold">{filteredClients.length}</span> <span className="mx-2 text-slate-300">|</span> <i className="fa-solid fa-eye mr-1"></i> Viendo: <span className="text-slate-700 font-bold">{paginatedClients.length}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 w-full max-w-5xl mx-auto">
+                {paginatedClients.length === 0 && (
+                  <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                      <i className="fa-solid fa-users-slash text-slate-300 text-xl"></i>
+                    </div>
+                    <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Lista de clientes vacía</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cree un nuevo cliente para comenzar</p>
                   </div>
-                  <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Lista de clientes vacía</p>
-                  <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cree un nuevo cliente para comenzar</p>
+                )}
+                {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
+                  const m = getClientMetrics(client);
+                  return (
+                    <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
+                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-100 border-2 border-slate-200 overflow-hidden shrink-0 shadow-inner">{client.profilePic ? <img src={client.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl md:text-2xl"><i className="fa-solid fa-user"></i></div>}</div>
+                      <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 items-center">
+                        <div>
+                          <h3 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight truncate flex items-center gap-2">
+                            {client.name}
+                            {m.hasMultipleLoans && (
+                              <span className="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] animate-pulse" title="Múltiples Préstamos Activos">
+                                <i className="fa-solid fa-triangle-exclamation"></i>
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">ID: {client.documentId}</p>
+                        </div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Saldo</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Progreso</p><p className="text-xs md:text-sm font-black text-slate-800">{m.installmentsStr}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Mora</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} Días</p></div>
+                      </div>
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">EXPEDIENTE</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* CONTROLES DE PAGINACIÓN */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4 py-6">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    <i className="fa-solid fa-chevron-left"></i>
+                  </button>
+
+                  <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                      Página <span className="text-emerald-600 text-base">{currentPage}</span> / {totalPages}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                  >
+                    <i className="fa-solid fa-chevron-right"></i>
+                  </button>
                 </div>
               )}
-              {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
-                const m = getClientMetrics(client);
-                return (
-                  <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
-                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-100 border-2 border-slate-200 overflow-hidden shrink-0 shadow-inner">{client.profilePic ? <img src={client.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl md:text-2xl"><i className="fa-solid fa-user"></i></div>}</div>
-                    <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 items-center">
-                      <div>
-                        <h3 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight truncate flex items-center gap-2">
-                          {client.name}
-                          {m.hasMultipleLoans && (
-                            <span className="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] animate-pulse" title="Múltiples Préstamos Activos">
-                              <i className="fa-solid fa-triangle-exclamation"></i>
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">ID: {client.documentId}</p>
-                      </div>
-                      <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Saldo</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
-                      <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Progreso</p><p className="text-xs md:text-sm font-black text-slate-800">{m.installmentsStr}</p></div>
-                      <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Mora</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} Días</p></div>
-                    </div>
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                      <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">EXPEDIENTE</button>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
-
-            {/* CONTROLES DE PAGINACIÓN */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 py-6">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
-                >
-                  <i className="fa-solid fa-chevron-left"></i>
-                </button>
-
-                <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
-                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                    Página <span className="text-emerald-600 text-base">{currentPage}</span> / {totalPages}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
-                >
-                  <i className="fa-solid fa-chevron-right"></i>
-                </button>
-              </div>
-            )}
-          </div>
-        )
-        }
-
-        {/* VISTA EXCEL: NUEVOS CLIENTES */}
+          )}
+        </div>
         {
           viewMode === 'nuevos' && (
             <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
@@ -1650,7 +1764,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <th className="px-6 py-4">Fecha Alta</th>
                       <th className="px-6 py-4">Cliente / ID</th>
                       <th className="px-6 py-4">Teléfono</th>
-                      <th className="px-6 py-4 text-right">Capital</th>
+                      <th className="px-6 py-4 text-right">Monto</th>
                       <th className="px-6 py-4 text-center">Int %</th>
                       <th className="px-6 py-4 text-right">Valor Cuota</th>
                       <th className="px-6 py-4 text-center">Acciones</th>
@@ -1662,7 +1776,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 uppercase text-slate-500">{client._metrics.activeLoan?.createdAt ? new Date(client._metrics.activeLoan.createdAt).toLocaleDateString() : '---'}</td>
                         <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>
                         <td className="px-6 py-4 text-blue-600">{client.phone}</td>
-                        <td className="px-6 py-4 text-right">{formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
+                        <td className="px-6 py-4 text-right">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-center text-emerald-600">{client._metrics.activeLoan?.interestRate}%</td>
                         <td className="px-6 py-4 text-right font-mono">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
@@ -1695,9 +1809,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <tr className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest">
                       <th className="px-6 py-4">Fecha Renov.</th>
                       <th className="px-6 py-4">Cliente</th>
-                      <th className="px-6 py-4 text-right">Monto Renovado</th>
+                      <th className="px-6 py-4 text-right">Monto</th>
                       <th className="px-6 py-4 text-center">Cuotas</th>
-                      <th className="px-6 py-4 text-right">Nuevo Saldo</th>
+                      <th className="px-6 py-4 text-right">Atraso</th>
                       <th className="px-6 py-4 text-center">Acciones</th>
                     </tr>
                   </thead>
@@ -1706,9 +1820,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <tr key={item._loan!.id} className="hover:bg-orange-50 transition-colors">
                         <td className="px-6 py-4 uppercase text-slate-500">{new Date(item._loan!.createdAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4 uppercase text-slate-900">{item.name}</td>
-                        <td className="px-6 py-4 text-right text-emerald-700">{formatCurrency(item._loan!.principal, state.settings)}</td>
+                        <td className="px-6 py-4 text-right text-emerald-700">{formatCurrency(item._loan!.totalAmount, state.settings)}</td>
                         <td className="px-6 py-4 text-center">{item._loan!.totalInstallments}</td>
-                        <td className="px-6 py-4 text-right font-mono">{formatCurrency(item._loan!.totalAmount, state.settings)}</td>
+                        <td className="px-6 py-4 text-right font-mono text-red-600">{item._metrics.daysOverdue} d</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">DETALLE</button>
@@ -1752,7 +1866,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <th className="px-6 py-4">Cliente / ID</th>
                       <th className="px-6 py-4">Teléfono(s)</th>
                       <th className="px-6 py-4 text-center">Renov.</th>
-                      <th className="px-6 py-4 text-right">Crédito</th>
+                      <th className="px-6 py-4 text-right">Monto</th>
                       <th className="px-6 py-4 text-center">Cuotas T/P</th>
                       <th className="px-6 py-4 text-right">Saldo Actual</th>
                       <th className="px-6 py-4 text-center">Progreso</th>
@@ -1807,7 +1921,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL REGISTRO CLIENTE NUEVO */}
         {
           showModal && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[150] p-2 overflow-hidden">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-hidden pt-4 md:pt-10">
               <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[98vh] flex flex-col animate-scaleIn border border-white/20">
                 <div className="p-4 md:p-5 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-white/10 sticky top-0 z-20">
                   <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Planilla Registro Cliente</h3><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">Alta de expediente y documentación fotográfica</p></div>
@@ -1815,16 +1929,64 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </div>
                 <form onSubmit={handleSubmitNewClient} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-6 bg-slate-50 mobile-scroll-container">
                   <div className="space-y-3">
-                    <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">I. Información Personal</h4>
+                    <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">I. Datos del Solicitante</h4>
                     <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
-                      <div className="flex border-b md:border-r border-slate-200"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input required type="text" value={clientData.name} onChange={e => setClientData({ ...clientData, name: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input required type="text" value={clientData.documentId} onChange={e => setClientData({ ...clientData, documentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex border-b md:border-b-0 md:border-r border-slate-200"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input required type="tel" value={clientData.phone} onChange={e => setClientData({ ...clientData, phone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input type="tel" value={clientData.secondaryPhone} onChange={e => setClientData({ ...clientData, secondaryPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex col-span-1 md:col-span-2 border-t border-slate-200">
-                        <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Dirección</div>
-                        <input required type="text" value={clientData.address} onChange={e => setClientData({ ...clientData, address: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" />
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input required type="text" value={clientData.name} onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input required type="text" value={clientData.documentId} onChange={(e: any) => setClientData({ ...clientData, documentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nacionalidad</div><input type="text" value={clientData.nationality} onChange={(e: any) => setClientData({ ...clientData, nationality: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">F. Nacimiento</div><input type="date" value={clientData.birthDate} onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Estado Civil</div>
+                        <select value={clientData.maritalStatus} onChange={(e: any) => setClientData({ ...clientData, maritalStatus: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
+                          <option value="">Seleccionar</option>
+                          <option value="soltero">Soltero/a</option>
+                          <option value="casado">Casado/a</option>
+                          <option value="divorciado">Divorciado/a</option>
+                          <option value="viudo">Viudo/a</option>
+                        </select>
                       </div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Profesión</div><input type="text" value={clientData.profession} onChange={(e: any) => setClientData({ ...clientData, profession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input required type="tel" value={clientData.phone} onChange={(e: any) => setClientData({ ...clientData, phone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input type="tel" value={clientData.secondaryPhone} onChange={(e: any) => setClientData({ ...clientData, secondaryPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200 md:col-span-2">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Email</div>
+                        <input type="email" value={clientData.email} onChange={(e: any) => setClientData({ ...clientData, email: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" />
+                      </div>
+                      <div className="flex col-span-1 md:col-span-2">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Dirección</div>
+                        <input required type="text" value={clientData.address} onChange={(e: any) => setClientData({ ...clientData, address: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" />
+                      </div>
+                      <div className="flex col-span-1 md:col-span-2">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Tipo de Cliente</div>
+                        <input type="text" placeholder="Ej: F01 (Formal), E (Empleado)" value={clientData.clientType} onChange={(e: any) => setClientData({ ...clientData, clientType: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" />
+                      </div>
+                    </div>
+
+                    <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">II. Datos del Cónyuge</h4>
+                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input type="text" value={clientData.spouseName} onChange={(e: any) => setClientData({ ...clientData, spouseName: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input type="text" value={clientData.spouseDocumentId} onChange={(e: any) => setClientData({ ...clientData, spouseDocumentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">F. Nacimiento</div><input type="date" value={clientData.spouseBirthDate} onChange={(e: any) => setClientData({ ...clientData, spouseBirthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Profesión</div><input type="text" value={clientData.spouseProfession} onChange={(e: any) => setClientData({ ...clientData, spouseProfession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Lugar Trabajo</div><input type="text" value={clientData.spouseWorkplace} onChange={(e: any) => setClientData({ ...clientData, spouseWorkplace: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Tel. Laboral</div><input type="tel" value={clientData.spouseWorkPhone} onChange={(e: any) => setClientData({ ...clientData, spouseWorkPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex md:col-span-2">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Ingresos Mens.</div>
+                        <input type="number" value={clientData.spouseIncome} onChange={(e: any) => setClientData({ ...clientData, spouseIncome: Number(e.target.value) })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" />
+                      </div>
+                    </div>
+
+                    <h4 className="text-[9px] font-black text-orange-800 uppercase tracking-widest border-l-4 border-orange-800 pl-2 mt-4">III. Información de Vivienda</h4>
+                    <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
+                      <div className="flex border-b border-slate-200">
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Tipo Residencia</div>
+                        <select value={clientData.residenceType} onChange={(e: any) => setClientData({ ...clientData, residenceType: e.target.value as any })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
+                          <option value="propia">Propia</option>
+                          <option value="alquilada">Alquilada</option>
+                          <option value="familiar">Familiar</option>
+                        </select>
+                      </div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Antigüedad/Tpo</div><input type="text" value={clientData.residenceAntiquity} onChange={(e: any) => setClientData({ ...clientData, residenceAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
@@ -1851,8 +2013,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         )}
                       </div>
 
-                      <div className="space-y-3 pt-2">
-                        <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">II. Documentación Fotográfica</h4>
+                      <div className="space-y-3 pt-2 col-span-1 sm:col-span-2">
+                        <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">IV. Documentación Fotográfica</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-200">
                           <PhotoUploadField label="Perfil" field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} />
                           <PhotoUploadField label="Cédula" field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} />
@@ -1869,9 +2031,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
-                            <div className="flex border-b border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Capital</div><input type="text" value={initialLoan.principal} onChange={e => setInitialLoan({ ...initialLoan, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
-                            <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Int. %</div><input type="text" value={initialLoan.interestRate} onChange={e => setInitialLoan(prev => ({ ...prev, interestRate: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
-                            <div className="flex border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Cuotas</div><input type="text" value={initialLoan.installments} onChange={e => setInitialLoan(prev => ({ ...prev, installments: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            <div className="flex border-b border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Capital</div><input type="text" value={initialLoan.principal} onChange={(e: any) => setInitialLoan({ ...initialLoan, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Int. %</div><input type="text" value={initialLoan.interestRate} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            <div className="flex border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Cuotas</div><input type="text" value={initialLoan.installments} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, installments: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
                             <div className="flex"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Finaliza</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{initialLoan.endDate ? formatDate(initialLoan.endDate).toUpperCase() : '---'}</div></div>
                           </div>
 
@@ -1939,7 +2101,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* LEGAJO / EXPEDIENTE DEL CLIENTE */}
         {
           showLegajo && clientInLegajo && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[120] p-2 overflow-hidden">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[120] p-2 overflow-hidden pt-2 md:pt-6">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-full md:h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
                 <div className="p-2 md:p-4 bg-[#0f172a] text-white shrink-0 flex flex-col md:flex-row md:justify-between md:items-center border-b border-white/10 sticky top-0 z-20 gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -2127,6 +2289,41 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   })}
                                 </tbody>
                               </table>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Información Personal y Vivienda</h4><i className="fa-solid fa-house-user text-slate-400"></i></div>
+                              <div className="p-0">
+                                <table className="w-full text-left border-collapse">
+                                  <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nacionalidad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.nationality || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.birthDate || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Estado Civil</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.maritalStatus || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.profession || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Email</td><td className="p-2 text-slate-900 lowercase">{clientInLegajo.email || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Residencia</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.residenceType || '---'} ({clientInLegajo.residenceAntiquity || '---'})</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tipo de Cliente</td><td className="p-2 uppercase text-blue-800 font-black">{clientInLegajo.clientType || '---'}</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Información del Cónyuge</h4><i className="fa-solid fa-heart text-red-400"></i></div>
+                              <div className="p-0">
+                                <table className="w-full text-left border-collapse">
+                                  <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nombre</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseName || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Cédula</td><td className="p-2 text-slate-900">{clientInLegajo.spouseDocumentId || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.spouseBirthDate || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseProfession || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Lugar Trab.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseWorkplace || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.spouseIncome || 0, state.settings)}</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </div>
 
@@ -2358,7 +2555,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL RENOVACIÓN / NUEVO CRÉDITO */}
         {
           showRenewModal && clientInLegajo && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[250] p-4">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-start justify-center z-[250] p-4 pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-lg overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
                   <h3 className="text-xl font-black uppercase tracking-tighter">Generar Nuevo Crédito</h3>
@@ -2391,7 +2588,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL COBRO / LIQUIDACIÓN DENTRO DEL EXPEDIENTE */}
         {
           showDossierPaymentModal && (
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[200] p-2 overflow-y-auto">
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-start justify-center z-[200] p-2 overflow-y-auto pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
                 <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
                   <h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Registrar Gestión</h3>
@@ -2426,7 +2623,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL EDICIÓN LOG PAGO */}
         {
           showEditLogModal && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-blue-600 text-white flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase">Corregir Pago</h3>
@@ -2447,7 +2644,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* MODAL NOTA NO PAGO */}
         {
           showCustomNoPayModal && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-md overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-amber-500 text-white flex justify-between items-center">
                   <h3 className="text-lg font-black uppercase">Mensaje Personalizado Mora</h3>
@@ -2578,7 +2775,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         )}
         {
           receipt && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[210] p-4 overflow-y-auto">
+            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[210] p-4 overflow-y-auto pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
                 {/* Header de navegación en el ticket */}
                 <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">
@@ -2628,6 +2825,74 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </div>
           )
         }
+        {showImportModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 z-[9999] animate-fadeIn pt-10 md:pt-20">
+            <div className="bg-slate-900 rounded-[2rem] p-8 border border-white/10 w-full max-w-md shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-blue-500"></div>
+
+              <h3 className="text-2xl font-black text-white mb-2 flex items-center gap-3">
+                <Upload className="text-emerald-500" /> IMPORTAR CARTERA
+              </h3>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">
+                Sube tu archivo Excel (45 Columnas)
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">
+                    1. Asignar a Cobrador / Ruta
+                  </label>
+                  <div className="bg-slate-800 rounded-2xl border border-slate-700 p-1">
+                    <select
+                      className="w-full bg-transparent p-3 text-white font-bold outline-none cursor-pointer text-sm"
+                      value={selectedCollectorForImport}
+                      onChange={(e) => setSelectedCollectorForImport(e.target.value)}
+                    >
+                      <option value="">-- SELECCIONAR DESTINO --</option>
+                      {collectors.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all relative ${!selectedCollectorForImport ? 'border-slate-800 bg-slate-900/50 opacity-50 cursor-not-allowed' : 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 cursor-pointer'}`}>
+                  {isProcessingExcel ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-emerald-500 font-black text-[10px] uppercase">Procesando...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-file-excel text-4xl text-emerald-500 mb-4 scale-animation"></i>
+                      <span className="text-slate-300 font-bold text-sm text-center">
+                        {selectedCollectorForImport ? 'Click para subir Excel' : 'Selecciona un cobrador primero'}
+                      </span>
+                      {selectedCollectorForImport && (
+                        <input
+                          type="file"
+                          accept=".xlsx, .xls"
+                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                          onChange={handleFileUploadMasivo}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    className="flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
+                    onClick={() => setShowImportModal(false)}
+                    disabled={isProcessingExcel}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PullToRefresh>
   );

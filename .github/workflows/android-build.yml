@@ -79,16 +79,16 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.package-version.outputs.version }}-FIX
-          name: v${{ steps.package-version.outputs.version }} - Samsung A15 Patch
+          tag_name: v${{ steps.package-version.outputs.version }}-LATEST
+          name: v${{ steps.package-version.outputs.version }} - Excel & UI Update
           body: |
-            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Parche de Rendimiento
+            ### Anexo Cobro v${{ steps.package-version.outputs.version }} - Versión Actualizada
             
             **Mejoras en esta versión:**
-            - 🚀 **Optimización Samsung A15**: Corregido error de pantalla blanca al entrar en Expediente.
-            - 💎 **Fluidez Mejorada**: Eliminación de filtros `backdrop-blur` pesados.
-            - 🧠 **Gestión de Memoria**: Carga bajo demanda del contenedor de captura de pantalla.
-            - 🛡️ **Privacidad**: Filtro por sucursal nivel núcleo.
+            - 📊 **Excel Profesional**: Importación y exportación masiva funcional (45 columnas).
+            - 🚀 **Nueva Interfaz de Modals**: Ventanas emergentes ahora aparecen en la parte superior para mejor visibilidad.
+            - 📖 **Manual Integrado**: Documentación detallada en la carpeta de informes.
+            - 🛠️ **Corrección de Errores**: Resueltos problemas de redeclaración e importación de dependencias.
           files: |
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.zip

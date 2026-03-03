@@ -311,7 +311,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           isVirtual,
           installmentValue: loan.installmentValue,
           totalPaidAmount: totalPaidHistory,
-          principal: loan.principal,
+          principal: loan.totalAmount,
           frequency: loan.frequency
         }, state.settings);
 

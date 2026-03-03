@@ -313,6 +313,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           isVirtual,
           installmentValue: loan.installmentValue,
           totalPaidAmount: totalPaidHistory,
+          principal: loan.totalAmount,
           // Pre-populate with settings explicitly, fallback to null/empty to allow generateReceiptText to use settings
           companyNameManual: state.settings.companyName || null,
           companyAliasManual: state.settings.companyAlias || null,
@@ -419,6 +420,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       isVirtual: lastPaymentLog.isVirtual,
       installmentValue: loan.installmentValue,
       totalPaidAmount: totalPaidAtThatMoment,
+      principal: loan.totalAmount,
 
       companyNameManual: settingsToUse.companyName || null,
       companyAliasManual: settingsToUse.companyAlias || null,

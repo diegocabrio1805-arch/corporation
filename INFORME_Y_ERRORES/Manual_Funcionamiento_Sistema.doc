@@ -1,0 +1,88 @@
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset="utf-8">
+    <title>Manual de Funcionamiento</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }
+        h1 { color: #10B981; border-bottom: 2px solid #10B981; padding-bottom: 10px; }
+        h2 { color: #064E3B; margin-top: 30px; border-left: 5px solid #10B981; padding-left: 10px; }
+        h3 { color: #065F46; }
+        .highlight { font-weight: bold; color: #059669; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #F3F4F6; color: #374151; }
+        .footer { font-size: 0.8em; color: #6B7280; text-align: center; margin-top: 50px; }
+    </style>
+</head>
+<body>
+    <h1>MANUAL DE FUNCIONAMIENTO - SISTEMA ANEXO COBRO</h1>
+    <p><strong>Versión del Sistema: 6.1.170</strong></p>
+    <p>Este documento es la guía definitiva sobre la lógica operativa y financiera del sistema, diseñado para funcionar con la precisión de un <strong>reloj suizo</strong>.</p>
+
+    <h2>1. ESTRUCTURA Y NAVEGACIÓN</h2>
+    <p>El sistema se divide en módulos clave diseñados para la gestión eficiente:</p>
+    <ul>
+        <li><strong>DASHBOARD:</strong> Centro de inteligencia con métricas de eficiencia y metas diarias.</li>
+        <li><strong>CLIENTES:</strong> Motor principal de préstamos, seguimiento de pagos y legajos digitales.</li>
+        <li><strong>GASTOS:</strong> Control administrativo de egresos.</li>
+        <li><strong>COBRADORES:</strong> Supervisión de personal, rutas y auditoría GPS.</li>
+        <li><strong>CONFIGURACIÓN:</strong> Personalización de moneda, país y reglas de cobro.</li>
+    </ul>
+
+    <h2>2. EL MOTOR FINANCIERO: CÁLCULOS DE PRÉSTAMOS</h2>
+    <h3>A. Estructura del Crédito</h3>
+    <p>Cada préstamo se calcula bajo reglas estrictas para evitar errores humanos:</p>
+    <ul>
+        <li><span class="highlight">Monto Total:</span> Se determina sumando el capital inicial más el interés pactado (Capital * (1 + Interés/100)).</li>
+        <li><span class="highlight">Valor de la Cuota:</span> Se divide el Monto Total por el número de cuotas. El sistema aplica un redondeo hacia arriba para proteger el capital.</li>
+        <li><span class="highlight">Calendario Inteligente:</span> Al generar el cronograma, el sistema detecta y <strong>salta automáticamente</strong> los domingos y los feriados nacionales configurados.</li>
+    </ul>
+
+    <h3>B. Saldos y Seguimiento</h3>
+    <table>
+        <tr>
+            <th>Concepto</th>
+            <th>Cálculo / Lógica</th>
+        </tr>
+        <tr>
+            <td><strong>Saldo Actual</strong></td>
+            <td>Monto Total del Préstamo - Suma de todos los abonos registrados.</td>
+        </tr>
+        <tr>
+            <td><strong>Abono del Día</strong></td>
+            <td>Registro puntual de dinero físico o transferencia que impacta el saldo.</td>
+        </tr>
+        <tr>
+            <td><strong>Saldo Atrasado</strong></td>
+            <td>Suma del valor de las cuotas vencidas según el calendario que no han sido pagadas.</td>
+        </tr>
+    </table>
+
+    <h2>3. LÓGICA DE MORA (PRECISIÓN SUIZA)</h2>
+    <p>A diferencia de sistemas básicos, la mora aquí se cuenta por <strong>Días de Cobro Operativos</strong>:</p>
+    <ol>
+        <li>El sistema identifica la cuota más antigua pendiente de pago.</li>
+        <li>Calcula cuántos días han pasado desde su vencimiento hasta hoy.</li>
+        <li><strong>Descuento de Inactividad:</strong> No suma al atraso los días domingo ni los días feriados. Si hoy es lunes y el pago venció el viernes, los días de mora son 2 (sábado y domingo saltan si el sábado es inhábil o solo el domingo).</li>
+    </ol>
+
+    <h2>4. GESTIÓN DE CARTERA Y EXCEL</h2>
+    <h3>A. Importación Directa</h3>
+    <p>Usted puede cargar cientos de clientes en segundos usando Excel. El sistema reconoce automáticamente 45 columnas de datos (Cédula, Cónyuge, Trabajo, Vivienda, etc.).</p>
+    <h3>B. Exportación General</h3>
+    <p>Al exportar, el sistema genera un archivo estilizado que incluye no solo los datos del cliente, sino todo su historial financiero, saldos y riesgos de mora actuales.</p>
+
+    <h2>5. RECIBOS Y WHATSAPP</h2>
+    <p>Cada vez que se registra un pago (ABONO), el sistema genera un recibo digital inmutable:</p>
+    <ul>
+        <li><strong>Saldo Anterior:</strong> Lo que debía antes del pago.</li>
+        <li><strong>Saldo Nuevo:</strong> Lo que debe tras el abono.</li>
+        <li><strong>Progreso:</strong> Indica exactamente cuántas cuotas lleva pagadas (ej: 12 de 24).</li>
+    </ul>
+
+    <div class="footer">
+        <p>Generado automáticamente por el Sistema de Asistencia Anexo Cobro</p>
+        <p>&copy; 2026 Todos los derechos reservados.</p>
+    </div>
+</body>
+</html>
