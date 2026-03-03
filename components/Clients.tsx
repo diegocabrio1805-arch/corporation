@@ -411,15 +411,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   useEffect(() => {
     if (showLegajo && fetchClientPhotos && updateClient) {
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === showLegajo);
+      // Solo disparar si el cliente existe y NO tiene ninguna foto cargada aún
       if (client && !client.profilePic && !client.housePic && !client.businessPic && !client.documentPic) {
+        console.log("[Clients] Fetching photos for legajo:", showLegajo);
         fetchClientPhotos(showLegajo).then(photos => {
-          if (photos) {
+          if (photos && Object.keys(photos).length > 0) {
             updateClient({ ...client, ...photos });
           }
-        });
+        }).catch(err => console.error("Error fetching client photos:", err));
       }
     }
-  }, [showLegajo, fetchClientPhotos, updateClient, state.clients]);
+  }, [showLegajo]); // Reducir dependencias para evitar bucles con state.clients
 
   const shareCardRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLDivElement>(null);
@@ -2407,11 +2409,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item) => (
                                 <div key={item.key} className="flex flex-col items-center">
                                   <div className="aspect-square w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative group">
-                                    {clientInLegajo[item.key as keyof Client] ? (
-                                      <img src={clientInLegajo[item.key as keyof Client] as string} className="w-full h-full object-cover cursor-zoom-in" onClick={() => handleViewPhotoAsPDF(clientInLegajo[item.key as keyof Client] as string, item.label, clientInLegajo)} alt={item.label} />
-                                    ) : (
-                                      <i className="fa-solid fa-image text-slate-400 text-xl"></i>
-                                    )}
+                                    {(() => {
+                                      const photoUrl = clientInLegajo[item.key as keyof Client] as string;
+                                      if (photoUrl) {
+                                        return <img src={photoUrl} className="w-full h-full object-cover cursor-zoom-in" onClick={() => handleViewPhotoAsPDF(photoUrl, item.label, clientInLegajo)} alt={item.label} />;
+                                      }
+                                      return <i className="fa-solid fa-image text-slate-400 text-xl"></i>;
+                                    })()}
                                   </div>
                                   <span className="text-[7px] font-black text-slate-700 uppercase mt-1 tracking-wider">{item.label}</span>
                                 </div>
