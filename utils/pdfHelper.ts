@@ -16,9 +16,6 @@ export const saveAndOpenPDF = async (doc: jsPDF, fileName: string) => {
             const base64 = doc.output('datauristring').split(',')[1];
 
             // 2. Write file to Documents directory (or External)
-            // On Android 11+, Directory.Documents is scoped storage friendly?
-            // Or use Directory.External to write to app-specific external storage which doesn't need permissions
-            // We added <external-files-path> which maps to Directory.External
             const directory = Directory.External;
 
             const result = await Filesystem.writeFile({
@@ -40,8 +37,16 @@ export const saveAndOpenPDF = async (doc: jsPDF, fileName: string) => {
             return false;
         }
     } else {
-        // Web fallback
+        // Web fallback: Open in new tab AND download
+        const blob = doc.output('blob');
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+
+        // Also trigger download if preferred, or let browser handle preview
         doc.save(fileName);
+
+        // Cleanup URL after some time
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
         return true;
     }
 };
@@ -73,11 +78,24 @@ export const saveAndOpenBase64PDF = async (base64Data: string, fileName: string)
             return false;
         }
     } else {
-        // Web fallback: download using a link
+        // Web fallback: Open in new tab
+        const byteCharacters = atob(base64Data.includes(',') ? base64Data.split(',')[1] : base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+
+        // Also trigger download
         const link = document.createElement('a');
-        link.href = base64Data.startsWith('data:') ? base64Data : `data:application/pdf;base64,${base64Data}`;
+        link.href = url;
         link.download = fileName;
         link.click();
+
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
         return true;
     }
 };
