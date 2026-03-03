@@ -50,11 +50,11 @@ const App: React.FC = () => {
   const [daysToExpiry, setDaysToExpiry] = useState<number | null>(null);
   const [isJumping, setIsJumping] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
 
   // --- BULLETPROOF AUTO-UPDATER ---
   useEffect(() => {
     const checkForUpdates = async () => {
-      /* Commented out to prevent reload loops in localhost
       try {
         const res = await fetch('/?t=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) return;
@@ -62,10 +62,10 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.166'; // FIX A15 Performance + RAM 2026-03-03 00:35
+          const localVersion = '6.1.170';
           if (remoteVersion !== localVersion) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
-            localStorage.removeItem('pwa_app_version'); // Force the index.html sw killer to run on next reload
+            localStorage.removeItem('pwa_app_version');
             if ('caches' in window) {
               const names = await caches.keys();
               await Promise.all(names.map(name => caches.delete(name)));
@@ -80,7 +80,6 @@ const App: React.FC = () => {
       } catch (error) {
         console.log("Auto-updater check failed (offline?)");
       }
-      */
     };
 
     // Check 5 seconds after boot, then every 2 minutes
@@ -95,7 +94,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.164';
+    const CURRENT_VERSION_ID = '6.1.170';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
@@ -120,7 +119,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = 'v6.1.161';
+      const CURRENT_VERSION_ID = '6.1.170';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
@@ -306,11 +305,15 @@ const App: React.FC = () => {
       } else {
         // PROTECTION: If remote has more installments than local, ALWAYS use remote.
         // This fixes the "2 installments vs 40" bug where local was considered "newer" but was truncated.
-        const remoteCount = Array.isArray((r as any).installments) ? (r as any).installments.length : 0;
-        const localCount = Array.isArray((l as any).installments) ? (l as any).installments.length : 0;
-        const remoteIsMoreComplete = remoteCount > localCount;
+        const remoteInstallments = Array.isArray((r as any).installments) ? (r as any).installments : [];
+        const localInstallments = Array.isArray((l as any).installments) ? (l as any).installments : [];
 
-        if (!isAppendOnly && (remoteIsMoreComplete || (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime()))) {
+        const remotePaidCount = remoteInstallments.filter((i: any) => i.status === 'Pagado').length;
+        const localPaidCount = localInstallments.filter((i: any) => i.status === 'Pagado').length;
+
+        const remoteIsMoreComplete = remoteInstallments.length > localInstallments.length || remotePaidCount > localPaidCount;
+
+        if (!isAppendOnly && !remoteIsMoreComplete && (l.updated_at && r.updated_at && new Date(l.updated_at).getTime() > new Date(r.updated_at).getTime())) {
           const idx = result.findIndex(item => item.id === l.id);
           if (idx !== -1) {
             result[idx] = l;
@@ -491,7 +494,7 @@ const App: React.FC = () => {
     const triggerEmergencySync = async () => {
       const user = state.currentUser;
       if (!user) return;
-      const syncKey = `emergency_sync_done_${user.username}_v153`;
+      const syncKey = `emergency_sync_done_${user.username}_v170_final_payment_fix`;
       const isRestoredUser = true; // Universal for this fix to ensure 300k shows up everywhere
 
       if (isRestoredUser && !localStorage.getItem(syncKey)) {
@@ -565,6 +568,17 @@ const App: React.FC = () => {
       window.removeEventListener('online', handleOnline);
     };
   }, [isSyncing, isOnline, queueLength]);
+
+  useEffect(() => {
+    if (!isOnline || isSyncing || isPrintingNow()) return;
+
+    const interval = setInterval(() => {
+      console.log("[App] Forced Turbo 4s Sync triggered");
+      handleForceSync(true, "Actualizando...", true); // Sincronización completa pero silenciosa cada 4s
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isOnline, isSyncing]);
 
   const getBranchId = (user: User | null): string => {
     if (!user) return 'none';
@@ -1110,7 +1124,7 @@ const App: React.FC = () => {
                 <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars-staggered'}`}></i>
               </button>
               <div>
-                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || <span className="text-[10px] font-black opacity-40 ml-2">v6.1.165-APK</span>}</h1>
+                <h1 className="text-sm font-black text-emerald-600 uppercase tracking-tighter leading-none">{state.settings.companyName || <span className="text-[10px] font-black opacity-40 ml-2">ANEXO COBRO</span>}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                   <span className={`text-[8px] font-black uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -1122,7 +1136,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.164-APK</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.170</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -1158,6 +1172,30 @@ const App: React.FC = () => {
                   <span className="text-[9px] font-black uppercase tracking-wider truncate">{item.label}</span>
                 </button>
               ))}
+              <div className="col-span-2 p-1">
+                <div
+                  className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${isSyncing ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-inner' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSyncing ? 'bg-emerald-600 text-white animate-pulse' : 'bg-slate-200 text-slate-400'}`}>
+                      <i className={`fa-solid fa-sync ${isSyncing ? 'animate-spin' : ''}`}></i>
+                    </div>
+                    <div className="flex flex-col items-start leading-tight">
+                      <span className={`text-[11px] font-black uppercase tracking-widest ${isSyncing ? 'text-emerald-600' : ''}`}>
+                        {isSyncing ? 'SINCRONIZANDO...' : 'Sincro Turbo (4s)'}
+                      </span>
+                      <span className="text-[8px] font-bold opacity-70 uppercase tracking-tighter">Automático Total</span>
+                    </div>
+                  </div>
+                  {isSyncing && (
+                    <div className="flex gap-1.5 mr-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
               <button onClick={handleLogout} className="col-span-2 flex items-center justify-center gap-3 p-4 mt-2 rounded-2xl bg-red-50 text-red-600 border border-red-100 font-black uppercase text-[10px] tracking-widest"><i className="fa-solid fa-power-off"></i> CERRAR SESIÓN</button>
             </div>
           )}

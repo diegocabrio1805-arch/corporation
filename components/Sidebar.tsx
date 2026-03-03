@@ -113,6 +113,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
                 </a>
               </div>
             )}
+            {item.id === 'settings' && (
+              <div className="px-4 pb-2 -mt-1">
+                <div
+                  className={`w-full flex items-center justify-between p-2 rounded-xl border transition-all ${isSyncing ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-500'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isSyncing ? 'bg-emerald-600 text-white animate-pulse' : 'bg-slate-800 text-slate-500'}`}>
+                      <i className={`fa-solid fa-rotate text-[10px] ${isSyncing ? 'animate-spin' : ''}`}></i>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider">
+                      {isSyncing ? 'SINCRONIZANDO...' : 'Sincro Turbo (4s)'}
+                    </span>
+                  </div>
+                  {isSyncing && (
+                    <div className="flex gap-1">
+                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce"></div>
+                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </React.Fragment>
         ))}
       </nav>

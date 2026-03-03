@@ -13,6 +13,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    realtime: {
+        params: {
+            eventsPerSecond: 10
+        }
+    },
     global: {
         headers: { 'x-application-name': 'anexo-cobro-mobile' },
         fetch: async (url, options) => {
