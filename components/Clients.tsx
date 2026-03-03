@@ -2431,20 +2431,32 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm space-y-3">
                             <h4 className="text-[9px] font-black text-slate-800 uppercase border-b border-slate-200 pb-1.5 tracking-widest">Fotos del Expediente</h4>
                             <div className="grid grid-cols-2 gap-2">
-                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item) => (
-                                <div key={item.key} className="flex flex-col items-center">
-                                  <div className="aspect-square w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative group">
-                                    {(() => {
-                                      const photoUrl = clientInLegajo[item.key as keyof Client] as string;
-                                      if (photoUrl) {
-                                        return <img src={photoUrl} className="w-full h-full object-cover cursor-zoom-in" onClick={() => handleViewPhotoAsPDF(photoUrl, item.label, clientInLegajo)} alt={item.label} />;
-                                      }
-                                      return <i className="fa-solid fa-image text-slate-400 text-xl"></i>;
-                                    })()}
+                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item) => {
+                                // Buscar al cliente en tiempo real en el estado para obtener las fotos recién descargadas
+                                const liveClient = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientInLegajo.id) || clientInLegajo;
+                                const photoUrl = liveClient[item.key as keyof Client] as string;
+
+                                return (
+                                  <div key={item.key} className="flex flex-col items-center">
+                                    <div className="aspect-square w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center relative group">
+                                      {photoUrl ? (
+                                        <img
+                                          src={photoUrl}
+                                          className="w-full h-full object-cover cursor-zoom-in transition-opacity animate-fadeIn"
+                                          onClick={() => handleViewPhotoAsPDF(photoUrl, item.label, liveClient)}
+                                          alt={item.label}
+                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <i className="fa-solid fa-image text-slate-300 text-xl animate-pulse"></i>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className="text-[7px] font-black text-slate-700 uppercase mt-1 tracking-wider">{item.label}</span>
                                   </div>
-                                  <span className="text-[7px] font-black text-slate-700 uppercase mt-1 tracking-wider">{item.label}</span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                           {activeLoanInLegajo && (
