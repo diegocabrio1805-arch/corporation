@@ -82,10 +82,14 @@ jobs:
           tag_name: "v${{ steps.package-version.outputs.version }}-PWA"
           name: "Release v${{ steps.package-version.outputs.version }}-PWA"
           body: |
-            Nueva versión optimizada para Android.
-            - Correcciones globales de asignaciones de clientes y sucursales.
-            - Mejoras en la interfaz de Clients.tsx (registros y renovaciones sin redirección).
-            - Formato ZIP incluido para mayor compatibilidad en Windows.
+            Nueva versión v6.1.165 optimizada para gama baja y privacidad total.
+            
+            - **Privacidad Estricta**: Los administradores ahora solo ven su propia sucursal por defecto.
+            - **Optimización Gama Baja**:
+              - GPS: Intervalo de verificación relajado a 30s para ahorrar batería.
+              - Bluetooth: Keeper ajustado a 15s para mayor estabilidad.
+              - Registro de Pagos: Optimizado para ser instantáneo en dispositivos lentos.
+            - **Formato ZIP**: Incluido para descarga directa sin bloqueos.
             - Versión string: v${{ steps.package-version.outputs.version }}-PWA
           files: |
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
