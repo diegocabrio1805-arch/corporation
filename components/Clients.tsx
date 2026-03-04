@@ -130,7 +130,7 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
 };
 
 const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean }) => {
-  const isPdf = value && (value.startsWith('data:application/pdf') || value.includes('pdf'));
+  const isPdf = value && value.startsWith('data:application/pdf');
 
   return (
     <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
@@ -187,7 +187,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const handleViewPhotoAsPDF = async (imageSrc: string, title: string, client: Client) => {
     try {
       if (!imageSrc) return;
-      const isPdf = imageSrc.startsWith('data:application/pdf') || imageSrc.includes('pdf');
+      const isPdf = imageSrc.startsWith('data:application/pdf');
       // Clean filename: remove spaces and special characters for Android compatibility
       const cleanClientName = (client.name || 'SinNombre').replace(/[^a-zA-Z0-9]/g, '_');
       const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_');
