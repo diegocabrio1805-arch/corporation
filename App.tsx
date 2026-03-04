@@ -762,8 +762,41 @@ const App: React.FC = () => {
     const userWithStamp = { ...updatedUser, updated_at: new Date().toISOString() };
     setState(prev => ({ ...prev, users: prev.users.map(u => u.id === userWithStamp.id ? userWithStamp : u), currentUser: state.currentUser?.id === userWithStamp.id ? userWithStamp : state.currentUser }));
     pushUser(userWithStamp);
+
+    // Sync auth.users via Edge Function when credentials change (username or password)
+    // This ensures login continues to work after editing collector credentials
+    if (navigator.onLine) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Find the old user to detect credential changes
+          const oldUser = state.users.find(u => u.id === updatedUser.id);
+          const usernameChanged = oldUser && oldUser.username !== updatedUser.username;
+          const passwordChanged = oldUser && oldUser.password !== updatedUser.password;
+
+          if (usernameChanged || passwordChanged) {
+            const payload: any = { userId: updatedUser.id };
+            if (usernameChanged) payload.newUsername = updatedUser.username;
+            if (passwordChanged) payload.newPassword = updatedUser.password;
+
+            const { error: fnError } = await supabase.functions.invoke('update-auth-user', {
+              body: payload
+            });
+            if (fnError) {
+              console.error('[updateUser] Failed to sync auth.users:', fnError);
+            } else {
+              console.log('[updateUser] auth.users synced successfully for:', updatedUser.username);
+            }
+          }
+        }
+      } catch (authSyncErr) {
+        console.error('[updateUser] Auth sync error:', authSyncErr);
+      }
+    }
+
     handleForceSync(false);
   };
+
 
   const deleteUser = async (userId: string) => {
     const deletedTimestamp = new Date().toISOString();
@@ -1196,7 +1229,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.174</span>
+              <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 uppercase tracking-tighter">v6.1.175</span>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
