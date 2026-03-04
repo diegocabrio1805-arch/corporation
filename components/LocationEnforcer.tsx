@@ -7,7 +7,8 @@ interface LocationEnforcerProps {
 }
 
 const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocationEnabled }) => {
-    const [isLocationEnabled, setIsLocationEnabled] = useState(true);
+    // IMPORTANTE: Empezar bloqueado si es requerido para evitar "parpadeos" de la app
+    const [isLocationEnabled, setIsLocationEnabled] = useState(!isRequired);
     const [isChecking, setIsChecking] = useState(false);
 
     const checkLocationStatus = async () => {
@@ -65,6 +66,12 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
     };
 
     useEffect(() => {
+        // Si no es requerido, desbloquear inmediatamente y salir
+        if (!isRequired) {
+            setIsLocationEnabled(true);
+            return;
+        }
+
         let watchId: string | null = null;
 
         const startWatching = async () => {
@@ -72,32 +79,37 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
                 // @ts-ignore - Capacitor Geolocation.watchPosition
                 watchId = await Geolocation.watchPosition({
                     enableHighAccuracy: true,
-                    timeout: 10000
+                    timeout: 5000, // Tiempo de respuesta más agresivo
+                    maximumAge: 0   // Forzar posición fresca
                 }, (position, err) => {
                     if (err) {
-                        console.warn("[GPS Watch] Error or disabled:", err);
+                        console.warn("[GPS Watch] Error Detectado (GPS Apagado):", err);
                         setIsLocationEnabled(false);
-                    } else if (position) {
+                    } else if (position && position.coords) {
                         setIsLocationEnabled(true);
+                        onLocationEnabled();
                     }
                 });
             } catch (e) {
-                console.error("[GPS Watch] Failed to start watcher:", e);
+                console.error("[GPS Watch] Error Crítico al iniciar sensor:", e);
+                setIsLocationEnabled(false);
             }
         };
 
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && isRequired) {
                 checkLocationStatus();
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
+        // Verificación inicial inmediata
         checkLocationStatus();
         startWatching();
 
-        const interval = setInterval(checkLocationStatus, 5000); // 5s: Muy frecuente por pedido del usuario para bloqueo inmediato
+        // Intervalo de respaldo cada 5s para máxima seguridad
+        const interval = setInterval(checkLocationStatus, 5000);
 
         return () => {
             if (watchId) {
