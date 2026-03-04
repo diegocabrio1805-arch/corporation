@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.anexocobro.app',
-  appName: 'ANEXO COBRANZA COBRADOR',
+  appName: 'ANEXO COBRANZA ADMINISTRADOR',
   webDir: 'dist',
   android: {
     allowMixedContent: true,

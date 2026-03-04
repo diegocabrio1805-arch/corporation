@@ -126,8 +126,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
           <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl border border-white/20">
             <i className="fa-solid fa-sack-dollar text-4xl text-white"></i>
           </div>
-          <h1 className="text-3xl font-black tracking-tight mb-2 uppercase">ANEXO COBRANZA</h1>
-          <p className="text-emerald-100 font-bold uppercase text-[10px] tracking-widest">COBRADOR</p>
+          <h1 className="text-3xl font-black tracking-tight mb-2 uppercase">{t.welcome}</h1>
+          <p className="text-emerald-100 font-bold uppercase text-[10px] tracking-widest">{t.subtitle}</p>
         </div>
 
         <div className="p-10 space-y-6">
@@ -186,9 +186,23 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
               {t.loginBtn}
             </button>
           </form>
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-slate-100"></div>
+            <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">O TAMBIÉN</span>
+            <div className="flex-grow border-t border-slate-100"></div>
+          </div>
 
-
-
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              window.open('https://wa.me/595994560450', '_blank');
+            }}
+            type="button"
+            className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] tracking-widest text-[10px] flex items-center justify-center gap-3"
+          >
+            <i className="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
+            SOPORTE +595994560450
+          </button>
           <div className="text-center pt-2">
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">
               {t.footer}
