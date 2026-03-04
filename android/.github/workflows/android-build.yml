@@ -66,16 +66,16 @@ jobs:
 
       - name: Rename and Zip APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v6.1.165_Debug.apk
-          zip Anexo_Cobro_v6.1.165_Debug.zip Anexo_Cobro_v6.1.165_Debug.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk Anexo_Cobro_v6.1.170_Debug.apk
+          zip Anexo_Cobro_v6.1.170_Debug.zip Anexo_Cobro_v6.1.170_Debug.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v6.1.165-APK"
-          name: "Release v6.1.165-APK"
+          tag_name: "v6.1.170-APK"
+          name: "Release v6.1.170-APK"
           body: |
-            Nueva versión v6.1.165 optimizada para gama baja y privacidad total.
+            Nueva versión v6.1.170 optimizada para gama baja y privacidad total.
             
             - **Privacidad Estricta**: Los administradores ahora solo ven su propia sucursal por defecto (limpieza de datos ajenos).
             - **Optimización Gama Baja**:
@@ -84,15 +84,15 @@ jobs:
               - Registro de Pagos: Optimizado para ser instantáneo en dispositivos lentos.
             - **Build**: APK empaquetada en ZIP para facilitar la descarga sin bloqueos de navegador.
           files: |
-            Anexo_Cobro_v6.1.165_Debug.apk
-            Anexo_Cobro_v6.1.165_Debug.zip
+            Anexo_Cobro_v6.1.170_Debug.apk
+            Anexo_Cobro_v6.1.170_Debug.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Debug APK (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: anexo-cobro-v6.1.165-debug
+          name: anexo-cobro-v6.1.170-debug
           path: |
-            Anexo_Cobro_v6.1.165_Debug.apk
-            Anexo_Cobro_v6.1.165_Debug.zip
+            Anexo_Cobro_v6.1.170_Debug.apk
+            Anexo_Cobro_v6.1.170_Debug.zip
