@@ -18,6 +18,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isCapturingGPS, setIsCapturingGPS] = useState(false);
   const [pendingToggleUserId, setPendingToggleUserId] = useState<string | null>(null);
+  const [savedUserName, setSavedUserName] = useState<string | null>(null); // Para modal de confirmación
 
   const [formData, setFormData] = useState({
     name: '',
@@ -92,16 +93,18 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
       const updatedUser: User = {
         id: editingUserId,
         name: formData.name,
-        username: isManager ? oldUser?.username || formData.username : formData.username,
+        username: formData.username,  // Gerentes ahora pueden editar usuario
         password: formData.password,
         role: formData.role,
         managedBy: oldUser?.managedBy,
-        expiryDate: isManager ? oldUser?.expiryDate || formData.expiryDate : formData.expiryDate,
+        expiryDate: formData.expiryDate, // Gerentes ahora pueden editar fecha
         profilePic: formData.profilePic,
         homePic: formData.homePic,
-        homeLocation: formData.homeLocation
+        homeLocation: formData.homeLocation,
+        requiresLocation: oldUser?.requiresLocation // Mantener el GPS actual
       };
       onUpdateUser(updatedUser);
+      setSavedUserName(formData.name); // Mostrar modal de confirmación
     } else {
       const newUser: User = {
         id: generateUUID(),
@@ -117,6 +120,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
         requiresLocation: false
       };
       onAddUser(newUser);
+      setSavedUserName(formData.name); // Mostrar modal de confirmación
     }
     closeModal();
   };
@@ -459,6 +463,33 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE GUARDADO */}
+      {savedUserName && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center z-[200] p-6">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border-4 border-emerald-500 text-center">
+            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 text-white">
+              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fa-solid fa-circle-check text-4xl"></i>
+              </div>
+              <h2 className="text-2xl font-black uppercase tracking-tight">¡Guardado!</h2>
+              <p className="text-sm font-bold opacity-90 mt-2 uppercase tracking-widest">Cambios aplicados con éxito</p>
+            </div>
+            <div className="p-8 space-y-4">
+              <div className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4">
+                <p className="text-xs text-slate-700 font-black uppercase">Cobrador actualizado:</p>
+                <p className="text-xl font-black text-emerald-800 uppercase mt-1">{savedUserName}</p>
+              </div>
+              <button
+                onClick={() => setSavedUserName(null)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-sm"
+              >
+                ACEPTAR
+              </button>
+            </div>
           </div>
         </div>
       )}
