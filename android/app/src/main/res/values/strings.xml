@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">anexo cobranza administrador</string>
-    <string name="title_activity_main">anexo cobranza administrador</string>
+    <string name="app_name">anexo cobranza cobrador</string>
+    <string name="title_activity_main">anexo cobranza cobrador</string>
     <string name="package_name">com.anexocobro.app</string>
     <string name="custom_url_scheme">com.anexocobro.app</string>
 </resources>
