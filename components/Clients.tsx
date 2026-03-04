@@ -471,6 +471,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [showLegajo, state.clients.length]); // Usar length para detectar nuevos clientes sin disparar por cada cambio de atributo
 
   const shareCardRef = useRef<HTMLDivElement>(null);
+  const receiptCardRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = state.currentUser?.role === Role.ADMIN;
@@ -573,9 +574,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
       clients = clients.filter(c => {
         const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        const docNorm = (c.documentId || '').replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').toLowerCase().replace(/\s+/g, "");
         const phoneNorm = (c.phone || '').replace(/\D/g, "");
-        return nameNorm.includes(s) || docNorm.includes(s) || phoneNorm.includes(s);
+        const secPhoneNorm = (c.secondaryPhone || (c as any).secondary_phone || '').replace(/\D/g, "");
+        return nameNorm.includes(s) || docNorm.includes(s) || phoneNorm.includes(s) || secPhoneNorm.includes(s);
       });
     }
     if (selectedCollector !== 'all') {
@@ -622,9 +624,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // Búsqueda Global
       if (s) {
         const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        const docNorm = (client.documentId || '').replace(/\s+/g, "");
+        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
         const phoneNorm = (client.phone || '').replace(/\D/g, "");
-        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s)) return null;
+        const secPhoneNorm = (client.secondaryPhone || (client as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
       }
 
       const cDate = new Date(client.createdAt || '');
@@ -666,8 +669,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // Búsqueda Global
       if (s) {
         const nameNorm = (client.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        const docNorm = (client.documentId || '').replace(/\s+/g, "");
-        if (!nameNorm.includes(s) && !docNorm.includes(s)) return null;
+        const docNorm = (client.documentId || '').toLowerCase().replace(/\s+/g, "");
+        const phoneNorm = (client.phone || '').replace(/\D/g, "");
+        const secPhoneNorm = (client.secondaryPhone || (client as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
       }
 
       return {
@@ -690,9 +695,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // Búsqueda Global
       if (s) {
         const nameNorm = (c.name || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
-        const docNorm = (c.documentId || '').replace(/\s+/g, "");
+        const docNorm = (c.documentId || '').toLowerCase().replace(/\s+/g, "");
         const phoneNorm = (c.phone || '').replace(/\D/g, "");
-        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s)) return false;
+        const secPhoneNorm = (c.secondaryPhone || (c as any).secondary_phone || '').replace(/\D/g, "");
+        if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return false;
       }
 
       if (selectedCollector !== 'all') {
@@ -1052,8 +1058,24 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const handleShareLegajo = async () => {
-    if (!shareCardRef.current || !clientInLegajo || !activeLoanInLegajo) return;
+    if (!clientInLegajo || !activeLoanInLegajo) return;
+
     setIsSharing(true);
+
+    // Esperamos un momento para que React renderice el componente oculto y la ref sea válida
+    await new Promise(r => setTimeout(r, 800));
+
+    if (!shareCardRef.current) {
+      console.error("Share card ref is still null after waiting.");
+      // Intentamos un segundo intento más largo si falla
+      await new Promise(r => setTimeout(r, 1000));
+      if (!shareCardRef.current) {
+        setIsSharing(false);
+        alert("Error: El componente de reporte no cargó a tiempo. Intente de nuevo.");
+        return;
+      }
+    }
+
     try {
       // 1. MANEJO DE VISIBILIDAD MANUAL PARA ASEGURAR CAPTURA
       const shareContainer = document.getElementById('share-container-hidden');
@@ -1061,22 +1083,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       if (shareContainer) {
         originalStyle = shareContainer.getAttribute('style') || '';
+        // Forzamos visibilidad para html2canvas sin que el usuario lo note
         shareContainer.style.position = 'fixed';
         shareContainer.style.left = '0';
         shareContainer.style.top = '0';
-        shareContainer.style.opacity = '0.01'; // Casi invisible
+        shareContainer.style.opacity = '1';
         shareContainer.style.zIndex = '-9999';
         shareContainer.style.pointerEvents = 'none';
         shareContainer.style.display = 'block';
         shareContainer.style.visibility = 'visible';
       }
 
-      // Delay para asegurar que el navegador aplique los estilos y renderice
-      await new Promise(r => setTimeout(r, 1200));
-
       const canvas = await html2canvas(shareCardRef.current, {
         backgroundColor: '#ffffff',
-        scale: 6, // Full HD Resolution
+        scale: 1.5, // Reduced slightly for even better stability
         useCORS: true,
         logging: false,
         allowTaint: true,
@@ -1085,51 +1105,69 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         height: shareCardRef.current.scrollHeight,
       });
 
-      const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.png`;
+      if (!canvas) {
+        throw new Error("No se pudo crear el lienzo de captura.");
+      }
+
+      const fileName = `Estado_Cuenta_${clientInLegajo.name.replace(/\s+/g, '_')}.pdf`;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      // Pasar el canvas directamente es mejor para la memoria
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(canvas, 'JPEG', 0, 0, imgWidth, imgHeight > pdfHeight ? pdfHeight : imgHeight);
+
+      const pdfBase64Data = pdf.output('datauristring');
+      if (!pdfBase64Data || !pdfBase64Data.includes(',')) {
+        throw new Error("Error en la salida del PDF.");
+      }
+      const pdfBase64 = pdfBase64Data.split(',')[1];
 
       // LOGICA WEB (PC / MOBILE BROWSER)
       if (!Capacitor.isNativePlatform()) {
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            alert("Error: No se pudo generar la imagen del reporte.");
-            return;
-          }
-          const blobUrl = URL.createObjectURL(blob);
-          const file = new File([blob], fileName, { type: 'image/png' });
+        const blob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+        const file = new File([blob], fileName, { type: 'application/pdf' });
 
-          let sharedSuccessfully = false;
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                files: [file],
-                title: 'Estado de Cuenta',
-                text: `Estado de Cuenta de ${clientInLegajo.name}`
-              });
-              sharedSuccessfully = true;
-            } catch (err) {
-              console.log("Web share cancelled or failed:", err);
-            }
+        let sharedSuccessfully = false;
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'Estado de Cuenta',
+              text: `Hola, le adjunto el estado de cuenta de ${clientInLegajo.name}`
+            });
+            sharedSuccessfully = true;
+          } catch (err) {
+            console.log("Web share cancelled or failed:", err);
           }
+        }
 
-          if (!sharedSuccessfully) {
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }
-        }, 'image/png');
+        if (!sharedSuccessfully) {
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Fallback WhatsApp Web link
+          const phone = clientInLegajo.phone.replace(/\D/g, '');
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(`Hola, le comparto su estado de cuenta en PDF.`)}`, '_blank');
+        }
       } else {
         // LÓGICA NATIVA (CAPACITOR)
         try {
-          const base64Data = canvas.toDataURL('image/png').split(',')[1];
           const { Filesystem, Directory } = await import('@capacitor/filesystem');
           const { Share } = await import('@capacitor/share');
 
           const savedFile = await Filesystem.writeFile({
             path: fileName,
-            data: base64Data,
+            data: pdfBase64,
             directory: Directory.Cache
           });
 
@@ -1137,16 +1175,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             title: 'Estado de Cuenta',
             text: `Estado de Cuenta de ${clientInLegajo.name}`,
             url: savedFile.uri,
-            dialogTitle: 'Compartir Estado de Cuenta'
+            dialogTitle: 'Enviar por WhatsApp / Compartir'
           });
         } catch (err) {
           console.error("Native share failed:", err);
-          alert("Error al compartir: " + (err instanceof Error ? err.message : String(err)));
+          alert("Error en Share Nativo: " + (err instanceof Error ? err.message : String(err)));
         }
       }
     } catch (e) {
       console.error("Error generating/sharing dossier:", e);
-      alert("Error al generar el reporte. Intente de nuevo.");
+      alert("Error Crítico: " + (e instanceof Error ? e.message : "Error desconocido al generar reporte"));
     } finally {
       // 2. Restauramos estilo original (oculto) SIEMPRE
       const shareContainer = document.getElementById('share-container-hidden');
@@ -1159,6 +1197,98 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         shareContainer.style.zIndex = '-1';
         shareContainer.style.display = 'block';
         shareContainer.style.visibility = 'hidden';
+      }
+      setIsSharing(false);
+    }
+  };
+
+  const handleShareReceiptPDF = async () => {
+    if (!receiptCardRef.current || !clientInLegajo || isSharing) return;
+    setIsSharing(true);
+
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      // 1. Mostrar temporalmente para captura
+      const container = document.getElementById('receipt-container-hidden');
+      if (container) {
+        container.style.display = 'block';
+        container.style.visibility = 'visible';
+        container.style.left = '0';
+        container.style.opacity = '1';
+        container.style.zIndex = '9999';
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      const canvas = await html2canvas(receiptCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        windowWidth: 400,
+        width: 400,
+        height: receiptCardRef.current.scrollHeight,
+      });
+
+      if (!canvas) throw new Error("No se pudo crear el lienzo.");
+
+      const fileName = `Recibo_${clientInLegajo.name.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
+      const pdf = new jsPDF('p', 'mm', [80, 200]); // Formato ticket de 80mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(canvas, 'JPEG', 0, 0, imgWidth, imgHeight);
+
+      const pdfBase64Data = pdf.output('datauristring');
+      const pdfBase64 = pdfBase64Data.split(',')[1];
+
+      if (!Capacitor.isNativePlatform()) {
+        const blob = pdf.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Descarga directa
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // WhatsApp fallback (usando el texto limpio)
+        const phone = clientInLegajo.phone.replace(/\D/g, '');
+        const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
+        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("*RECIBO DE PAGO PDF GENERADO*\n\n" + cleanReceipt)}`;
+        window.open(wpUrl, '_blank');
+      } else {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: pdfBase64,
+          directory: Directory.Cache
+        });
+
+        await Share.share({
+          title: 'Recibo de Pago',
+          text: `Recibo de Pago de ${clientInLegajo.name}`,
+          url: savedFile.uri,
+          dialogTitle: 'Enviar Recibo por WhatsApp'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error al generar PDF del recibo.");
+    } finally {
+      const container = document.getElementById('receipt-container-hidden');
+      if (container) {
+        container.style.position = 'fixed';
+        container.style.left = '-5000px';
+        container.style.display = 'block';
+        container.style.visibility = 'hidden';
       }
       setIsSharing(false);
     }
@@ -2132,6 +2262,22 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           )
         }
 
+        {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN PDF */}
+        <div id="receipt-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
+          <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
+              <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
+              <div className="h-px bg-slate-900 my-2"></div>
+            </div>
+            {convertReceiptForWhatsApp(receipt || '')}
+            <div className="mt-4 pt-4 border-t border-dashed border-slate-400 text-center">
+              <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
+              <p className="text-[8px] mt-1">{state.settings.shareLabel || 'Cuenta'}: {state.settings.shareValue || ''}</p>
+            </div>
+          </div>
+        </div>
+
         {/* LEGAJO / EXPEDIENTE DEL CLIENTE */}
         {
           showLegajo && clientInLegajo && (
@@ -2842,7 +2988,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   </div>
                   <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">¡Gestión Exitosa!</h3>
                   <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
-                    {receipt}
+                    {convertReceiptForWhatsApp(receipt || '')}
                   </div>
                   <div className="flex flex-col gap-2">
                     <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
@@ -2858,14 +3004,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
                     </button>
                     <button
-                      onClick={() => {
-                        const phone = clientInLegajo?.phone.replace(/\D/g, '') || '';
-                        const wpUrl = `https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receipt || '')}`;
-                        window.open(wpUrl, '_blank');
-                      }}
-                      className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
+                      disabled={isSharing}
+                      onClick={handleShareReceiptPDF}
+                      className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
                     >
-                      <i className="fa-brands fa-whatsapp mr-2"></i> Enviar por WhatsApp
+                      {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
+                      {isSharing ? 'GENERANDO PDF...' : 'Enviar por WhatsApp (PDF)'}
                     </button>
                   </div>
                 </div>

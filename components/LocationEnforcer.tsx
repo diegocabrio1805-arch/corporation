@@ -65,16 +65,45 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
     };
 
     useEffect(() => {
+        let watchId: string | null = null;
+
+        const startWatching = async () => {
+            try {
+                // @ts-ignore - Capacitor Geolocation.watchPosition
+                watchId = await Geolocation.watchPosition({
+                    enableHighAccuracy: true,
+                    timeout: 10000
+                }, (position, err) => {
+                    if (err) {
+                        console.warn("[GPS Watch] Error or disabled:", err);
+                        setIsLocationEnabled(false);
+                    } else if (position) {
+                        setIsLocationEnabled(true);
+                    }
+                });
+            } catch (e) {
+                console.error("[GPS Watch] Failed to start watcher:", e);
+            }
+        };
+
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 checkLocationStatus();
             }
         };
+
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
         checkLocationStatus();
-        const interval = setInterval(checkLocationStatus, 30000); // 30s: Más relajado para gama baja
+        startWatching();
+
+        const interval = setInterval(checkLocationStatus, 5000); // 5s: Muy frecuente por pedido del usuario para bloqueo inmediato
+
         return () => {
+            if (watchId) {
+                // @ts-ignore
+                Geolocation.clearWatch({ id: watchId });
+            }
             clearInterval(interval);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };

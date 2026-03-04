@@ -16,7 +16,7 @@ const CHUNK_SIZE = 200; // Aumentado para menos iteraciones
 const CHUNK_DELAY = 15; // Reducido drásticamente (antes 100ms) para velocidad
 const CONNECTION_RETRIES = 3; // Menos reintentos pero más rápidos
 const RETRY_DELAY = 500; // 500ms entre intentos iniciales
-const KEEPER_INTERVAL_MS = 15000; // 15s: Menos carga en segundo plano para celulares lentos
+const KEEPER_INTERVAL_MS = 5000; // 5s: Reconexión más agresiva solicitada por el usuario
 
 // Helper seguro para obtener la referencia al plugin
 const getBluetoothSerial = (): any => {

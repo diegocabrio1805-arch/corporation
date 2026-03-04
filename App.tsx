@@ -548,6 +548,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     startConnectionKeeper();
+    // Intento inicial agresivo
+    import('./services/bluetoothPrinterService').then(({ connectToPrinter }) => {
+      connectToPrinter(undefined, false, true).catch(() => { });
+    });
     const resumeListener = CapApp.addListener('appStateChange', async ({ isActive }) => {
       if (isActive) {
         const { connectToPrinter } = await import('./services/bluetoothPrinterService');
@@ -725,6 +729,30 @@ const App: React.FC = () => {
 
   const addUser = async (user: User) => {
     const newUser = { ...user, managedBy: user.managedBy || (state.currentUser?.role === Role.MANAGER || state.currentUser?.role === Role.ADMIN ? state.currentUser.id : undefined) };
+
+    // Si es un Gerente, inicializamos sus datos de empresa por defecto como "A COMPLETAR"
+    if (newUser.role === Role.MANAGER) {
+      const defaultSettings: AppSettings = {
+        language: state.settings.language,
+        country: state.settings.country,
+        numberFormat: state.settings.numberFormat,
+        companyName: 'A COMPLETAR',
+        companyAlias: 'A COMPLETAR',
+        contactPhone: 'A COMPLETAR',
+        companyIdentifier: 'A COMPLETAR',
+        shareLabel: 'A COMPLETAR',
+        shareValue: 'A COMPLETAR',
+        receiptPrintMargin: 2
+      };
+
+      setState(prev => ({
+        ...prev,
+        branchSettings: { ...(prev.branchSettings || {}), [newUser.id]: defaultSettings }
+      }));
+      // Persistimos la configuración inicial en el servidor
+      await pushSettings(newUser.id, defaultSettings);
+    }
+
     await pushUser(newUser);
     setState(prev => ({ ...prev, users: [...prev.users, newUser] }));
     await handleForceSync(false);
@@ -1112,7 +1140,8 @@ const App: React.FC = () => {
     if (!isPulling) return;
     if (pullY > REFRESH_THRESHOLD) {
       setPullY(50);
-      doPull().finally(() => setPullY(0));
+      // Forzar una sincronización completa al tirar hacia abajo
+      handleForceSync(false, "¡Sincronizando Todo!", true).finally(() => setPullY(0));
     } else {
       setPullY(0);
     }

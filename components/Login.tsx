@@ -4,6 +4,7 @@ import { User, Role } from '../types';
 import { getTranslation } from '../utils/translations';
 import { supabase } from '../utils/supabaseClient';
 import { generateUUID } from '../utils/helpers';
+import { APP_MODE } from '../build_config';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -186,23 +187,27 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
               {t.loginBtn}
             </button>
           </form>
-          <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-slate-100"></div>
-            <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">O TAMBIÉN</span>
-            <div className="flex-grow border-t border-slate-100"></div>
-          </div>
+          {APP_MODE !== 'COLLECTOR' && (
+            <>
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-slate-100"></div>
+                <span className="flex-shrink mx-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">O TAMBIÉN</span>
+                <div className="flex-grow border-t border-slate-100"></div>
+              </div>
 
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              window.open('https://wa.me/595994560450', '_blank');
-            }}
-            type="button"
-            className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] tracking-widest text-[10px] flex items-center justify-center gap-3"
-          >
-            <i className="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
-            SOPORTE +595994560450
-          </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open('https://wa.me/595994560450', '_blank');
+                }}
+                type="button"
+                className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-[0.98] tracking-widest text-[10px] flex items-center justify-center gap-3"
+              >
+                <i className="fa-brands fa-whatsapp text-emerald-400 text-lg"></i>
+                SOPORTE +595994560450
+              </button>
+            </>
+          )}
           <div className="text-center pt-2">
             <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">
               {t.footer}
