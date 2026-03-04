@@ -870,44 +870,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       return;
     }
 
-    // If it's an image, compress and convert to PDF
+    // Si es imagen, se comprime y se guarda directamente en formato nativo (WEBP)
     const reader = new FileReader();
     reader.onload = async (event) => {
       const base64Image = event.target?.result as string;
       const compressed = await compressImage(base64Image);
 
-      // Convert image to PDF automatically
-      try {
-        const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-
-        const imgProps = doc.getImageProperties(compressed);
-        const ratio = imgProps.width / imgProps.height;
-        let imgWidth = pageWidth - 20;
-        let imgHeight = imgWidth / ratio;
-
-        if (imgHeight > pageHeight - 20) {
-          imgHeight = pageHeight - 20;
-          imgWidth = imgHeight * ratio;
-        }
-
-        doc.addImage(compressed, 'JPEG', 10, 10, imgWidth, imgHeight);
-        const pdfBase64 = doc.output('datauristring');
-
-        if (forEdit) {
-          setEditClientFormData(prev => prev ? { ...prev, [field]: pdfBase64 } : null);
-        } else {
-          setClientData(prev => ({ ...prev, [field]: pdfBase64 }));
-        }
-      } catch (err) {
-        console.error("Error converting image to PDF", err);
-        // Fallback: save image if PDF fails
-        if (forEdit) {
-          setEditClientFormData(prev => prev ? { ...prev, [field]: compressed } : null);
-        } else {
-          setClientData(prev => ({ ...prev, [field]: compressed }));
-        }
+      if (forEdit) {
+        setEditClientFormData(prev => prev ? { ...prev, [field]: compressed } : null);
+      } else {
+        setClientData(prev => ({ ...prev, [field]: compressed }));
       }
     };
     reader.readAsDataURL(file);
