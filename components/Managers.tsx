@@ -37,7 +37,8 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
     expiryDate: '',
     profilePic: '',
     homePic: '',
-    homeLocation: undefined as { lat: number; lng: number } | undefined
+    homeLocation: undefined as { lat: number; lng: number } | undefined,
+    requiresLocation: false
   });
 
   const t = getTranslation(state.settings.language);
@@ -148,7 +149,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       profilePic: collectorForm.profilePic,
       homePic: collectorForm.homePic,
       homeLocation: collectorForm.homeLocation,
-      requiresLocation: false
+      requiresLocation: collectorForm.requiresLocation // Preserve GPS setting
     };
 
     if (isEditingCollector) onUpdateUser(userData);
@@ -181,7 +182,8 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
       expiryDate: user.expiryDate || '',
       profilePic: user.profilePic || '',
       homePic: user.homePic || '',
-      homeLocation: user.homeLocation
+      homeLocation: user.homeLocation,
+      requiresLocation: !!user.requiresLocation // Preserve GPS setting
     });
   };
 
