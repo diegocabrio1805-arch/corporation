@@ -727,10 +727,20 @@ const App: React.FC = () => {
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
       // ADMIN NO SEAS ESPECIAL: Ahora solo ves tu sucursal para que esté limpio (Pedido Dante)
       if (user.role === Role.ADMIN) {
-        // Admins now only see items explicitly linked to their branch ID
-        // or items that have no branch ID (legacy items, or items created by them before branch assignment)
         const itemBranchLower = itemBranchId?.toLowerCase();
-        return !itemBranchLower || itemBranchLower === branchId.toLowerCase();
+        const addedByLower = itemAddedBy?.toLowerCase() || '';
+        const collectorIdLower = itemCollectorId?.toLowerCase() || '';
+        const myId = user.id.toLowerCase();
+
+        // Admins now see:
+        // 1. Items in their own branch
+        // 2. Items with no branch (legacy/assigned later)
+        // 3. Items created by them or their direct team (collectors they manage)
+        return !itemBranchLower ||
+          itemBranchLower === branchId.toLowerCase() ||
+          addedByLower === myId ||
+          myTeamIds.has(addedByLower) ||
+          myTeamIds.has(collectorIdLower);
       }
 
       const myId = user.id.toLowerCase();
