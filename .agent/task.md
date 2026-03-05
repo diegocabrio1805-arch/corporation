@@ -1,0 +1,26 @@
+# Tareas - Igualdad Local de Roles (Gerente Superpoderes)
+
+- [x] INVESTIGACIÓN Y PREPARACIÓN
+- [x] Confirmar enfoque: "Igualdad Local"
+- [x] Analizar `Collectors.tsx` y `App.tsx`
+- [x] Verificar políticas RLS actuales en Supabase
+- [x] IMPLEMENTACIÓN FRONTEND
+  - [x] Actualizar `Settings.tsx` (Zona de Estabilización para Gerentes)
+  - [x] Asegurar que `Collectors.tsx` permita borrado y edición total a Gerentes
+  - [x] Verificar flujo de cambio de contraseña en `App.tsx`
+- [x] IMPLEMENTACIÓN BASE DE DATOS
+  - [x] Aplicar políticas RLS para Gerentes sucursalistas (Maestro-Esclavo Branch)
+- [x] VERIFICACIÓN
+  - [x] Ocultar botones "Configurar Recibo" y "Nueva Ruta" para Gerentes
+  - [x] Ocultar botón "Eliminar" en tarjetas de cobrador para Gerentes
+  - [x] Agregar "ojo" de visibilidad a campo PIN / Clave
+  - [x] Bloquear edición de "Fecha Vencimiento" para Gerentes
+  - [x] Probar cambio de contraseña Gerente -> Cobrador
+  - [x] Probar borrado Gerente -> Cobrador (Restringido ahora a Admin)
+  - [x] Generar versión v6.1.184
+  - [x] Agregar botón de SALIR / VOLVER en cabecera de Cobradores y Gerentes
+- [x] Implementar Borrado Suave (Soft Delete) de Cobradores
+  - [x] Ocultar en frontend cobradores con `deletedAt`
+  - [x] Crear función de limpieza en Supabase (30 días)
+  - [x] Programar tarea cron en Supabase
+- [x] Generar APK v6.1.184 en GitHub con todos los cambios
