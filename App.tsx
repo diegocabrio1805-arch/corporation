@@ -672,7 +672,7 @@ const App: React.FC = () => {
 
     const interval = setInterval(() => {
       console.log("[App] Forced Turbo 4s Sync triggered");
-      handleForceSync(true, "Actualizando...", true); // Sincronización completa pero silenciosa cada 4s
+      handleForceSync(true, "Actualizando...", false); // Sincronización PARCIAL cada 4s (más ligera)
     }, 4000);
 
     return () => clearInterval(interval);
@@ -1300,7 +1300,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <p className="text-[10px] text-slate-400 font-mono">v6.1.183</p>
+              <p className="text-[10px] text-slate-400 font-mono">v6.1.185-FIX</p>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>

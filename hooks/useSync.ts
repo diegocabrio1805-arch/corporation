@@ -133,7 +133,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         } else {
                             const debounceTimer = (window as any)._syncDebounceTimer;
                             if (debounceTimer) clearTimeout(debounceTimer);
-                            (window as any)._syncDebounceTimer = setTimeout(triggerSync, 2000);
+                            (window as any)._syncDebounceTimer = setTimeout(triggerSync, 1000);
                         }
                     }
                 )
@@ -284,7 +284,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
 
             let adjustedSyncTime: string | null = null;
             if (lastSyncTime && !fullSync) {
-                const safetyMargin = 60000;
+                const safetyMargin = 120000;
                 const parsedDate = new Date(lastSyncTime);
                 if (!isNaN(parsedDate.getTime())) {
                     adjustedSyncTime = new Date(parsedDate.getTime() - safetyMargin).toISOString();
