@@ -24,3 +24,5 @@
   - [x] Crear función de limpieza en Supabase (30 días)
   - [x] Programar tarea cron en Supabase
 - [x] Generar APK v6.1.184 en GitHub con todos los cambios
+- [x] Crear Guía de Recuperación ante Desastres en GitHub
+- [x] Desplegar versión v6.1.184 en GitHub Pages (Web)
