@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.186-MIRROR';
+          const localVersion = '6.1.187-PRIVACY-LAW';
           // ONLY reload if remote version exists and is DIFFERENT from local
           // To prevent loops during deployment, we should ideally compare semantic versions
           // but for now, we'll just log and only reload if a specific 'force-update' flag isn't present
@@ -107,7 +107,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.186-MIRROR';
+    const CURRENT_VERSION_ID = '6.1.187-PRIVACY-LAW';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
@@ -132,7 +132,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = '6.1.186-MIRROR';
+      const CURRENT_VERSION_ID = '6.1.187-PRIVACY-LAW';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
@@ -707,78 +707,77 @@ const App: React.FC = () => {
   const filteredState = useMemo(() => {
     if (!state.currentUser) return state;
     const user = state.currentUser;
-    const branchId = getBranchId(user);
-    const myTeamIds = new Set<string>();
-    const myDirectCollectorIds = new Set<string>();
+    const branchId = getBranchId(user); // For ADMIN/MANAGER this is user.id; for COLLECTOR it's their managedBy
     const myIdLower = user.id.toLowerCase();
-    myTeamIds.add(myIdLower);
+    const branchIdLower = branchId.toLowerCase();
 
+    // Build team of direct collectors under this branch
+    const myDirectCollectorIds = new Set<string>();
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
       const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
-      if (uManagerId === myIdLower) {
-        // Only add to team if it's NOT a manager, or if the user wants to see them
-        if (u.role === Role.COLLECTOR) {
-          myTeamIds.add(u.id.toLowerCase());
-          myDirectCollectorIds.add(u.id.toLowerCase());
-        }
+      if (uManagerId === branchIdLower && u.role === Role.COLLECTOR) {
+        myDirectCollectorIds.add(u.id.toLowerCase());
       }
     });
 
+    // ============================================================
+    // LEY DE AISLAMIENTO DE SUCURSAL (STRICT ISOLATION LAW)
+    // Rule: An item belongs to me IF AND ONLY IF:
+    //   1. It has a branchId AND it matches MY branchId, OR
+    //   2. It has NO branchId AND it was added by me or one of my direct collectors
+    //      (legacy data created before branch assignment)
+    // No exceptions. Not even for the owner account.
+    // ============================================================
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
-      // ADMIN NO SEAS ESPECIAL: Ahora solo ves tu sucursal para que esté limpio (Pedido Dante)
-      if (user.role === Role.ADMIN) {
-        const itemBranchLower = itemBranchId?.toLowerCase();
-        const addedByLower = itemAddedBy?.toLowerCase() || '';
-        const collectorIdLower = itemCollectorId?.toLowerCase() || '';
-        const myId = user.id.toLowerCase();
-
-        // Admins now see:
-        // 1. Items in their own branch
-        // 2. Items with no branch (legacy/assigned later)
-        // 3. Items created by them or their direct team (collectors they manage)
-        return !itemBranchLower ||
-          itemBranchLower === branchId.toLowerCase() ||
-          addedByLower === myId ||
-          myTeamIds.has(addedByLower) ||
-          myTeamIds.has(collectorIdLower);
-      }
-
-      const myId = user.id.toLowerCase();
-      const bId = branchId.toLowerCase();
-
-      const addedByLower = itemAddedBy?.toLowerCase();
-      const collectorIdLower = itemCollectorId?.toLowerCase();
       const itemBranchLower = itemBranchId?.toLowerCase();
+      const addedByLower = itemAddedBy?.toLowerCase() || '';
+      const collectorIdLower = itemCollectorId?.toLowerCase() || '';
 
-      // PRIORITIZE BRANCH ISOLATION: If item belongs to a branch and it's NOT mine, return false immediately.
-      // This prevents managers/collectors from seeing other managers' rosters even if they created the record.
-      if (itemBranchLower && itemBranchLower !== bId) return false;
-
-      // Fallback: If no branch is specified, allow access if added by me or my team.
-      // Or if it matches my branch ID.
-      if (addedByLower === myId || (addedByLower && myDirectCollectorIds.has(addedByLower))) return true;
-      if (collectorIdLower === myId || (collectorIdLower && myDirectCollectorIds.has(collectorIdLower))) return true;
-      if (itemBranchLower === bId) return true;
-
-      return false;
+      if (itemBranchLower) {
+        // Rule 1: Branch is set — must match exactly
+        return itemBranchLower === branchIdLower;
+      } else {
+        // Rule 2: No branch set — check if it was added by me or my collectors
+        return addedByLower === myIdLower ||
+          myDirectCollectorIds.has(addedByLower) ||
+          collectorIdLower === myIdLower ||
+          myDirectCollectorIds.has(collectorIdLower);
+      }
     };
 
-    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, undefined) && c.isActive !== false && !c.deletedAt);
-    const activeClientIds = new Set(clients.map(c => c.id));
-    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l => activeClientIds.has(l.clientId || (l as any).client_id) && !l.deletedAt);
-    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p => activeClientIds.has(p.clientId || (p as any).client_id) && !p.deletedAt);
-    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => isOurBranch(e.branchId || (e as any).branch_id, e.addedBy || (e as any).added_by, undefined));
-    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) && !log.deletedAt);
-    let users = (Array.isArray(state.users) ? state.users : []).filter(u =>
-      u.id.toLowerCase() === myIdLower ||
-      myTeamIds.has(u.id.toLowerCase()) ||
-      ((u.managedBy || (u as any).managed_by)?.toLowerCase() === branchId.toLowerCase()) ||
-      user.role === Role.ADMIN
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c =>
+      isOurBranch(c.branchId || (c as any).branch_id, c.addedBy || (c as any).added_by, undefined) &&
+      c.isActive !== false &&
+      !c.deletedAt
     );
+    const activeClientIds = new Set(clients.map(c => c.id));
+
+    let loans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
+      activeClientIds.has(l.clientId || (l as any).client_id) && !l.deletedAt
+    );
+    let payments = (Array.isArray(state.payments) ? state.payments : []).filter(p =>
+      activeClientIds.has(p.clientId || (p as any).client_id) && !p.deletedAt
+    );
+    let expenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e =>
+      isOurBranch(e.branchId || (e as any).branch_id, e.addedBy || (e as any).added_by, undefined)
+    );
+    let collectionLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log =>
+      isOurBranch(log.branchId || (log as any).branch_id, log.recordedBy || (log as any).recorded_by, undefined) &&
+      !log.deletedAt
+    );
+
+    // Users: only show myself + my direct collectors (managed_by === my id)
+    let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
+      const uId = u.id.toLowerCase();
+      const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
+      return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
+    });
 
     if (user.role === Role.COLLECTOR) {
       const myAssignedClientIds = new Set<string>();
-      loans.forEach(l => { if ((l.collectorId || (l as any).collector_id) === user.id) myAssignedClientIds.add(l.clientId || (l as any).client_id); });
+      loans.forEach(l => {
+        if ((l.collectorId || (l as any).collector_id) === user.id) myAssignedClientIds.add(l.clientId || (l as any).client_id);
+      });
       clients = clients.filter(c => (c.addedBy || (c as any).added_by) === user.id || myAssignedClientIds.has(c.id));
       const visibleClientIds = new Set(clients.map(c => c.id));
       loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));
