@@ -599,12 +599,48 @@ export const parseAmount = (input: string | number): number => {
   if (typeof input === 'number') return input;
   if (!input) return 0;
 
-  // Remove currency symbols and common separators used in LATAM (dot for thousands, comma for decimal or viceversa)
-  // We keep only digits.
-  const clean = input.replace(/[^0-9]/g, '');
-  const parsed = parseInt(clean, 10);
+  let str = String(input).trim();
 
-  return isNaN(parsed) ? 0 : parsed;
+  // 1. Remove currency symbols and non-numeric chars except separators (. , -)
+  const clean = str.replace(/[^\d.,-]/g, '');
+
+  // 2. Identify if it uses dot for thousands or comma for decimal or vice-versa
+  // If there are both . and , we assume the last one is the decimal separator
+  const lastDot = clean.lastIndexOf('.');
+  const lastComma = clean.lastIndexOf(',');
+
+  if (lastDot > lastComma) {
+    // Dot is the decimal separator (US style: 1,234.56)
+    const finalClean = clean.replace(/,/g, '');
+    const res = parseFloat(finalClean);
+    return isNaN(res) ? 0 : res;
+  } else if (lastComma > lastDot) {
+    // Comma is the decimal separator (LATAM style: 1.234,56)
+    const finalClean = clean.replace(/\./g, '').replace(',', '.');
+    const res = parseFloat(finalClean);
+    return isNaN(res) ? 0 : res;
+  } else if (lastDot === -1 && lastComma === -1) {
+    // No separators
+    const res = parseFloat(clean);
+    return isNaN(res) ? 0 : res;
+  } else {
+    // Only one type of separator exists.
+    // Heuristic: If there's exactly one separator and it's followed by 3 digits, it's likely thousands.
+    // UNLESS the number is small (e.g., 2.500 vs 2,500). 
+    // This is tricky. Let's look at the position from the end.
+    const separatorIndex = lastDot !== -1 ? lastDot : lastComma;
+    const charsFromEnd = clean.length - 1 - separatorIndex;
+
+    if (charsFromEnd === 3) {
+      // Thousand separator (e.g. 1.000)
+      const res = parseInt(clean.replace(/[.,]/g, ''), 10);
+      return isNaN(res) ? 0 : res;
+    } else {
+      // Decimal separator (e.g. 1.5 or 1,50)
+      const res = parseFloat(clean.replace(',', '.'));
+      return isNaN(res) ? 0 : res;
+    }
+  }
 };
 
 /**

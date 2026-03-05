@@ -62,10 +62,23 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.1.185-FIX';
-          if (remoteVersion !== localVersion) {
+          const localVersion = '6.1.186-MIRROR';
+          // ONLY reload if remote version exists and is DIFFERENT from local
+          // To prevent loops during deployment, we should ideally compare semantic versions
+          // but for now, we'll just log and only reload if a specific 'force-update' flag isn't present
+          // OR if we haven't reloaded in the last 60 seconds.
+          const lastReload = parseInt(localStorage.getItem('last_auto_reload') || '0');
+          if (remoteVersion !== localVersion && (Date.now() - lastReload > 60000)) {
             console.log("CRITICAL UPDATE DETECTED! Updating from", localVersion, "to", remoteVersion);
-            localStorage.removeItem('pwa_app_version');
+            localStorage.setItem('last_auto_reload', Date.now().toString());
+
+            // If local is MIRROR but remote is FIX, maybe we shouldn't reload instantly
+            // especially if we just pushed the MIRROR version.
+            if (localVersion.includes('MIRROR') && remoteVersion.includes('FIX')) {
+              console.log("Local is ahead of remote. Skipping reload to avoid loop.");
+              return;
+            }
+
             if ('caches' in window) {
               const names = await caches.keys();
               await Promise.all(names.map(name => caches.delete(name)));
@@ -94,7 +107,7 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.1.185-FIX';
+    const CURRENT_VERSION_ID = '6.1.186-MIRROR';
     const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
@@ -119,7 +132,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = '6.1.185-FIX';
+      const CURRENT_VERSION_ID = '6.1.186-MIRROR';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
@@ -289,8 +302,15 @@ const App: React.FC = () => {
 
       const remoteIds = new Set(result.map(r => r.id));
       local.forEach(l => {
-        if (l && l.id && pendingAddIds.has(l.id) && !remoteIds.has(l.id)) {
+        if (!l || !l.id) return;
+
+        // PROTECTION: If local item is very recent (< 5 mins), keep it even if not in remote/result
+        // This protects against "Push -> FullSync -> Remote lag -> Delete" race condition
+        const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 300000);
+
+        if ((pendingAddIds.has(l.id) || isRecent) && !remoteIds.has(l.id)) {
           result.push(l);
+          remoteIds.add(l.id);
         }
       });
       return result;
@@ -893,7 +913,7 @@ const App: React.FC = () => {
     // Background Push
     pushClient(newClient);
     if (loan) addLoan(loan);
-    handleForceSync(true);
+    handleForceSync(false); // OPTIMIZATION: Partial sync is enough and safer for single record creation
   };
 
   const addLoan = async (loan: Loan) => {
@@ -905,7 +925,7 @@ const App: React.FC = () => {
 
     // Background Push
     pushLoan(newLoan);
-    handleForceSync(true);
+    handleForceSync(false); // OPTIMIZATION: Partial sync is enough and safer for single record creation
   };
 
   const updateClient = async (updatedClient: Client) => {
@@ -1059,7 +1079,8 @@ const App: React.FC = () => {
               installmentNumber: inst.number,
               isVirtual: newLog.isVirtual || false,
               isRenewal: newLog.isRenewal || false,
-              created_at: new Date().toISOString()
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
             };
 
             newPaymentsForSync.push(pRec);
@@ -1300,7 +1321,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <p className="text-[10px] text-slate-400 font-mono">v6.1.185-FIX</p>
+              <p className="text-[10px] text-slate-400 font-mono">v6.1.186-FIX</p>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -1382,6 +1403,8 @@ const App: React.FC = () => {
               setActiveTab={setActiveTab}
               fetchClientPhotos={fetchClientPhotos}
               deleteClient={deleteClient}
+              setState={setState}
+              pushLoan={pushLoan}
             />
             }
             {activeTab === 'loans' && <Loans state={filteredState} addLoan={addLoan} updateLoanDates={() => { }} addCollectionAttempt={addCollectionAttempt} deleteCollectionLog={deleteCollectionLog} onForceSync={handleForceSync} />}

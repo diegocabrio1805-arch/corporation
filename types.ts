@@ -134,7 +134,28 @@ export interface Client {
   residenceType?: 'propia' | 'alquilada' | 'familiar';
   residenceAntiquity?: string;
   clientType?: string; // Código para tipo de cliente (Formal/Informal, Empleado/Dueño)
+  clientTypeCode?: string; // Nuevo campo para clasificación BANCA (130, 131, etc.)
+  systemRating?: string; // NUEVO: Calificación en el sistema (P, I, etc.)
+  sellerCode?: string; // NUEVO: Código de Vendedor
   deletedAt?: string; // Soft delete timestamp
+  // Datos Particulares Detallados
+  particularCity?: string;
+  particularStreetMain?: string;
+  particularStreetSecondary?: string;
+  houseNumber?: string;
+  particularNeighborhood?: string;
+  // Datos Laborales Detallados
+  workCompany?: string;
+  workStreetMain?: string;
+  workStreetSecondary?: string;
+  workCity?: string;
+  workPhone?: string;
+  workNeighborhood?: string;
+  workPosition?: string;
+  workSector?: string; // Rubro
+  workAntiquity?: string;
+  workIncome?: number;
+  locationCoords?: string; // Coordenada guardada como string
 }
 
 export interface Installment {
@@ -161,6 +182,10 @@ export interface Loan {
   installments: Installment[];
   isRenewal?: boolean;
   customHolidays?: string[]; // Fechas YYYY-MM-DD omitidas en el cobro
+  operationTypeCode?: string; // Nuevo campo para clasificación operación (202, 201, etc.)
+  sellerCode?: string; // NUEVO: Código de Vendedor (31, 38, etc.)
+  promissoryNoteAmount?: number; // Monto del Pagaré
+  promissoryNoteExpiration?: string; // Fecha de Vencimiento del Pagaré
   deletedAt?: string;
   updated_at?: string;
 }

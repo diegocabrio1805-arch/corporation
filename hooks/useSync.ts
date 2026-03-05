@@ -212,7 +212,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (isDuplicate) return;
         }
 
-        queue.push({ operation, data, timestamp: Date.now() });
+        queue.push({ operation, data, timestamp: Date.now(), retryCount: 0 });
         localStorage.setItem('syncQueue', JSON.stringify(queue));
         setQueueLength(queue.length);
 
@@ -424,7 +424,33 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         const { error } = await supabase.from(table).upsert(dataToUpsert);
                         if (error) throw error;
                         chunk.forEach(x => processedIndices.add(x.index));
-                    } catch (err) { console.error(`Sync error:`, err); }
+                    } catch (err) {
+                        console.error(`Batch sync error for ${table}, retrying individually:`, err);
+                        // Fallback: Try individually to isolate the bad apple
+                        for (const x of chunk) {
+                            try {
+                                const { error } = await supabase.from(table).upsert(mapper(x.item.data));
+                                if (error) throw error;
+                                processedIndices.add(x.index);
+                            } catch (singleErr) {
+                                console.error(`Individual sync error for ${table} record ${x.item.data.id}:`, singleErr);
+                                // Increment retry count for this item
+                                x.item.retryCount = (x.item.retryCount || 0) + 1;
+
+                                // If it failed too many times, we might need to "skip" it 
+                                // to avoid blocking the queue forever, but we need to track it.
+                                if (x.item.retryCount > 5) {
+                                    console.warn(`Record ${x.item.data.id} reached max retries. Skipping for now to avoid queue blockage.`);
+                                    processedIndices.add(x.index); // Mark as processed so it leaves the main queue
+
+                                    // Store in a "failed items" log for admin review
+                                    const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
+                                    failedItems.push({ ...x.item, lastError: String(singleErr), fatal: true });
+                                    localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-50))); // Keep last 50
+                                }
+                            }
+                        }
+                    }
                 }
             };
 
@@ -530,6 +556,53 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 deleted_at: d.deletedAt || null,
                 updated_at: new Date().toISOString()
             }));
+
+            // 5. UPDATE SETTINGS
+            if (groups['UPDATE_SETTINGS'].length > 0) {
+                for (const { item, index } of groups['UPDATE_SETTINGS']) {
+                    try {
+                        const { error } = await supabase
+                            .from('branch_settings')
+                            .upsert({ id: item.data.branchId, settings: item.data.settings, updated_at: new Date().toISOString() });
+                        if (error) throw error;
+                        processedIndices.add(index);
+                    } catch (err) { console.error("Settings sync error:", err); }
+                }
+            }
+
+            // 6. PROCESS DELETIONS
+            const deleteOperations = [
+                { op: 'DELETE_LOG', table: 'collection_logs' },
+                { op: 'DELETE_PAYMENT', table: 'payments' },
+                { op: 'DELETE_LOAN', table: 'loans' },
+                { op: 'DELETE_CLIENT', table: 'clients' },
+                { op: 'DELETE_EXPENSE', table: 'expenses' }
+            ];
+
+            for (const { op, table } of deleteOperations) {
+                if (groups[op].length > 0) {
+                    const idsToDelete = groups[op].map(x => x.item.data.id);
+                    try {
+                        // First, we record the deletion in deleted_items for other devices to sync
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session) {
+                            const branchId = (session.user as any).user_metadata?.branchId || session.user.id;
+                            const deleteRecords = idsToDelete.map(id => ({
+                                table_name: table,
+                                record_id: id,
+                                branch_id: branchId,
+                                deleted_at: new Date().toISOString()
+                            }));
+                            await supabase.from('deleted_items').insert(deleteRecords);
+                        }
+
+                        // Then perform the actual deletion (or soft delete update handled by DB trigger/policy)
+                        const { error } = await supabase.from(table).delete().in('id', idsToDelete);
+                        if (error) throw error;
+                        groups[op].forEach(x => processedIndices.add(x.index));
+                    } catch (err) { console.error(`Delete error for ${table}:`, err); }
+                }
+            }
 
             const newQueue = queue.filter((_: any, index: number) => !processedIndices.has(index));
             localStorage.setItem('syncQueue', JSON.stringify(newQueue));
