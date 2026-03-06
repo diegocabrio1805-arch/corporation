@@ -156,6 +156,7 @@ export interface Client {
   workAntiquity?: string;
   workIncome?: number;
   locationCoords?: string; // Coordenada guardada como string
+  raw_data?: any; // Datos expandidos de Excel/BD
 }
 
 export interface Installment {
@@ -188,6 +189,7 @@ export interface Loan {
   promissoryNoteExpiration?: string; // Fecha de Vencimiento del Pagaré
   deletedAt?: string;
   updated_at?: string;
+  raw_data?: any;
 }
 
 export interface PaymentRecord {

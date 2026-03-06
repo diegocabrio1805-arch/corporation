@@ -194,6 +194,17 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
 
                     const clientValue = (val: any) => parseAmount(val);
 
+                    // --- EMPIEZA MAPEADO CRUDO COMPLETO ---
+                    // Captura todo lo que vino en la fila de Excel para este cliente
+                    const clientRawData: Record<string, any> = {};
+                    Object.entries(clientMap).forEach(([headerName, colIdx]) => {
+                        const cellValue = cRow[colIdx];
+                        if (cellValue !== undefined && cellValue !== null && cellValue !== '') {
+                            clientRawData[headerName] = cellValue;
+                        }
+                    });
+                    // --- TERMINA MAPEADO CRUDO COMPLETO ---
+
                     const clientId = `IMP-${Date.now()}-${dataIndex}`;
                     const client: Client = {
                         id: clientId,
@@ -208,6 +219,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                         birthDate: cRow[clientMap["FECHA NACIMIENTO"] || clientMap["FEC. NAC"]] ? String(cRow[clientMap["FECHA NACIMIENTO"] || clientMap["FEC. NAC"]]) : undefined,
                         clientTypeCode: String(cRow[clientMap["BANCA (TIPO DE CLIENTE)"] || clientMap["BANCA"] || clientMap["TIPO CLIENTE"]] || '131'),
                         systemRating: String(cRow[clientMap["CALIFICACION EN EL SISTEMA"] || clientMap["CALIFICACION"] || clientMap["CALIF"]] || ''),
+                        raw_data: clientRawData // <-- GUARDA TODO
                     };
                     clients.push(client);
 
@@ -216,6 +228,15 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                         const lRowIndex = loanHeaderRow + 1 + dataIndex;
                         const lRow = rows[lRowIndex];
                         if (lRow && lRow.length > 0) {
+                            // --- MAPEADO CRUDO PRÉSTAMO ---
+                            const loanRawData: Record<string, any> = {};
+                            Object.entries(loanMap).forEach(([headerName, colIdx]) => {
+                                const cellValue = lRow[colIdx];
+                                if (cellValue !== undefined && cellValue !== null && cellValue !== '') {
+                                    loanRawData[headerName] = cellValue;
+                                }
+                            });
+
                             const principalStr = String(lRow[loanMap["LIQUIDO DESEMBOLSADO"] || loanMap["LIQ. DESEMB"] || loanMap["MONTO PAGARE"] || loanMap["MONTO PAG"]] || '0');
                             const principal = clientValue(principalStr);
 
@@ -241,7 +262,8 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                 sellerCode: String(lRow[loanMap["CODIGO DE VENDEDOR"] || loanMap["CODIGO VENDEDOR"] || loanMap["COD. VEND"] || loanMap["VENDEDOR"]] || ''),
                                 interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
                                 createdAt: lRow[loanMap["FECHA DE DESEMBOLSO"] || loanMap["FEC. DESEMB"]] ? new Date(lRow[loanMap["FECHA DE DESEMBOLSO"] || loanMap["FEC. DESEMB"]]).toISOString() : new Date().toISOString(),
-                                installments: []
+                                installments: [],
+                                raw_data: loanRawData // <-- GUARDA TODO
                             };
 
                             // Generate historical installments
