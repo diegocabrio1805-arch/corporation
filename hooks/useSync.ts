@@ -273,7 +273,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 return { data: allData, error: null };
             };
 
-            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance');
+            let clientsQuery = supabase.from('clients').select('id, document_id, name, phone, secondary_phone, address, added_by, branch_id, location, domicilio_location, credit_limit, allow_collector_location_update, custom_no_pay_message, is_active, is_hidden, created_at, updated_at, deleted_at, capital, current_balance, raw_data');
             let loansQuery = supabase.from('loans').select('*');
             let paymentsQuery = supabase.from('payments').select('*');
             let logsQuery = supabase.from('collection_logs').select('*');
@@ -328,14 +328,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     documentPic: c.document_pic, domicilioLocation: c.domicilio_location,
                     creditLimit: c.credit_limit, allowCollectorLocationUpdate: c.allow_collector_location_update,
                     customNoPayMessage: c.custom_no_pay_message, isActive: c.is_active, isHidden: c.is_hidden,
-                    addedBy: c.added_by, branchId: c.branch_id, createdAt: c.created_at, deletedAt: c.deleted_at
+                    addedBy: c.added_by, branchId: c.branch_id, createdAt: c.created_at, deletedAt: c.deleted_at,
+                    ...(c.raw_data || {})
                 })) as Client[],
                 loans: (loansResult.data || []).map((l: any) => ({
                     ...l, clientId: l.client_id, collectorId: l.collector_id, branchId: l.branch_id,
                     interestRate: l.interest_rate, totalInstallments: l.total_installments,
                     totalAmount: l.total_amount, installmentValue: l.installment_value,
                     createdAt: l.created_at, deletedAt: l.deleted_at, installments: l.installments,
-                    isRenewal: l.is_renewal || false, frequency: l.frequency
+                    isRenewal: l.is_renewal || false, frequency: l.frequency,
+                    ...(l.raw_data || {})
                 })) as Loan[],
                 payments: (paymentsResult.data || []).map((p: any) => ({
                     ...p, loanId: p.loan_id, clientId: p.client_id, branchId: p.branch_id,
@@ -470,48 +472,42 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 deleted_at: d.deletedAt || null,
                 updated_at: new Date().toISOString()
             }));
-            await batchUpsert('clients', groups['ADD_CLIENT'], (d) => ({
-                id: d.id,
-                name: d.name,
-                document_id: d.documentId,
-                phone: d.phone,
-                secondary_phone: d.secondaryPhone,
-                address: d.address,
-                profile_pic: d.profilePic,
-                house_pic: d.housePic,
-                business_pic: d.businessPic,
-                document_pic: d.documentPic,
-                domicilio_location: d.domicilioLocation,
-                location: d.location,
-                credit_limit: d.creditLimit,
-                allow_collector_location_update: d.allowCollectorLocationUpdate,
-                added_by: d.addedBy,
-                branch_id: d.branchId,
-                is_active: d.isActive !== undefined ? d.isActive : true,
-                is_hidden: d.isHidden || false,
-                deleted_at: d.deletedAt || null,
-                created_at: d.createdAt,
-                updated_at: new Date().toISOString()
-            }));
-            await batchUpsert('loans', groups['ADD_LOAN'], (d) => ({
-                id: d.id,
-                client_id: d.clientId,
-                collector_id: d.collectorId,
-                branch_id: d.branchId,
-                principal: d.principal,
-                interest_rate: d.interestRate,
-                total_installments: d.totalInstallments,
-                installment_value: d.installmentValue,
-                total_amount: d.totalAmount,
-                status: d.status,
-                created_at: d.createdAt,
-                installments: d.installments,
-                frequency: d.frequency,
-                is_renewal: d.isRenewal || false,
-                custom_holidays: d.customHolidays || [],
-                deleted_at: d.deletedAt || null,
-                updated_at: new Date().toISOString()
-            }));
+            await batchUpsert('clients', groups['ADD_CLIENT'], (d) => {
+                const {
+                    id, documentId, name, phone, secondaryPhone, address, addedBy, branchId,
+                    location, domicilioLocation, creditLimit, allowCollectorLocationUpdate,
+                    customNoPayMessage, isActive, isHidden, createdAt, updatedAt, deletedAt,
+                    capital, currentBalance, profilePic, housePic, businessPic, documentPic,
+                    ...raw_data
+                } = d;
+                return {
+                    id, name, document_id: documentId, phone, secondary_phone: secondaryPhone, address,
+                    profile_pic: profilePic, house_pic: housePic, business_pic: businessPic, document_pic: documentPic,
+                    domicilio_location: domicilioLocation, location, credit_limit: creditLimit,
+                    allow_collector_location_update: allowCollectorLocationUpdate, added_by: addedBy, branch_id: branchId,
+                    is_active: isActive !== undefined ? isActive : true, is_hidden: isHidden || false,
+                    deleted_at: deletedAt || null, created_at: createdAt, updated_at: new Date().toISOString(),
+                    capital, current_balance: currentBalance,
+                    raw_data: Object.keys(raw_data).length > 0 ? raw_data : null
+                };
+            });
+            await batchUpsert('loans', groups['ADD_LOAN'], (d) => {
+                const {
+                    id, clientId, collectorId, branchId, principal, interestRate, totalInstallments,
+                    installmentValue, totalAmount, status, createdAt, installments, frequency,
+                    isRenewal, customHolidays, deletedAt, updatedAt, totalPaid, balance,
+                    ...raw_data
+                } = d;
+                return {
+                    id, client_id: clientId, collector_id: collectorId, branch_id: branchId,
+                    principal, interest_rate: interestRate, total_installments: totalInstallments,
+                    installment_value: installmentValue, total_amount: totalAmount, status,
+                    created_at: createdAt, installments, frequency, is_renewal: isRenewal || false,
+                    custom_holidays: customHolidays || [], deleted_at: deletedAt || null,
+                    updated_at: new Date().toISOString(),
+                    raw_data: Object.keys(raw_data).length > 0 ? raw_data : null
+                };
+            });
             await batchUpsert('payments', groups['ADD_PAYMENT'], (d) => ({
                 id: d.id,
                 loan_id: d.loanId,
