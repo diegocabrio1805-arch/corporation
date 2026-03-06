@@ -298,7 +298,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 loansQuery = loansQuery.gt('updated_at', adjustedSyncTime);
                 paymentsQuery = paymentsQuery.gt('updated_at', adjustedSyncTime);
                 logsQuery = logsQuery.gt('updated_at', adjustedSyncTime);
-                profilesQuery = profilesQuery.gt('updated_at', adjustedSyncTime);
+                // NOTA: profiles (cobradores/gerentes) siempre se traen completos
+                // porque son pocos registros y es crítico no perder ningún usuario
                 settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
                 expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
