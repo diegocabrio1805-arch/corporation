@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx-js-style';
 import { Client, Loan, Frequency, LoanStatus, PaymentStatus } from '../types';
-import { parseAmount } from './helpers';
+import { parseAmount, formatDate } from './helpers';
 
 export const EXCEL_COLUMNS = [
     "ID / Código", "Nombre Completo", "Cédula", "Teléfono Primario", "Teléfono Secundario",
@@ -32,12 +32,12 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
             "Teléfono Secundario": client.secondaryPhone || "A COMPLETAR",
             "Dirección Domicilio": client.address,
             "Nacionalidad": client.nationality || "A COMPLETAR",
-            "Fecha Nacimiento": client.birthDate || "A COMPLETAR",
+            "Fecha Nacimiento": client.birthDate ? formatDate(client.birthDate) : "A COMPLETAR",
             "Estado Civil": client.maritalStatus || "A COMPLETAR",
             "Profesión": client.profession || "A COMPLETAR",
             "Nombre Cónyuge": client.spouseName || "A COMPLETAR",
             "Documento Cónyuge": client.spouseDocumentId || "A COMPLETAR",
-            "Fecha Nacimiento Cónyuge": client.spouseBirthDate || "A COMPLETAR",
+            "Fecha Nacimiento Cónyuge": client.spouseBirthDate ? formatDate(client.spouseBirthDate) : "A COMPLETAR",
             "Profesión Cónyuge": client.spouseProfession || "A COMPLETAR",
             "Lugar Trabajo Cónyuge": client.spouseWorkplace || "A COMPLETAR",
             "Teléfono Laboral Cónyuge": client.spouseWorkPhone || "A COMPLETAR",
@@ -48,7 +48,7 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
             "Longitud Domicilio": client.location?.lng || 0,
             "Calificación": client.systemRating || "N/A",
             "Tipo de Cliente": client.clientType || "A COMPLETAR",
-            "Cód. Vendedor": loan?.sellerCode || "N/A",
+            "Cód. Vendedor": client.sellerCode || loan?.sellerCode || "N/A",
             "Cód. Tipo Cliente": client.clientTypeCode || "131",
             "Cód. Operación": loan?.operationTypeCode || "202",
             "Capital Préstamo": loan?.principal || 0,
@@ -63,16 +63,16 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
             "Cuotas Pagadas": paidInstallments,
             "Cuotas Pendientes": pendingInstallments,
             "Total Cobrado": totalPaid,
-            "Días Atraso": 0, // Cálculo complejo omitido por brevedad en exportación básica
+            "Días Atraso": 0, // Cálculo complejo omitido en local, se hace del lado del server si es posible
             "Última Fecha Pago": "N/A",
             "Próximo Vencimiento": "N/A",
             "Ref 1 Nombre": "A COMPLETAR",
             "Ref 1 Teléfono": "A COMPLETAR",
             "Ref 2 Nombre": "A COMPLETAR",
             "Ref 2 Teléfono": "A COMPLETAR",
-            "Empresa/Negocio": "A COMPLETAR",
-            "Dirección Negocio": "A COMPLETAR",
-            "Rubro Negocio": "A COMPLETAR",
+            "Empresa/Negocio": client.workCompany || "A COMPLETAR",
+            "Dirección Negocio": client.workStreetMain ? `${client.workStreetMain} ${client.workStreetSecondary || ''} ${client.workCity || ''}` : "A COMPLETAR",
+            "Rubro Negocio": client.workSector || "A COMPLETAR",
             "Notas": "EXPORTADO DESDE SISTEMA"
         };
     });
