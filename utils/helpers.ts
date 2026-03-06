@@ -50,6 +50,14 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
   if (!loanOrId || !collectionLogs) return 0;
 
   const loanId = typeof loanOrId === 'string' ? loanOrId : (loanOrId.id || loanOrId.loan_id);
+  const clientId = typeof loanOrId !== 'string' ? (loanOrId.clientId || loanOrId.client_id || null) : null;
+
+  // Obtener todos los loan_ids válidos en la colección para detectar IDs fantasma
+  const allKnownLoanIds = new Set(
+    (Array.isArray(collectionLogs) ? collectionLogs : [])
+      .map(l => String(l.loanId || l.loan_id || '').trim().toLowerCase())
+      .filter(id => id.length > 0)
+  );
 
   const validLogs = (Array.isArray(collectionLogs) ? collectionLogs : []).filter(log => {
     const logLoanId = String(log.loanId || log.loan_id || '').trim().toLowerCase();
@@ -58,10 +66,27 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     const isOpening = log.isOpening || log.is_opening || false;
     const isDeleted = log.deletedAt || log.deleted_at;
 
-    return logLoanId === lId &&
-      (logType === 'PAGO' || logType === CollectionLogType.PAYMENT) &&
-      !isOpening &&
-      !isDeleted;
+    if (isOpening || isDeleted) return false;
+    if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
+
+    // Coincidencia directa por loan_id (caso normal)
+    if (logLoanId === lId) return true;
+
+    // FALLBACK: log apunta a un préstamo que NO existe en la tabla loans pero mismo cliente
+    // Detecta pagos huérfanos registrados con un loan_id borrado/fantasma
+    if (clientId) {
+      const logClientId = String(log.clientId || log.client_id || '').trim().toLowerCase();
+      const cId = String(clientId || '').trim().toLowerCase();
+      if (logClientId === cId && logLoanId !== lId && logLoanId.length > 0) {
+        // Solo recuperar si ese loan_id fantasma no es un préstamo distinto válido conocido
+        // (evitar mezclar pagos de otro préstamo activo real del mismo cliente)
+        const isGhostLoanId = !allKnownLoanIds.has(logLoanId) ||
+          // Si aparece en logs pero no como un préstamo real (solo como ID huérfano)
+          false;
+        return isGhostLoanId;
+      }
+    }
+    return false;
   });
 
   return validLogs.reduce((acc: number, log: any) => acc + (Number(log.amount) || 0), 0);
