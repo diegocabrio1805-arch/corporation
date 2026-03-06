@@ -756,7 +756,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return (activeLoan?.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+        return (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
       }
       return true;
     }).map(client => {
@@ -801,7 +801,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return (activeLoan?.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+        return (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
       }
       return true;
     }).map(client => {
