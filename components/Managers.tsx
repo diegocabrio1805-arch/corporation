@@ -311,7 +311,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
       {/* MODAL COBRADOR POR SUCURSAL */}
       {showCollectorManagerModal && selectedManager && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-0 md:p-4 overflow-hidden">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-0 md:p-4 overflow-y-auto pt-10 md:pt-20">
           <div className="bg-white w-full h-full md:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 md:p-8 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
               <div>
@@ -487,7 +487,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
 
       {/* MODAL NUEVO/EDITAR GERENTE */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[150] p-2 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-y-auto pt-10 md:pt-20">
           <div className="bg-white rounded-[1.5rem] md:rounded-[3rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn border border-white/20 flex flex-col">
             <div className="p-5 md:p-8 bg-indigo-600 text-white flex justify-between items-center sticky top-0 z-10">
               <div>

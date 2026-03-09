@@ -62,7 +62,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.2.0-STABLE';
+          const localVersion = '6.3.0-STABLE';
           // Extract numeric semver part for comparison (strip suffixes like -MIRROR, -PRIVACY-LAW)
           const toNum = (v: string) => v.split('-')[0].split('.').map(Number).reduce((a, b, i) => a + b * Math.pow(1000, 2 - i), 0);
           const localNum = toNum(localVersion);
@@ -125,7 +125,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = '6.2.0-STABLE';
+      const CURRENT_VERSION_ID = '6.3.0-STABLE';
       const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
@@ -601,7 +601,7 @@ const App: React.FC = () => {
     const triggerEmergencySync = async () => {
       const user = state.currentUser;
       if (!user) return;
-      const syncKey = `emergency_sync_done_${user.username}_v620_mandatory_gps`;
+      const syncKey = `emergency_sync_done_${user.username}_v630_mandatory_gps`;
       const isRestoredUser = true; // Universal for this fix to ensure 300k shows up everywhere
 
       if (isRestoredUser && !localStorage.getItem(syncKey)) {
@@ -1314,7 +1314,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <p className="text-[10px] text-slate-400 font-mono">v6.2.0-STABLE</p>
+              <p className="text-[10px] text-slate-400 font-mono">v6.3.0-STABLE</p>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>

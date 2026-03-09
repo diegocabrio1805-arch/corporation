@@ -58,7 +58,7 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
     const isCritical = minDays <= 1; // 1 day or less -> RED + ANIMATION
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/98 p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[9999] flex items-start pt-10 md:pt-20 justify-center bg-slate-900/98 p-4 animate-fadeIn overflow-y-auto">
             <div className={`w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border-4 ${isCritical ? 'border-red-600 animate-pulse-border' : 'border-yellow-400'}`}>
 
                 {/* HEADER */}
@@ -75,7 +75,7 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
                 </div>
 
                 {/* BODY */}
-                <div className="p-6 bg-slate-50 max-h-[60vh] overflow-y-auto">
+                <div className="p-6 bg-slate-50">
                     <div className="space-y-3">
                         {expiringItems.map((item, idx) => (
                             <div key={idx} className={`p-4 rounded-xl border-l-4 shadow-sm flex justify-between items-center ${item.days <= 1 ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-yellow-500'}`}>

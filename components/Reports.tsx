@@ -759,7 +759,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       <div className="h-full flex flex-col space-y-4 animate-fadeIn pb-20">
          {/* --- AI AUDIT MODAL --- */}
          {showAiModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/98 animate-fadeIn">
+            <div className="fixed inset-0 z-50 flex items-start pt-10 md:pt-20 justify-center p-4 bg-slate-900/98 animate-fadeIn overflow-y-auto">
                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border-4 border-indigo-500/30 relative">
                   {/* Close Button */}
                   <button

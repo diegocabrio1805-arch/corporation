@@ -214,7 +214,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
 
       {/* MODAL DE CREDENCIALES GENERADAS */}
       {generatedUser && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm p-8 text-center animate-scaleIn border border-emerald-500/20">
             <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg border border-emerald-200">
               <i className="fa-solid fa-id-card"></i>

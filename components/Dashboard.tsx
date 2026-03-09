@@ -365,7 +365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* CABECERA SUPERIOR - Más compacta */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.2.0-STABLE</span></h2>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Resumen Operativo <span className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded-lg font-black ml-2 animate-pulse">v6.3.0-STABLE</span></h2>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
             Panel de Control Principal

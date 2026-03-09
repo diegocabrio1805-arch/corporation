@@ -780,7 +780,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       {/* MODALES DE PAGO OMITIDOS POR BREVEDAD */}
       {showPaymentInput && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[150] p-2 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-y-auto pt-10 md:pt-20">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
               <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Registrar Abono</h3></div>
@@ -803,7 +803,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       )}
 
       {editingReceipt && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[170] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[170] p-4 overflow-y-auto pt-10 md:pt-20">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
               <div>
@@ -1078,7 +1078,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       )}
 
       {receipt && (
-        <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[160] p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[160] p-4 overflow-y-auto pt-10 md:pt-20">
           <div className="bg-white rounded-[2rem] text-center max-w-sm w-full animate-scaleIn shadow-2xl overflow-hidden">
             {/* Header de navegación en el ticket */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 italic bg-white sticky top-0">

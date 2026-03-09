@@ -673,7 +673,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
 
       {
         showSupportModal && (
-          <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[150] p-4 overflow-y-auto animate-fadeIn">
+          <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[150] p-4 overflow-y-auto animate-fadeIn">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
               <div className="p-5 bg-blue-600 text-white flex justify-between items-center sticky top-0 z-10">
                 <div>
@@ -714,7 +714,7 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
       }
       {
         showPrinterModal && (
-          <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
+          <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
             <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn mx-4">
               <div className="bg-slate-900 p-6 flex justify-between items-center">
                 <h3 className="text-white font-black uppercase text-lg tracking-tighter">

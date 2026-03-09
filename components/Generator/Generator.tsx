@@ -649,7 +649,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                 </div>
                             ) : (
                                 templates.map(temp => (
-                                    <div key={temp.id} className="p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm group cursor-pointer" onClick={() => { setFormData({ ...formData, legalText: temp.content }); setIsHistoryOpen(false); }}>
+                                    <div key={temp.id} className="p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm group cursor-pointer" onClick={() => { setFormData({ ...formData, legalText: temp.content, type: temp.type }); setIsHistoryOpen(false); }}>
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-[8px] font-black text-emerald-600 uppercase">{temp.type}</span>
                                         </div>
@@ -717,7 +717,52 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                     <button onClick={() => handleTypeChange(DocumentType.MANUAL)} className={`px-3 py-1.5 rounded-lg transition-all ${formData.type === DocumentType.MANUAL ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}><Pencil className="w-4 h-4" /></button>
                                 </div>
                                 <div className="flex items-center gap-2 relative" ref={templateMenuRef}>
-                                    <button type="button" onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)} className="text-[8px] font-black text-indigo-600 uppercase border border-indigo-100 px-3 py-1.5 rounded-lg hover:bg-white"><BookOpen className="w-3 h-3 inline mr-1" /> Plantillas</button>
+                                    <button type="button" onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)} className="text-[8px] font-black text-indigo-600 uppercase border border-indigo-100 px-3 py-1.5 rounded-lg hover:bg-white flex items-center gap-1.5">
+                                        <BookOpen className="w-3 h-3" />
+                                        Plantillas
+                                        <ChevronDown className="w-2.5 h-2.5" />
+                                    </button>
+                                    {isTemplateMenuOpen && (
+                                        <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-[60] overflow-hidden animate-scaleIn">
+                                            <div className="p-3 bg-slate-50 border-b border-slate-100">
+                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Mis Plantillas</p>
+                                            </div>
+                                            <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                                                {templates.length === 0 ? (
+                                                    <div className="p-4 text-center cursor-default">
+                                                        <p className="text-[8px] font-bold text-slate-400 uppercase">Sin plantillas</p>
+                                                    </div>
+                                                ) : (
+                                                    templates.map(temp => (
+                                                        <button
+                                                            key={temp.id}
+                                                            onClick={() => {
+                                                                setFormData({ ...formData, legalText: temp.content, type: temp.type });
+                                                                setIsTemplateMenuOpen(false);
+                                                            }}
+                                                            className="w-full p-4 text-left border-b border-slate-50 hover:bg-indigo-50 transition-colors group"
+                                                        >
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="text-[7px] font-black text-emerald-600 uppercase">{temp.type}</span>
+                                                            </div>
+                                                            <p className="text-[10px] font-black text-slate-700 uppercase truncate">{temp.name}</p>
+                                                            <p className="text-[7px] text-slate-400 font-bold mt-1 line-clamp-1">{temp.content.substring(0, 40)}...</p>
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setActiveSidebarTab('templates');
+                                                    setIsHistoryOpen(true);
+                                                    setIsTemplateMenuOpen(false);
+                                                }}
+                                                className="w-full p-3 bg-slate-50 text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors"
+                                            >
+                                                Gestionar Plantillas
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -830,8 +875,8 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
 
             {/* Printer Selection Modal */}
             {showPrinterModal && (
-                <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4">
-                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn">
+                <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 pt-10 md:pt-16 overflow-y-auto">
+                    <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden animate-scaleIn mb-8">
                         <div className="bg-slate-900 p-6 flex justify-between items-center">
                             <h3 className="text-white font-black uppercase text-lg tracking-tighter">
                                 <Printer className="w-5 h-5 inline mr-2 text-indigo-400" />

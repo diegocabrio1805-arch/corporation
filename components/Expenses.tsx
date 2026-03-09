@@ -514,7 +514,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* MODAL CARGA CAPITAL INICIAL */}
       {
         showCapitalModal && (
-          <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[200] p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border border-white/20">
               <div className="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
                 <h3 className="text-lg font-black uppercase tracking-tighter">Base de Capital</h3>
@@ -555,7 +555,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* MODAL REGISTRAR GASTO */}
       {
         showModal && (
-          <div className="fixed inset-0 bg-slate-900/98 flex items-center justify-center z-[150] p-4 overflow-y-auto">
+          <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn flex flex-col border border-white/20">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">Registrar Gasto</h3>
