@@ -117,8 +117,8 @@ const LocationEnforcer: React.FC<LocationEnforcerProps> = ({ isRequired, onLocat
         checkLocationStatus();
         startWatching();
 
-        // Intervalo de respaldo cada 5s para máxima seguridad
-        const interval = setInterval(checkLocationStatus, 5000);
+        // Intervalo de respaldo cada 2s para máxima seguridad (Requerimiento v6.2.0)
+        const interval = setInterval(checkLocationStatus, 2000);
 
         return () => {
             if (watchId) {

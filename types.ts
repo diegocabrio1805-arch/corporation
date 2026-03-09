@@ -156,6 +156,7 @@ export interface Client {
   workAntiquity?: string;
   workIncome?: number;
   locationCoords?: string; // Coordenada guardada como string
+  externalId?: string; // NUEVO: Nro de Operación del sistema base (Solo números)
   raw_data?: any; // Datos expandidos de Excel/BD
 }
 
@@ -222,8 +223,11 @@ export interface CollectionLog {
   isRenewal?: boolean;
   isOpening?: boolean;
   recordedBy?: string; // ID del usuario que marcó el abono
+  collectorId?: string; // ID del cobrador (puede ser distinto de recordedBy)
+  receiptNumber?: string;
   notes?: string; // Nota opcional para el motivo de No Pago
   companySnapshot?: AppSettings; // Snapshot inmutable de las opciones de la empresa en el momento del recibo
+  raw_data?: any;
   deletedAt?: string;
   updated_at?: string;
 }

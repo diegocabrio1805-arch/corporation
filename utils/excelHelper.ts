@@ -1,6 +1,39 @@
 import * as XLSX from 'xlsx-js-style';
-import { Client, Loan, Frequency, LoanStatus, PaymentStatus } from '../types';
-import { parseAmount, formatDate } from './helpers';
+import { Client, Loan, Frequency, LoanStatus, PaymentStatus, CollectionLog, CollectionLogType } from '../types';
+import { parseAmount, formatDate, generateUUID } from './helpers';
+import { mapHeadersWithAI } from '../services/geminiService';
+
+/**
+ * Robustly parses dates from Excel, handling both serial numbers and strings.
+ */
+const parseExcelDate = (val: any): string => {
+    if (!val) return new Date().toISOString();
+
+    // Si es un número (Excel Serial Date)
+    if (typeof val === 'number') {
+        const date = new Date((val - 25569) * 86400 * 1000);
+        return date.toISOString();
+    }
+
+    const str = String(val).trim();
+    if (!str) return new Date().toISOString();
+
+    // Intentar DD/MM/YYYY
+    if (str.includes('/')) {
+        const parts = str.split(' ')[0].split('/');
+        if (parts.length === 3) {
+            // Asumimos DD-MM-YYYY
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10);
+            const d = new Date(year, month, day);
+            if (!isNaN(d.getTime())) return d.toISOString();
+        }
+    }
+
+    const d = new Date(str);
+    return !isNaN(d.getTime()) ? d.toISOString() : new Date().toISOString();
+};
 
 export const EXCEL_COLUMNS = [
     "ID / Código", "Nombre Completo", "Cédula", "Teléfono Primario", "Teléfono Secundario",
@@ -96,10 +129,10 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
     XLSX.writeFile(wb, `CARTERA_CLIENTES_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
 
-export const processExcelImport = async (file: File, collectorId: string): Promise<{ clients: Client[], loans: Loan[] }> => {
+export const processExcelImport = async (file: File, collectorId: string): Promise<{ clients: Client[], loans: Loan[], logs: CollectionLog[] }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
                 const workbook = XLSX.read(data, { type: 'array' });
@@ -115,9 +148,14 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                 // 1. Detect Header Rows
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i].map(c => String(c || '').toUpperCase());
+
+                    // Detectar si la fila tiene datos de Clientes
                     if (clientHeaderRow === -1 && (row.some(r => r.includes("NOMBRE COMPLETO") || r.includes("CLIENTE") || r.includes("NOM. COMPLETO")))) {
                         clientHeaderRow = i;
-                    } else if (loanHeaderRow === -1 && (row.some(r => r.includes("LIQUIDO DESEMBOLSADO") || r.includes("SALDO CAPITAL") || r.includes("LIQ. DESEMB") || r.includes("MONTO PAGARE") || r.includes("MONTO PAG")))) {
+                    }
+
+                    // Detectar si la fila tiene datos de Préstamos (independiente de si ya es de clientes)
+                    if (loanHeaderRow === -1 && (row.some(r => r.includes("LIQUIDO DESEMBOLSADO") || r.includes("SALDO CAPITAL") || r.includes("LIQ. DESEMB") || r.includes("MONTO PAGARE") || r.includes("SALDO ACTUAL") || r.includes("MONTO PAG")))) {
                         loanHeaderRow = i;
                     }
                 }
@@ -159,7 +197,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                             });
                         }
                     });
-                    resolve({ clients, loans });
+                    resolve({ clients, loans, logs: [] });
                     return;
                 }
 
@@ -176,23 +214,45 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                 const clientMap = getColMap(clientHeaderRow);
                 const loanMap = loanHeaderRow !== -1 ? getColMap(loanHeaderRow) : null;
 
+                console.log("🔍 [FORENSIC] Headers Detectados:", { clientMap, loanMap });
+
+                // --- INTEGRACIÓN IA: DESCUBRIMIENTO DE COLUMNAS CON GEMINI ---
+                const allHeaders = [...Object.keys(clientMap), ...(loanMap ? Object.keys(loanMap) : [])];
+                const aiMap = await mapHeadersWithAI(allHeaders);
+
+                console.log("🤖 [FORENSIC] Mapeo de la IA:", aiMap);
+
+                const findCol = (map: Record<string, number> | null, internalKey: string, synonyms: string[]) => {
+                    if (!map) return undefined;
+                    // 1. Check IA Mapping
+                    const aiMatch = Object.entries(aiMap).find(([header, target]) => target === internalKey && map[header.toUpperCase()] !== undefined);
+                    if (aiMatch) {
+                        console.log(`✅ [FORENSIC] IA encontró '${internalKey}' en columna: "${aiMatch[0]}"`);
+                        return map[aiMatch[0].toUpperCase()];
+                    }
+
+                    // 2. Check Synonyms
+                    for (const s of synonyms) {
+                        const sUpper = s.toUpperCase();
+                        if (map[sUpper] !== undefined) return map[sUpper];
+                        // Partial match
+                        const partial = Object.keys(map).find(k => k.includes(sUpper));
+                        if (partial !== undefined) return map[partial];
+                    }
+                    return undefined;
+                };
+
                 const clients: Client[] = [];
                 const loans: Loan[] = [];
+                const logs: CollectionLog[] = [];
 
                 // 3. Process Data
-                // We assume data starts immediately after headers.
-                // If there are multiple clients, they should align between blocks if present.
                 let dataIndex = 0;
                 for (let i = clientHeaderRow + 1; i < rows.length; i++) {
                     const cRow = rows[i];
-                    if (!cRow || cRow.length === 0 || !cRow[clientMap["NOMBRE COMPLETO"] || 1]) {
-                        // If we skip the client part but haven't reached the loan part, continue?
-                        // Or if we hit empty space, maybe we finished the client block.
-                        if (loanHeaderRow !== -1 && i >= loanHeaderRow) break;
-                        continue;
-                    }
 
-                    const clientValue = (val: any) => parseAmount(val);
+                    const nameIdx = findCol(clientMap, 'name', ["NOMBRE COMPLETO", "NOM. COMPLETO", "CLIENTE", "NOMBRE"]);
+                    const clientId = `IMP-${dataIndex}-${Date.now()}`;
 
                     // --- EMPIEZA MAPEADO CRUDO COMPLETO ---
                     // Captura todo lo que vino en la fila de Excel para este cliente
@@ -205,21 +265,57 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                     });
                     // --- TERMINA MAPEADO CRUDO COMPLETO ---
 
-                    const clientId = `IMP-${Date.now()}-${dataIndex}`;
                     const client: Client = {
                         id: clientId,
-                        name: String(cRow[clientMap["NOMBRE COMPLETO"] || clientMap["NOM. COMPLETO"] || clientMap["CLIENTE"] || 1] || ''),
-                        documentId: String(cRow[clientMap["NRO DE DOCUMENTO DE IDENT."] || clientMap["CÉDULA"] || clientMap["CEDULA"] || 2] || '0'),
-                        phone: String(cRow[clientMap["(PARTICULAR - TELÉFONO)"] || clientMap["TELÉFONO PRIMARIO"] || clientMap["TEL. PRIMARIO"] || 11] || '0'),
-                        address: `${cRow[clientMap["LOCALIDAD (CIUDAD)"] || 4] || ''} - ${cRow[clientMap["(PARTICULAR - DIRECCIÓN - CALLE PRINCIPAL)"] || 5] || ''}`,
+                        name: String(cRow[nameIdx ?? -1] || ''),
+                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID"]) ?? -1)] || '0'),
+                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV"]) ?? -1)] || '0'),
+                        secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2"]) ?? -1)] || 'SIN DATOS'),
+                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM"]) ?? -1)] || 'SIN DATOS'),
                         addedBy: collectorId,
                         creditLimit: 1000000,
                         isActive: true,
-                        createdAt: new Date().toISOString(),
-                        birthDate: cRow[clientMap["FECHA NACIMIENTO"] || clientMap["FEC. NAC"]] ? String(cRow[clientMap["FECHA NACIMIENTO"] || clientMap["FEC. NAC"]]) : undefined,
-                        clientTypeCode: String(cRow[clientMap["BANCA (TIPO DE CLIENTE)"] || clientMap["BANCA"] || clientMap["TIPO CLIENTE"]] || '131'),
-                        systemRating: String(cRow[clientMap["CALIFICACION EN EL SISTEMA"] || clientMap["CALIFICACION"] || clientMap["CALIF"]] || ''),
-                        raw_data: clientRawData // <-- GUARDA TODO
+                        createdAt: parseExcelDate(cRow[findCol(clientMap, 'date', ["FECHA", "REGISTRO", "ALTA", "FECHA REGISTRO", "FEC", "FCH"]) ?? -1]),
+                        birthDate: cRow[findCol(clientMap, 'birthDate', ["FECHA NACIMIENTO", "FEC. NAC", "F. NACIMIENTO", "(FCH. NACIMIENTO)", "FECHA DE NACIMIENTO", "FEC NAC", "F NAC", "F. NACIM"]) ?? -1] ? parseExcelDate(cRow[findCol(clientMap, 'birthDate', ["FECHA NACIMIENTO", "FEC. NAC", "F. NACIMIENTO", "(FCH. NACIMIENTO)", "FECHA DE NACIMIENTO", "FEC NAC", "F NAC", "F. NACIM"]) ?? -1]) : undefined,
+                        nationality: String(cRow[findCol(clientMap, 'nationality', ["NACIONALIDAD", "NACION", "PAÍS", "NAC"]) ?? -1] || 'SIN DATOS'),
+                        maritalStatus: String(cRow[findCol(clientMap, 'maritalStatus', ["ESTADO CIVIL", "ESTADO", "EST CIV"]) ?? -1] || 'SIN DATOS'),
+                        profession: String(cRow[findCol(clientMap, 'profession', ["PROFESIÓN", "PROFESION", "CARGO", "PROF"]) ?? -1] || 'SIN DATOS'),
+                        email: String(cRow[findCol(clientMap, 'email', ["EMAIL", "CORREO", "E-MAIL", "MAIL"]) ?? -1] || 'SIN DATOS'),
+                        // Datos Cónyuge
+                        spouseName: String(cRow[findCol(clientMap, 'spouseName', ["NOMBRE CÓNYUGE", "NOMBRE CONYUGE", "CONYUGE", "NOMBRE DE LA PAREJA", "NOM CONY"]) ?? -1] || 'SIN DATOS'),
+                        spouseDocumentId: String(cRow[findCol(clientMap, 'spouseDocumentId', ["DOCUMENTO CÓNYUGE", "CEDULA CONYUGE", "CI CONYUGE", "DOC CONY"]) ?? -1] || 'SIN DATOS'),
+                        spouseBirthDate: cRow[findCol(clientMap, 'spouseBirthDate', ["FECHA NACIMIENTO CÓNYUGE", "FEC NAC CONYUGE", "F NAC CONY"]) ?? -1] ? parseExcelDate(cRow[findCol(clientMap, 'spouseBirthDate', ["FECHA NACIMIENTO CÓNYUGE", "FEC NAC CONYUGE", "F NAC CONY"]) ?? -1]) : undefined,
+                        spouseProfession: String(cRow[findCol(clientMap, 'spouseProfession', ["PROFESIÓN CÓNYUGE", "PROFESION CONYUGE", "PROF CONY"]) ?? -1] || 'SIN DATOS'),
+                        spouseWorkplace: String(cRow[findCol(clientMap, 'spouseWorkplace', ["LUGAR TRABAJO CÓNYUGE", "TRABAJO CONYUGE", "LUG TRAB CONY"]) ?? -1] || 'SIN DATOS'),
+                        spouseWorkPhone: String(cRow[findCol(clientMap, 'spouseWorkPhone', ["TELÉFONO LABORAL CÓNYUGE", "TEL TRABAJO CONYUGE", "TEL LAB CONY"]) ?? -1] || 'SIN DATOS'),
+                        spouseIncome: parseAmount(cRow[findCol(clientMap, 'spouseIncome', ["INGRESOS CÓNYUGE", "SUELDO CONYUGE", "ING CONY"]) ?? -1] || '0'),
+
+                        // Residencia
+                        residenceType: cRow[findCol(clientMap, 'residenceType', ["TIPO VIVIENDA", "TIPO DE CASA", "TIPO VIV"]) ?? -1] as any,
+                        residenceAntiquity: String(cRow[findCol(clientMap, 'residenceAntiquity', ["ANTIGÜEDAD RESIDENCIA", "TIEMPO EN CASA", "ANTIG RES"]) ?? -1] || 'SIN DATOS'),
+                        houseNumber: String(cRow[findCol(clientMap, 'houseNumber', ["NRO CASA", "NÙMERO CASA", "NRO DE CASA", "NRO HS"]) ?? -1] || 'SIN DATOS'),
+
+                        particularCity: String(cRow[findCol(clientMap, 'particularCity', ["(PARTICULAR - CIUDAD)", "CIUDAD", "CIUDAD PARTICULAR", "CDAD", "CIUD"]) ?? -1] || 'SIN DATOS'),
+                        particularNeighborhood: String(cRow[findCol(clientMap, 'particularNeighborhood', ["(PARTICULAR - BARRIO)", "BARRIO", "BARRIO PARTICULAR", "BARR"]) ?? -1] || 'SIN DATOS'),
+                        particularStreetMain: String(cRow[findCol(clientMap, 'particularStreetMain', ["CALLE PRINCIPAL", "(PARTICULAR - DIRECCIÓN - CALLE PRINCIPAL)", "DIRECCIÓN PARTICULAR", "C PRINCIPAL"]) ?? -1] || 'SIN DATOS'),
+                        particularStreetSecondary: String(cRow[findCol(clientMap, 'particularStreetSecondary', ["CALLE SECUNDARIA", "(PARTICULAR - DIRECCIÓN - CALLE SECUNDARIA)", "(PARTICULAR - DIRECCIÓN - CALLE SECONDARIA)", "C SECUNDARIA"]) ?? -1] || 'SIN DATOS'),
+
+                        // Datos Laborales
+                        workCompany: String(cRow[findCol(clientMap, 'workCompany', ["LABORAL EMPRESA/NEGOCIO", "EMPRESA", "EMPRESA/NEGOCIO", "LUGAR DE TRABAJO", "LABORAL  EMPRESA/NEGOCIO", "EMPR", "NEG"]) ?? -1] || 'SIN DATOS'),
+                        workStreetMain: String(cRow[findCol(clientMap, 'workStreetMain', ["DIRECCIÓN NEGOCIO", "CALLE LABORAL", "(LABORAL - DIRECCIÓN - CALLE PRINCIPAL)", "DIR NEG"]) ?? -1] || 'SIN DATOS'),
+                        workStreetSecondary: String(cRow[findCol(clientMap, 'workStreetSecondary', ["CALLE SECUNDARIA LABORAL", "(LABORAL - DIRECCIÓN - CALLE SECUNDARIA)", "(LABORAL - DIRECCIÓN - CALLE SECONDARIA)"]) ?? -1] || 'SIN DATOS'),
+                        workCity: String(cRow[findCol(clientMap, 'workCity', ["CIUDAD LABORAL", "(LABORAL -  CIUDAD)", "CDAD LAB"]) ?? -1] || 'SIN DATOS'),
+                        workNeighborhood: String(cRow[findCol(clientMap, 'workNeighborhood', ["BARRIO LABORAL", "(LABORAL - BARRIO)", "BARR LAB"]) ?? -1] || 'SIN DATOS'),
+                        workPosition: String(cRow[findCol(clientMap, 'workPosition', ["CARGO"]) ?? -1] || 'SIN DATOS'),
+                        workSector: String(cRow[findCol(clientMap, 'workSector', ["RUBRO", "RUBRO NEGOCIO"]) ?? -1] || 'SIN DATOS'),
+                        workAntiquity: String(cRow[findCol(clientMap, 'workAntiquity', ["(ANTIGÜEDAD)", "ANTIGUEDAD", "ANTIGÜEDAD", "ANTIG"]) ?? -1] || 'SIN DATOS'),
+                        workIncome: parseAmount(cRow[findCol(clientMap, 'workIncome', ["(LABORAL INGRESOS / SALARIO)", "SALARIO / INGRESOS", "SALARIO", "ING LAB"]) ?? -1] || '0'),
+                        workPhone: String(cRow[findCol(clientMap, 'workPhone', ["TELÉFONO LABORAL", "TELÉFONO NEGOCIO", "(LABORAL - TELÉFONO)", "(LABORAL - TELEFONO)", "TEL LAB", "TEL NEG"]) ?? -1] || 'SIN DATOS'),
+
+                        clientTypeCode: String(cRow[findCol(clientMap, 'clientType', ["BANCA (TIPO DE CLIENTE)", "BANCA", "TIPO CLIENTE", "BANCA (TIPO DE CLIENTE", "TIPO CLT"]) ?? -1] || '131'),
+                        systemRating: String(cRow[findCol(clientMap, 'rating', ["CALIFICACION EN EL SISTEMA", "CALIFICACION", "CALIF"]) ?? -1] || ''),
+                        externalId: String(cRow[findCol(clientMap, 'externalId', ["NRO DE OPERACIÓN EN SISTEMA BASE", "OPERACION BASE", "NRO OPERACION", "ID BASE", "ID EXTERNO", "NRO DE OPERACIÓN EN SISTEMA BASE"]) ?? -1] || '').replace(/\D/g, ''),
+                        raw_data: clientRawData
                     };
                     clients.push(client);
 
@@ -237,16 +333,90 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                 }
                             });
 
-                            const principalStr = String(lRow[loanMap["LIQUIDO DESEMBOLSADO"] || loanMap["LIQ. DESEMB"] || loanMap["MONTO PAGARE"] || loanMap["MONTO PAG"]] || '0');
-                            const principal = clientValue(principalStr);
+                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL"]);
+                            const rawPrincipal = lRow[principalIdx ?? -1];
+                            const principal = parseAmount(rawPrincipal);
+                            console.log(`💰 [FORENSIC] Campo 'principal': Original="${rawPrincipal}", Final=${principal}`);
 
-                            const capitalStr = String(lRow[loanMap["SALDO CAPITAL"] || loanMap["LIQUIDO DESEMBOLSADO"] || loanMap["LIQ. DESEMB"] || loanMap["MONTO PAGARE"] || loanMap["MONTO PAG"]] || '0');
-                            const interestStr = String(lRow[loanMap["SALDO INTERES"] || loanMap["SALDO INT"]] || '0');
-                            const totalAmount = clientValue(capitalStr) + clientValue(interestStr);
+                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO", "SALDO TOTAL", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR"]);
+                            const rawBalance = lRow[importedBalanceIdx ?? -1];
+                            const legacyBalance = parseAmount(rawBalance);
+                            console.log(`💰 [FORENSIC] Campo 'balance': Original="${rawBalance}", Final=${legacyBalance}`);
 
-                            const totalInst = Number(lRow[loanMap["CUOTAS TOTALES"] || loanMap["CUOTAS TOT"]] || 0);
-                            const paidInst = Number(lRow[loanMap["CUOTAS PAGADAS"] || loanMap["CUOTAS PAG"]] || 0);
-                            const instValue = clientValue(lRow[loanMap["MONTO CUOTA"] || loanMap["CUOTA"]]);
+                            // 2. Obtener el total a pagar del Excel (si existe) o calcularlo
+                            const totalAmountStr = String(
+                                lRow[loanMap["TOTAL A PAGAR"]] ||
+                                lRow[loanMap["MONTO TOTAL"]] ||
+                                lRow[loanMap["TOTAL"]] ||
+                                lRow[loanMap["TOTAL DEVENSIÓN"]] ||
+                                lRow[loanMap["MONTO TOTAL PAGARE"]] ||
+                                '0'
+                            );
+
+                            const capitalStr = String(lRow[loanMap["SALDO CAPITAL"] ?? loanMap["SALDO CAP"] ?? loanMap["CAPITAL"] ?? (principalIdx ?? -1)] || '0');
+                            const interestStr = String(lRow[loanMap["SALDO INTERES"] ?? loanMap["SALDO INT"] ?? loanMap["INTERES"] ?? -1] || '0');
+
+                            const valCapital = parseAmount(capitalStr);
+                            const valInterest = parseAmount(interestStr);
+
+                            // RECONSTRUCCIÓN MATEMÁTICA v2.4 (Requerimiento Usuario)
+                            // 1. Obtener Monto Cuota y Cantidades
+                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "CUOTA", "VALOR CUOTA", "PRECIO CUOTA"]);
+                            const instValue = parseAmount(lRow[instValueIdx ?? -1]);
+
+                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "PLAZO"]);
+                            const totalInst = Number(lRow[totalInstIdx ?? -1] || 0);
+
+                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES"]);
+                            const pendingInst = Number(lRow[pendingInstIdx ?? -1] || 0);
+
+                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE"]);
+                            let paidInst = Number(lRow[paidInstIdx ?? -1] || 0);
+
+                            // 2. Aplicar Fórmulas del Usuario
+                            // Monto Total = Cuotas Totales * Monto Cuota
+                            let totalAmount = totalInst * instValue;
+
+                            // Saldo Actual = Cuotas Pendientes * Monto Cuota
+                            const currentBalance = pendingInst * instValue;
+
+                            // Si no hay cuotas pagadas explícitas, deducirlas
+                            if (paidInst === 0 && totalInst > 0) {
+                                paidInst = totalInst - pendingInst;
+                            }
+
+                            console.log(`🧮 [MATH FORENSIC v2.4] Cuota=${instValue} | Totales=${totalInst} | Pendientes=${pendingInst} | Pagadas=${paidInst}`);
+                            console.log(`🧮 [MATH FORENSIC v2.4] RESULTADO -> Total=${totalAmount} | Saldo=${currentBalance}`);
+
+                            // Fallback por si lo anterior falla
+                            if (totalAmount === 0) {
+                                totalAmount = parseAmount(totalAmountStr) || (valCapital + valInterest);
+                            }
+
+                            // 3. Detectar frecuencia (INTELIGENTE)
+                            let frequency = Frequency.DAILY;
+                            const freqIdx = findCol(loanMap, 'frequency', ["FRECUENCIA", "MODALIDAD"]);
+                            const freqStr = String(lRow[freqIdx ?? -1] || '').toUpperCase();
+                            if (freqStr.includes('SEM') || freqStr.includes('7 D')) frequency = Frequency.WEEKLY;
+                            else if (freqStr.includes('QUIN') || freqStr.includes('15 D')) frequency = Frequency.BIWEEKLY;
+                            else if (freqStr.includes('MEN') || freqStr.includes('30 D')) frequency = Frequency.MONTHLY;
+
+                            // 4. Determinar Saldo Final (REQUERIMIENTO v2.10)
+                            // A. Prioridad 1: Suma de Saldo Capital + Saldo Interes
+                            const sumBalance = valCapital + valInterest;
+
+                            // B. Prioridad 2: Saldo importado legado si existe
+                            // C. Prioridad 3: Cálculo por Cuotas Pendientes
+                            let importedBalance = sumBalance > 0 ? sumBalance : (legacyBalance || (pendingInst * instValue));
+
+                            if (sumBalance > 0) {
+                                console.log(`🧮 [MATH v2.10] Saldo por SUMA (Cap + Int): ${valCapital} + ${valInterest} = ${importedBalance}`);
+                            } else if (pendingInst > 0 && (!legacyBalance || legacyBalance === 0)) {
+                                console.log(`🧮 [MATH v2.10] Saldo por CUOTAS: ${pendingInst} * ${instValue} = ${importedBalance}`);
+                            }
+
+                            totalAmount = totalAmount || importedBalance || legacyBalance;
+                            // ---------------------------------------------
 
                             const loan: Loan = {
                                 id: `L-${clientId}`,
@@ -256,12 +426,12 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                 totalAmount,
                                 totalInstallments: totalInst,
                                 installmentValue: instValue,
-                                frequency: Frequency.DAILY, // Standard default for these imports
+                                frequency,
                                 status: LoanStatus.ACTIVE,
-                                operationTypeCode: String(lRow[loanMap["TIPO DE OPERACION"] || loanMap["TIPO OPERACION"] || loanMap["TIPO OP"]] || '202'),
-                                sellerCode: String(lRow[loanMap["CODIGO DE VENDEDOR"] || loanMap["CODIGO VENDEDOR"] || loanMap["COD. VEND"] || loanMap["VENDEDOR"]] || ''),
+                                operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
+                                sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR"]) ?? -1] || ''),
                                 interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
-                                createdAt: lRow[loanMap["FECHA DE DESEMBOLSO"] || loanMap["FEC. DESEMB"]] ? new Date(lRow[loanMap["FECHA DE DESEMBOLSO"] || loanMap["FEC. DESEMB"]]).toISOString() : new Date().toISOString(),
+                                createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO"]) ?? -1]),
                                 installments: [],
                                 raw_data: loanRawData // <-- GUARDA TODO
                             };
@@ -271,22 +441,41 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                 loan.installments.push({
                                     number: j,
                                     amount: instValue,
-                                    dueDate: new Date().toISOString(), // Mocking dates for imported history
+                                    dueDate: new Date().toISOString(), // Standard generation
                                     status: j <= paidInst ? PaymentStatus.PAID : PaymentStatus.PENDING,
                                     paidAmount: j <= paidInst ? instValue : 0
                                 });
                             }
 
+                            // 5. GENERAR LOG HISTÓRICO "RECONSTRUIDO" (v2.11)
+                            // Calculamos el monto del log para que: TOTAL - LOG = SALDO_DESEADO
+                            if (paidInst > 0 || totalAmount > importedBalance) {
+                                const logAmount = Math.max(0, totalAmount - importedBalance);
+                                if (logAmount > 0) {
+                                    logs.push({
+                                        id: generateUUID(),
+                                        loanId: loan.id,
+                                        clientId: client.id,
+                                        type: CollectionLogType.PAYMENT,
+                                        amount: logAmount,
+                                        date: loan.createdAt, // Usamos la fecha de inicio como referencia
+                                        location: { lat: 0, lng: 0 },
+                                        isOpening: true, // Esto indica que es un saldo de arrastre
+                                        recordedBy: collectorId
+                                    });
+                                }
+                            }
+
                             loans.push(loan);
                             // Update client current balance
                             client.creditLimit = principal;
-                            client.currentBalance = totalAmount - (paidInst * instValue);
+                            client.currentBalance = Math.max(0, totalAmount - (paidInst * instValue));
                         }
                     }
                     dataIndex++;
                 }
 
-                resolve({ clients, loans });
+                resolve({ clients, loans, logs });
             } catch (err) {
                 reject(err);
             }

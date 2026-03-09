@@ -144,3 +144,50 @@ export const generateNoPaymentAIReminder = async (loan: Loan, client: Client, da
   // "Hola (nombre) registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo (saldo)..."
   return `Hola ${client.name} registramos hoy que no pudo realizar el pago. Porfavor, trate de ponerse al dia con su saldo ${formattedBalance}.${extraMsg} ATENTAMENTE ${companyName.toUpperCase()}`;
 };
+
+export const mapHeadersWithAI = async (headers: string[]): Promise<Record<string, string>> => {
+  const prompt = `
+    Dada una lista de encabezados de una hoja de Excel de préstamos/cobranzas, mapea cada encabezado a una de nuestras claves internas si hay una coincidencia clara.
+    
+    CLAVES INTERNAS:
+    - name: Nombre del cliente
+    - documentId: Cédula, DNI, Identificación
+    - phone: Teléfono, celular
+    - address: Dirección, domicilio
+    - principal: Capital inicial, monto prestado, préstamo
+    - totalAmount: Monto total con intereses, total pagadero
+    - installmentValue: Valor de la cuota, monto cuota
+    - totalInstallments: Cantidad de cuotas, plan
+    - pendingInstallments: Cuotas pendientes, cuotas que faltan, saldo en cuotas, CUOTA PENDIENTE
+    - paidInstallments: Cuotas pagadas, cuotas abonadas, cuotas ya cobradas
+    - balance: Saldo actual, lo que debe hoy, SALDO PENDIENTE, SALDO TOTAL
+    - frequency: Frecuencia de pago (DIARIO, SEMANAL, QUINCENAL, MENSUAL)
+    
+    ENCABEZADOS EXCEL:
+    ${headers.join(', ')}
+    
+    Responde solo con un JSON plano donde la clave es el ENCABEZADO EXCEL y el valor es la CLAVE INTERNA.
+    Ejemplo: {"Nombres y Apellidos": "name", "CC": "documentId"}
+  `;
+
+  try {
+    console.log("🧠 [FORENSIC] Solicitando mapeo a la IA para:", headers);
+    // Quitamos response_mime_type: "application/json" para evitar error 400 en algunos entornos/modelos
+    const text = await fetchGemini(prompt, false);
+
+    // Extractor robusto de JSON
+    const extractJSON = (raw: string) => {
+      const start = raw.indexOf('{');
+      const end = raw.lastIndexOf('}');
+      if (start === -1 || end === -1) return {};
+      return JSON.parse(raw.substring(start, end + 1));
+    };
+
+    const result = extractJSON(text || '{}');
+    console.log("✅ [FORENSIC] Mapeo de IA recibido y procesado:", result);
+    return result;
+  } catch (error) {
+    console.error("❌ [FORENSIC] Error en Mapeo de IA:", error);
+    return {};
+  }
+};

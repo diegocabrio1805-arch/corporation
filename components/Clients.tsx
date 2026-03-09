@@ -570,17 +570,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   }, [showLegajo, state.collectionLogs, state.loans]);
 
   const getClientMetrics = (client: Client) => {
-    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasTP: '0/0', daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false };
+    if (!client) return { balance: 0, installmentsStr: '0/0', cuotasPendientes: 0, daysOverdue: 0, activeLoan: null, totalPaid: 0, lastExpiryDate: '', createdAt: '', isFullyPaid: false, maxDaysOverdue: 0, hasMultipleLoans: false };
     const clientLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l => (l.clientId || (l as any).client_id) === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
     const sortedLoans = clientLoans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     const activeLoan = sortedLoans[0];
     const hasMultipleLoans = clientLoans.length > 1;
 
-    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasTP = '0/0', isFullyPaid = false, maxDaysOverdue = 0;
+    let balance = 0, installmentsStr = '0/0', daysOverdue = 0, totalPaid = 0, lastExpiryDate = '', createdAt = '', cuotasPendientes = 0, isFullyPaid = false, maxDaysOverdue = 0;
 
     if (activeLoan) {
       // USAR SIEMPRE LA FUNCIÓN ROBUSTA UNIFICADA
-      totalPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+      totalPaid = clientLoans.reduce((sum, l) => sum + calculateTotalPaidFromLogs(l, state.collectionLogs), 0);
+
+      const totalCreditAmount = clientLoans.reduce((sum, l) => sum + l.totalAmount, 0);
 
       // Saldo Pendiente Consolidado
       balance = clientLoans.reduce((sum, l) => {
@@ -591,12 +593,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       isFullyPaid = balance <= 0.01;
 
       // Progreso Cuotas (del principal/reciente)
-      const progress = totalPaid / (activeLoan.installmentValue || 1);
+      const activeLoanPaid = calculateTotalPaidFromLogs(activeLoan, state.collectionLogs);
+      const progress = activeLoanPaid / (activeLoan.installmentValue || 1);
       const formattedProgress = progress % 1 === 0 ? progress.toString() : (Math.floor(progress * 10) / 10).toString();
       installmentsStr = `${formattedProgress} / ${activeLoan.totalInstallments}`;
 
       const paidUnits = Math.floor(progress);
-      cuotasTP = `${activeLoan.totalInstallments} / ${paidUnits}`;
+      cuotasPendientes = Math.max(0, activeLoan.totalInstallments - paidUnits);
 
       // Mora: Tomamos la mayor de todos los préstamos para alertar peligro
       daysOverdue = Math.max(...clientLoans.map(l => {
@@ -615,9 +618,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       }
       createdAt = activeLoan.createdAt;
 
-      return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
+      return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue, totalCreditAmount };
     }
-    return { balance, installmentsStr, cuotasTP, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
+    return { balance, installmentsStr, cuotasPendientes, daysOverdue, activeLoan: null, totalPaid, lastExpiryDate, createdAt, isFullyPaid, maxDaysOverdue };
   };
 
   const filteredClients = useMemo(() => {
@@ -1641,8 +1644,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <th>Registro</th>
                 <th>Cliente / ID</th>
                 <th>Teléfono</th>
-                <th class="text-right">Crédito</th>
-                <th class="text-center">Cuotas T/P</th>
+                <th class="text-right">Habilitado</th>
+                <th class="text-right">V. Cuota</th>
+                <th class="text-right">Monto</th>
+                <th class="text-center">C. PEND.</th>
                 <th class="text-right">Saldo Actual</th>
                 <th class="text-center">Progreso</th>
                 <th class="text-center">Atraso</th>
@@ -1654,8 +1659,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <td>${client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
                   <td>${client.name.toUpperCase()}<br/><span style="font-size: 9px; color: #94a3b8;">ID: ${client.documentId}</span></td>
                   <td>${client.phone}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
+                  <td class="text-right">${formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
                   <td class="text-right">${formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
-                  <td class="text-center">${client._metrics.cuotasTP}</td>
+                  <td class="text-center">${client._metrics.cuotasPendientes}</td>
                   <td class="text-right">${formatCurrency(client._metrics.balance, state.settings)}</td>
                   <td class="text-center">${client._metrics.installmentsStr}</td>
                   <td class="text-center">
@@ -1739,12 +1746,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
       doc.text("CLIENTE / ID", margin + 2, y + 5.5);
-      doc.text("TELÉFONO", margin + 50, y + 5.5);
-      doc.text("CRÉDITO", margin + 85, y + 5.5, { align: 'right' });
-      doc.text("CUOTAS T/P", margin + 105, y + 5.5, { align: 'center' });
-      doc.text("SALDO", margin + 130, y + 5.5, { align: 'right' });
-      doc.text("PROGRESO", margin + 155, y + 5.5, { align: 'center' });
-      doc.text("MORA", margin + 175, y + 5.5, { align: 'center' });
+      doc.text("TELÉFONO", margin + 40, y + 5.5);
+      doc.text("HABILITADO", margin + 70, y + 5.5, { align: 'right' });
+      doc.text("V. CUOTA", margin + 90, y + 5.5, { align: 'right' });
+      doc.text("MONTO", margin + 110, y + 5.5, { align: 'right' });
+      doc.text("PEND.", margin + 125, y + 5.5, { align: 'center' });
+      doc.text("SALDO", margin + 145, y + 5.5, { align: 'right' });
+      doc.text("PROGRESO", margin + 165, y + 5.5, { align: 'center' });
+      doc.text("MORA", margin + 180, y + 5.5, { align: 'center' });
 
       y += 8;
       doc.setFont("helvetica", "normal");
@@ -1765,12 +1774,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
           doc.text("CLIENTE / ID", margin + 2, y + 5.5);
-          doc.text("TELÉFONO", margin + 50, y + 5.5);
-          doc.text("CRÉDITO", margin + 85, y + 5.5, { align: 'right' });
-          doc.text("CUOTAS T/P", margin + 105, y + 5.5, { align: 'center' });
-          doc.text("SALDO", margin + 130, y + 5.5, { align: 'right' });
-          doc.text("PROGRESO", margin + 155, y + 5.5, { align: 'center' });
-          doc.text("MORA", margin + 175, y + 5.5, { align: 'center' });
+          doc.text("TELÉFONO", margin + 40, y + 5.5);
+          doc.text("HABILITADO", margin + 70, y + 5.5, { align: 'right' });
+          doc.text("V. CUOTA", margin + 90, y + 5.5, { align: 'right' });
+          doc.text("MONTO", margin + 110, y + 5.5, { align: 'right' });
+          doc.text("PEND.", margin + 125, y + 5.5, { align: 'center' });
+          doc.text("SALDO", margin + 145, y + 5.5, { align: 'right' });
+          doc.text("PROGRESO", margin + 165, y + 5.5, { align: 'center' });
+          doc.text("MORA", margin + 180, y + 5.5, { align: 'center' });
           y += 8;
           doc.setFont("helvetica", "normal");
           doc.setTextColor(30, 41, 59);
@@ -1794,27 +1805,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
         doc.setFontSize(7);
         doc.setTextColor(30, 41, 59);
-        doc.text(client.phone || '---', margin + 50, y + 6);
+        doc.text(client.phone || '---', margin + 40, y + 6);
 
         doc.setFont("helvetica", "bold");
-        doc.text(formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings), margin + 85, y + 6, { align: 'right' });
+        doc.text(formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings), margin + 70, y + 6, { align: 'right' });
+        doc.text(formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings), margin + 90, y + 6, { align: 'right' });
+        doc.text(formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings), margin + 110, y + 6, { align: 'right' });
 
         doc.setFont("helvetica", "normal");
-        doc.text(client._metrics.cuotasTP || '0/0', margin + 105, y + 6, { align: 'center' });
+        doc.text(client._metrics.cuotasPendientes.toString(), margin + 125, y + 6, { align: 'center' });
 
         doc.setFont("helvetica", "bold");
-        doc.text(formatCurrency(client._metrics.balance || 0, state.settings), margin + 130, y + 6, { align: 'right' });
+        doc.text(formatCurrency(client._metrics.balance || 0, state.settings), margin + 145, y + 6, { align: 'right' });
 
         doc.setFont("helvetica", "normal");
-        doc.text(client._metrics.installmentsStr || '0/0', margin + 155, y + 6, { align: 'center' });
+        doc.text(client._metrics.installmentsStr || '0/0', margin + 165, y + 6, { align: 'center' });
 
         if (client._metrics.daysOverdue > 0) {
           doc.setTextColor(220, 38, 38);
           doc.setFont("helvetica", "bold");
-          doc.text(`${client._metrics.daysOverdue} D`, margin + 175, y + 6, { align: 'center' });
+          doc.text(`${client._metrics.daysOverdue} D`, margin + 180, y + 6, { align: 'center' });
         } else {
           doc.setTextColor(5, 150, 105);
-          doc.text("OK", margin + 175, y + 6, { align: 'center' });
+          doc.text("OK", margin + 180, y + 6, { align: 'center' });
         }
 
         doc.setTextColor(30, 41, 59);
@@ -1847,7 +1860,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     setIsProcessingExcel(true);
     try {
-      const { clients, loans } = await processExcelImport(file, selectedCollectorForImport);
+      const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport);
 
       for (const client of clients) {
         await addClient(client);
@@ -1855,8 +1868,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       for (const loan of loans) {
         await addLoan(loan);
       }
+      if (Array.isArray(logs)) {
+        for (const log of logs) {
+          if (addCollectionAttempt) await addCollectionAttempt(log);
+        }
+      }
 
-      alert(`IMPORTACIÓN EXITOSA: ${clients.length} CLIENTES Y ${loans.length} PRÉSTAMOS.`);
+      alert(`IMPORTACIÓN EXITOSA: ${clients.length} CLIENTES, ${loans.length} PRÉSTAMOS Y ${logs?.length || 0} REGISTROS DE PAGO.`);
       setShowImportModal(false);
       setSelectedCollectorForImport('');
     } catch (err) {
@@ -1906,7 +1924,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   onClick={() => setShowImportModal(true)}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase border border-emerald-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <Upload className="h-3 w-3" /> IMPORTAR
+                  <Upload className="h-3 w-3" /> IMPORTAR CON IA EXCEL
                 </button>
                 <button
                   onClick={() => exportClientsToExcel(filteredClients, state.loans)}
@@ -2146,9 +2164,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </th>
                       <th className="px-6 py-4">Cliente / ID</th>
                       <th className="px-6 py-4">Teléfono(s)</th>
-                      <th className="px-6 py-4 text-center">Renov.</th>
+                      <th className="px-6 py-4 text-right">Habilitado</th>
+                      <th className="px-6 py-4 text-right">V. Cuota</th>
                       <th className="px-6 py-4 text-right">Monto</th>
-                      <th className="px-6 py-4 text-center">Cuotas T/P</th>
+                      <th className="px-6 py-4 text-center">C. Pendientes</th>
                       <th className="px-6 py-4 text-right">Saldo Actual</th>
                       <th className="px-6 py-4 text-center">Progreso</th>
                       <th className="px-6 py-4 text-center">Atraso</th>
@@ -2173,14 +2192,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <p className="text-blue-700">{client.phone}</p>
                           {client.secondaryPhone && <p className="text-slate-400 text-[10px]">{client.secondaryPhone}</p>}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-700">
-                            {Array.isArray(state.loans) ? state.loans.filter(l => l.clientId === client.id && l.isRenewal).length : 0}
-                          </span>
-                        </td>
+                        <td className="px-6 py-4 text-right font-mono text-emerald-600">{formatCurrency(client._metrics.activeLoan?.principal || 0, state.settings)}</td>
+                        <td className="px-6 py-4 text-right font-mono text-blue-600">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono text-slate-900">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
-                          <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-100">{client._metrics.cuotasTP}</span>
+                          <span className="bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-100">{client._metrics.cuotasPendientes}</span>
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
@@ -2589,7 +2605,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   return (
                                     <table className="w-full text-left border-collapse">
                                       <tbody className="divide-y divide-slate-800 text-slate-100 font-bold text-[10px] md:text-[11px]">
-                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 w-1/2 bg-slate-800/20">Total del Crédito</td><td className="p-3 text-right font-black text-white">{formatCurrency(activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
+                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 w-1/2 bg-slate-800/20">Total del Crédito</td><td className="p-3 text-right font-black text-white">{formatCurrency(m.totalCreditAmount || activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
                                         <tr className="hover:bg-emerald-900/10 transition-colors"><td className="p-3 text-emerald-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-emerald-900/5">Abonado</td><td className="p-3 text-right font-black text-emerald-400">{formatCurrency(m.totalPaid, state.settings)}</td></tr>
                                         <tr className="hover:bg-red-900/10 transition-colors"><td className="p-3 text-red-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-red-900/5">Saldo Pendiente</td><td className="p-3 text-right font-black text-red-400">{formatCurrency(m.balance, state.settings)}</td></tr>
                                         <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/20">Progreso Cuotas</td><td className="p-3 text-right font-black text-white">{m.installmentsStr}</td></tr>
@@ -2704,13 +2720,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
                                   <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nacionalidad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.nationality || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.birthDate || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Estado Civil</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.maritalStatus || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.profession || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Email</td><td className="p-2 text-slate-900 lowercase">{clientInLegajo.email || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Clasific.</td><td className="p-2 uppercase text-indigo-700 font-black">{clientInLegajo.clientTypeCode || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tipo Cliente</td><td className="p-2 uppercase text-blue-800 font-black">{clientInLegajo.clientType || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nacionalidad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.nationality || clientInLegajo.raw_data?.["NACIONALIDAD"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.birthDate || clientInLegajo.raw_data?.["FECHA DE NACIMIENTO"] || clientInLegajo.raw_data?.["F. NAC."] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Estado Civil</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.maritalStatus || clientInLegajo.raw_data?.["ESTADO CIVIL"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.profession || clientInLegajo.raw_data?.["PROFESIÓN"] || clientInLegajo.raw_data?.["PROFESION"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Email</td><td className="p-2 text-slate-900 lowercase">{clientInLegajo.email || clientInLegajo.raw_data?.["EMAIL"] || clientInLegajo.raw_data?.["CORREO"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Clasific.</td><td className="p-2 uppercase text-indigo-700 font-black">{clientInLegajo.clientTypeCode || clientInLegajo.raw_data?.["CLASIFICACIÓN"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tipo Cliente</td><td className="p-2 uppercase text-blue-800 font-black">{clientInLegajo.clientType || clientInLegajo.raw_data?.["TIPO"] || '---'}</td></tr>
                                   </tbody>
                                 </table>
                               </div>
@@ -2722,24 +2738,24 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 <div>
                                   <table className="w-full text-left border-collapse">
                                     <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Tipo Casa</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.residenceType || '---'} ({clientInLegajo.residenceAntiquity || '---'})</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Particular - Ciudad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularCity || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Princ.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetMain || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Tipo Casa</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.residenceType || clientInLegajo.raw_data?.["TIPO CASA"] || '---'} ({clientInLegajo.residenceAntiquity || clientInLegajo.raw_data?.["ANTIGÜEDAD CASA"] || '---'})</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Particular - Ciudad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularCity || clientInLegajo.raw_data?.["CIUDAD"] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Princ.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetMain || clientInLegajo.raw_data?.["DIRECCION"] || '---'}</td></tr>
                                       <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Sec.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetSecondary || '---'}</td></tr>
                                       <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Nro Casa</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.houseNumber || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Barrio Particular</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularNeighborhood || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Barrio Particular</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularNeighborhood || clientInLegajo.raw_data?.["BARRIO"] || '---'}</td></tr>
                                     </tbody>
                                   </table>
                                 </div>
                                 <div className="border-t md:border-t-0">
                                   <table className="w-full text-left border-collapse">
                                     <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] w-1/3 border-r border-slate-100">Empresa</td><td className="p-2 uppercase text-indigo-900 font-black">{clientInLegajo.workCompany || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] w-1/3 border-r border-slate-100">Empresa</td><td className="p-2 uppercase text-indigo-900 font-black">{clientInLegajo.workCompany || clientInLegajo.raw_data?.["LUGAR DE TRABAJO"] || clientInLegajo.raw_data?.["EMPRESA"] || '---'}</td></tr>
                                       <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Laboral - Ciudad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.workCity || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Laboral</td><td className="p-2 uppercase text-slate-900 shrink-0">{clientInLegajo.workStreetMain || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tel. Laboral</td><td className="p-2 text-indigo-700">{clientInLegajo.workPhone || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Laboral</td><td className="p-2 uppercase text-slate-900 shrink-0">{clientInLegajo.workStreetMain || clientInLegajo.raw_data?.["DIREC. TRAB."] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tel. Laboral</td><td className="p-2 text-indigo-700">{clientInLegajo.workPhone || clientInLegajo.raw_data?.["TELÉFONO TRABAJO"] || '---'}</td></tr>
                                       <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Barrio Laboral</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.workNeighborhood || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] border-r border-slate-100">Salario / Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.workIncome || 0, state.settings)}</td></tr>
+                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] border-r border-slate-100">Salario / Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.workIncome || clientInLegajo.raw_data?.["INGRESO MENSUAL"] || 0, state.settings)}</td></tr>
                                     </tbody>
                                   </table>
                                 </div>
@@ -2751,12 +2767,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
                                   <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nombre</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseName || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Cédula</td><td className="p-2 text-slate-900">{clientInLegajo.spouseDocumentId || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.spouseBirthDate || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseProfession || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Lugar Trab.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseWorkplace || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.spouseIncome || 0, state.settings)}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nombre</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseName || clientInLegajo.raw_data?.["NOMBRE CÓNYUGE"] || clientInLegajo.raw_data?.["NOMBRE CONYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Cédula</td><td className="p-2 text-slate-900">{clientInLegajo.spouseDocumentId || clientInLegajo.raw_data?.["DOCUMENTO CÓNYUGE"] || clientInLegajo.raw_data?.["CEDULA CONYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.spouseBirthDate || clientInLegajo.raw_data?.["FECHA NACIMIENTO CÓNYUGE"] || clientInLegajo.raw_data?.["F. NAC. CÓNYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseProfession || clientInLegajo.raw_data?.["PROFESIÓN CÓNYUGE"] || clientInLegajo.raw_data?.["PROFESION CONYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Lugar Trab.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseWorkplace || clientInLegajo.raw_data?.["LUGAR TRABAJO CÓNYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.spouseIncome || clientInLegajo.raw_data?.["INGRESOS CÓNYUGE"] || 0, state.settings)}</td></tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Referencias Personales</h4><i className="fa-solid fa-users text-blue-400"></i></div>
+                              <div className="p-0">
+                                <table className="w-full text-left border-collapse">
+                                  <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Ref. 1</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.raw_data?.["REF 1 NOMBRE"] || '---'} <span className="text-blue-600 block text-[8px]">{clientInLegajo.raw_data?.["REF 1 TELÉFONO"] || clientInLegajo.raw_data?.["REF 1 TELEFONO"]}</span></td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Ref. 2</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.raw_data?.["REF 2 NOMBRE"] || '---'} <span className="text-blue-600 block text-[8px]">{clientInLegajo.raw_data?.["REF 2 TELÉFONO"] || clientInLegajo.raw_data?.["REF 2 TELEFONO"]}</span></td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Otras Notas</td><td className="p-2 text-slate-500 font-normal italic leading-tight">{clientInLegajo.raw_data?.["NOTAS"] || 'Sin observaciones adicionales.'}</td></tr>
                                   </tbody>
                                 </table>
                               </div>
@@ -2827,7 +2856,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm space-y-3">
                             <h4 className="text-[9px] font-black text-slate-800 uppercase border-b border-slate-200 pb-1.5 tracking-widest">Fotos del Expediente</h4>
                             <div className="grid grid-cols-2 gap-2">
-                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item) => {
+                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item: { key: string, label: string }) => {
                                 // Buscar al cliente en tiempo real en el estado para obtener las fotos recién descargadas
                                 const liveClient = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientInLegajo.id) || clientInLegajo;
                                 const photoUrl = liveClient[item.key as keyof Client] as string;
@@ -2839,9 +2868,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         <img
                                           src={photoUrl}
                                           className="w-full h-full object-cover cursor-zoom-in transition-opacity animate-fadeIn"
-                                          onClick={() => handleViewPhotoAsPDF(photoUrl, item.label, liveClient)}
+                                          onClick={() => handleViewPhotoAsPDF(photoUrl, item.label, liveClient as Client)}
                                           alt={item.label}
-                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                          onError={(e: any) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
                                       ) : (
                                         <div className="flex flex-col items-center gap-1">
@@ -2902,34 +2931,35 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="space-y-4">
                         <h5 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">I. Datos del Cliente</h5>
                         <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input disabled={isCollector} type="text" value={editClientFormData?.name} onChange={e => setEditClientFormData(prev => prev ? { ...prev, name: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input disabled={isCollector} type="text" value={editClientFormData?.documentId} onChange={e => setEditClientFormData(prev => prev ? { ...prev, documentId: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input disabled={isCollector} type="tel" value={editClientFormData?.phone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, phone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input disabled={isCollector} type="tel" value={editClientFormData?.secondaryPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, secondaryPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Email</div><input disabled={isCollector} type="email" value={editClientFormData?.email} onChange={e => setEditClientFormData(prev => prev ? { ...prev, email: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Vendedor</div><input disabled={isCollector} type="text" value={editClientFormData?.sellerCode} onChange={e => setEditClientFormData(prev => prev ? { ...prev, sellerCode: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input type="text" value={editClientFormData?.name} onChange={e => setEditClientFormData(prev => prev ? { ...prev, name: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input type="text" value={editClientFormData?.documentId} onChange={e => setEditClientFormData(prev => prev ? { ...prev, documentId: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-amber-500 uppercase flex items-center border-r border-white/10 shrink-0">Nro Operación</div><input type="text" placeholder="SOLO NÚMEROS" value={editClientFormData?.externalId || ''} onChange={e => setEditClientFormData(prev => prev ? { ...prev, externalId: e.target.value.replace(/\D/g, '') } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-amber-400 outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input type="tel" value={editClientFormData?.phone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, phone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input type="tel" value={editClientFormData?.secondaryPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, secondaryPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Email</div><input type="email" value={editClientFormData?.email} onChange={e => setEditClientFormData(prev => prev ? { ...prev, email: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Vendedor</div><input type="text" value={editClientFormData?.sellerCode} onChange={e => setEditClientFormData(prev => prev ? { ...prev, sellerCode: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           <div className="flex col-span-1 md:col-span-2 border-t border-slate-800">
                             <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Dirección</div>
-                            <input disabled={isCollector} type="text" value={editClientFormData?.address} onChange={e => setEditClientFormData(prev => prev ? { ...prev, address: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                            <input type="text" value={editClientFormData?.address} onChange={e => setEditClientFormData(prev => prev ? { ...prev, address: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
                           </div>
                         </div>
 
                         <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm mt-2">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular Ciudad</div><input disabled={isCollector} type="text" value={editClientFormData?.particularCity} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularCity: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Calle Princ.</div><input disabled={isCollector} type="text" value={editClientFormData?.particularStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Barrio Part.</div><input disabled={isCollector} type="text" value={editClientFormData?.particularNeighborhood} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nro Casa</div><input disabled={isCollector} type="text" value={editClientFormData?.houseNumber} onChange={e => setEditClientFormData(prev => prev ? { ...prev, houseNumber: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular Ciudad</div><input type="text" value={editClientFormData?.particularCity} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularCity: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Calle Princ.</div><input type="text" value={editClientFormData?.particularStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Barrio Part.</div><input type="text" value={editClientFormData?.particularNeighborhood} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nro Casa</div><input type="text" value={editClientFormData?.houseNumber} onChange={e => setEditClientFormData(prev => prev ? { ...prev, houseNumber: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                         </div>
 
                         <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest border-l-4 border-indigo-500 pl-2 mt-4">II. Datos Laborales</h5>
                         <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Empresa</div><input disabled={isCollector} type="text" value={editClientFormData?.workCompany} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workCompany: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cargo</div><input disabled={isCollector} type="text" value={editClientFormData?.workPosition} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPosition: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Salario</div><input disabled={isCollector} type="number" value={editClientFormData?.workIncome} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workIncome: Number(e.target.value) } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-emerald-400 outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Teléf. Laboral</div><input disabled={isCollector} type="tel" value={editClientFormData?.workPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Empresa</div><input type="text" value={editClientFormData?.workCompany} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workCompany: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cargo</div><input type="text" value={editClientFormData?.workPosition} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPosition: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Salario</div><input type="number" value={editClientFormData?.workIncome} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workIncome: Number(e.target.value) } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-emerald-400 outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Teléf. Laboral</div><input type="tel" value={editClientFormData?.workPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           <div className="flex col-span-1 md:col-span-2">
                             <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Dirección Lab.</div>
-                            <input disabled={isCollector} type="text" value={editClientFormData?.workStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none ${isCollector ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                            <input type="text" value={editClientFormData?.workStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
                           </div>
                         </div>
 
@@ -2963,10 +2993,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <div className="space-y-4">
                               <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">III. Documentación Fotográfica</h5>
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
-                                <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
-                                <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
-                                <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', editClientFormData!)} />
-                                <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} disabled={isCollector} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', editClientFormData!)} />
+                                <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
+                                <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
+                                <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', editClientFormData!)} />
+                                <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', editClientFormData!)} />
                               </div>
                             </div>
 
@@ -3148,7 +3178,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <div className="flex items-center gap-3">
                   <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">ACTIVO</span>
                   <div className="text-right">
-                    <p className="text-xs font-black text-white uppercase tracking-widest">TOTAL: {formatCurrency(activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
+                    <p className="text-xs font-black text-white uppercase tracking-widest">TOTAL: {formatCurrency(getClientMetrics(clientInLegajo!).totalCreditAmount || activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
                     <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">ABONADO: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
                     <p className="text-xs font-black text-red-500 uppercase tracking-widest">SALDO: {formatCurrency(getClientMetrics(clientInLegajo!).balance, state.settings)}</p>
                   </div>

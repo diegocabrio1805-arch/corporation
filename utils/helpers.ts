@@ -66,7 +66,7 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     const isOpening = log.isOpening || log.is_opening || false;
     const isDeleted = log.deletedAt || log.deleted_at;
 
-    if (isOpening || isDeleted) return false;
+    if (isDeleted) return false;
     if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
 
     // Coincidencia directa por loan_id (caso normal)
@@ -625,47 +625,22 @@ export const parseAmount = (input: string | number): number => {
   if (!input) return 0;
 
   let str = String(input).trim();
-
-  // 1. Remove currency symbols and non-numeric chars except separators (. , -)
   const clean = str.replace(/[^\d.,-]/g, '');
 
-  // 2. Identify if it uses dot for thousands or comma for decimal or vice-versa
-  // If there are both . and , we assume the last one is the decimal separator
+  const dots = (clean.match(/\./g) || []).length;
+  const commas = (clean.match(/,/g) || []).length;
+
+  if (dots > 1 && commas === 0) return parseFloat(clean.replace(/\./g, '')) || 0;
+  if (commas > 1 && dots === 0) return parseFloat(clean.replace(/,/g, '')) || 0;
+
   const lastDot = clean.lastIndexOf('.');
   const lastComma = clean.lastIndexOf(',');
 
-  if (lastDot > lastComma) {
-    // Dot is the decimal separator (US style: 1,234.56)
-    const finalClean = clean.replace(/,/g, '');
-    const res = parseFloat(finalClean);
-    return isNaN(res) ? 0 : res;
-  } else if (lastComma > lastDot) {
-    // Comma is the decimal separator (LATAM style: 1.234,56)
-    const finalClean = clean.replace(/\./g, '').replace(',', '.');
-    const res = parseFloat(finalClean);
-    return isNaN(res) ? 0 : res;
-  } else if (lastDot === -1 && lastComma === -1) {
-    // No separators
-    const res = parseFloat(clean);
-    return isNaN(res) ? 0 : res;
-  } else {
-    // Only one type of separator exists.
-    // Heuristic: If there's exactly one separator and it's followed by 3 digits, it's likely thousands.
-    // UNLESS the number is small (e.g., 2.500 vs 2,500). 
-    // This is tricky. Let's look at the position from the end.
-    const separatorIndex = lastDot !== -1 ? lastDot : lastComma;
-    const charsFromEnd = clean.length - 1 - separatorIndex;
+  if (lastDot > lastComma) return parseFloat(clean.replace(/,/g, '')) || 0;
+  if (lastComma > lastDot) return parseFloat(clean.replace(/\./g, '').replace(',', '.')) || 0;
 
-    if (charsFromEnd === 3) {
-      // Thousand separator (e.g. 1.000)
-      const res = parseInt(clean.replace(/[.,]/g, ''), 10);
-      return isNaN(res) ? 0 : res;
-    } else {
-      // Decimal separator (e.g. 1.5 or 1,50)
-      const res = parseFloat(clean.replace(',', '.'));
-      return isNaN(res) ? 0 : res;
-    }
-  }
+  const res = parseFloat(clean);
+  return isNaN(res) ? 0 : res;
 };
 
 /**

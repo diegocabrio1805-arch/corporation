@@ -479,8 +479,16 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     location, domicilioLocation, creditLimit, allowCollectorLocationUpdate,
                     customNoPayMessage, isActive, isHidden, createdAt, updatedAt, deletedAt,
                     capital, currentBalance, profilePic, housePic, businessPic, documentPic,
-                    ...raw_data
+                    raw_data: existingRawData,
+                    ...otherFields
                 } = d;
+
+                // Merge any fields not explicitly extracted into raw_data
+                const mergedRawData = {
+                    ...(existingRawData || {}),
+                    ...otherFields
+                };
+
                 return {
                     id, name, document_id: documentId, phone, secondary_phone: secondaryPhone, address,
                     profile_pic: profilePic, house_pic: housePic, business_pic: businessPic, document_pic: documentPic,
@@ -489,7 +497,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     is_active: isActive !== undefined ? isActive : true, is_hidden: isHidden || false,
                     deleted_at: deletedAt || null, created_at: createdAt, updated_at: new Date().toISOString(),
                     capital, current_balance: currentBalance,
-                    raw_data: Object.keys(raw_data).length > 0 ? raw_data : null
+                    raw_data: Object.keys(mergedRawData).length > 0 ? mergedRawData : null
                 };
             });
             await batchUpsert('loans', groups['ADD_LOAN'], (d) => {
@@ -497,8 +505,15 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     id, clientId, collectorId, branchId, principal, interestRate, totalInstallments,
                     installmentValue, totalAmount, status, createdAt, installments, frequency,
                     isRenewal, customHolidays, deletedAt, updatedAt, totalPaid, balance,
-                    ...raw_data
+                    raw_data: existingRawData,
+                    ...otherFields
                 } = d;
+
+                const mergedRawData = {
+                    ...(existingRawData || {}),
+                    ...otherFields
+                };
+
                 return {
                     id, client_id: clientId, collector_id: collectorId, branch_id: branchId,
                     principal, interest_rate: interestRate, total_installments: totalInstallments,
@@ -506,7 +521,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     created_at: createdAt, installments, frequency, is_renewal: isRenewal || false,
                     custom_holidays: customHolidays || [], deleted_at: deletedAt || null,
                     updated_at: new Date().toISOString(),
-                    raw_data: Object.keys(raw_data).length > 0 ? raw_data : null
+                    raw_data: Object.keys(mergedRawData).length > 0 ? mergedRawData : null
                 };
             });
             await batchUpsert('payments', groups['ADD_PAYMENT'], (d) => ({
@@ -529,7 +544,6 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 loan_id: d.loanId,
                 client_id: d.clientId,
                 branch_id: d.branchId,
-                collector_id: d.collectorId,
                 recorded_by: d.recordedBy,
                 amount: d.amount,
                 type: d.type,

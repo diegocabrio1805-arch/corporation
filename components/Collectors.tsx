@@ -339,7 +339,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                           }`}
                       >
                         <i className="fa-solid fa-check"></i>
-                        {user.requiresLocation ? 'ACTIVO' : 'ACTIVAR'}
+                        {user.requiresLocation ? ' ✔ ACTIVO' : ' ✔ ACTIVAR'}
                       </button>
 
                       {/* DEACTIVATE BUTTON */}
@@ -357,7 +357,7 @@ const Collectors: React.FC<CollectorsProps> = ({ state, onAddUser, onUpdateUser,
                           }`}
                       >
                         <i className="fa-solid fa-xmark"></i>
-                        {!user.requiresLocation ? 'INACTIVO' : 'DESACTIVAR'}
+                        {!user.requiresLocation ? ' ✖ INACTIVO' : ' ✖ DESACTIVAR'}
                       </button>
                     </div>
 
