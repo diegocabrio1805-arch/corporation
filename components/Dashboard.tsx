@@ -70,11 +70,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         .reduce((acc, curr) => acc + (curr.amount || 0), 0);
 
       const uniqueClientsVisitedToday = new Set(logsToday.map(l => l.clientId || (l as any).client_id)).size;
-      const assignedActiveLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
-        (l.collectorId?.toLowerCase() === user.id.toLowerCase() || (l as any).collector_id?.toLowerCase() === user.id.toLowerCase()) &&
-        l.status === LoanStatus.ACTIVE
+      const assignedLoans = (Array.isArray(state.loans) ? state.loans : []).filter(l =>
+        (l.collectorId?.toLowerCase() === user.id.toLowerCase() || (l as any).collector_id?.toLowerCase() === user.id.toLowerCase())
       );
-      const totalClientsCount = new Set(assignedActiveLoans.map(l => l.clientId || (l as any).client_id)).size;
+      
+      const clientsMappedToLoans = new Set(assignedLoans.map(l => l.clientId || (l as any).client_id));
+      const clientsAddedByThisCollector = (Array.isArray(state.clients) ? state.clients : [])
+        .filter(c => c.addedBy?.toLowerCase() === user.id.toLowerCase())
+        .map(c => c.id);
+      
+      const allClientIdsForCollector = new Set([...Array.from(clientsMappedToLoans), ...clientsAddedByThisCollector]);
+      const totalClientsCount = allClientIdsForCollector.size;
+      
+      const assignedActiveLoans = assignedLoans.filter(l => l.status === LoanStatus.ACTIVE);
 
       const overdueLoansCount = assignedActiveLoans.filter(loan => {
         return getDaysOverdue(loan, state.settings) > 0;

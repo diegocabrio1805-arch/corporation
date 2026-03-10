@@ -2049,7 +2049,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </span>
                             )}
                           </h3>
-                          <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">ID: {client.documentId}</p>
+                          <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">
+                            ID: {client.documentId}
+                            {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])) && (
+                              <span className="ml-2 text-blue-600">
+                                | VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])}
+                              </span>
+                            )}
+                          </p>
                         </div>
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Saldo</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
                         <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">Progreso</p><p className="text-xs md:text-sm font-black text-slate-800">{m.installmentsStr}</p></div>
@@ -2117,9 +2124,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <span className="uppercase text-slate-900 font-bold">{client.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[8px] text-slate-400 font-bold">ID: {client.documentId}</span>
-                               {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy])) && (
+                               {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])) && (
                                 <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
-                                  VEND: {client.sellerCode || COLLECTOR_SELLER_CODES[client.addedBy || '']}
+                                  VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])}
                                 </span>
                               )}
                             </div>
@@ -2174,9 +2181,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <span className="uppercase text-slate-900 font-bold">{item.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[8px] text-slate-400 font-bold">ID: {item.documentId}</span>
-                              {(item.sellerCode || (item.addedBy && COLLECTOR_SELLER_CODES[item.addedBy])) && (
+                              {(item.sellerCode || (item.addedBy && COLLECTOR_SELLER_CODES[item.addedBy]) || (item._loan?.collectorId && COLLECTOR_SELLER_CODES[item._loan.collectorId])) && (
                                 <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
-                                  VEND: {item.sellerCode || COLLECTOR_SELLER_CODES[item.addedBy || '']}
+                                  VEND: {item.sellerCode || (item.addedBy && COLLECTOR_SELLER_CODES[item.addedBy]) || (item._loan?.collectorId && COLLECTOR_SELLER_CODES[item._loan.collectorId])}
                                 </span>
                               )}
                             </div>
@@ -2245,10 +2252,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex flex-col">
                             <span className="uppercase text-slate-900 font-bold">{client.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[7px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded border border-slate-200 uppercase font-black">ID: {client.documentId}</span>
-                              {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy])) && (
+                              {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])) && (
                                 <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
-                                  VEND: {client.sellerCode || COLLECTOR_SELLER_CODES[client.addedBy || '']}
+                                  VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])}
                                 </span>
                               )}
                               {client.clientTypeCode && <span className="text-[7px] bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded border border-indigo-100 uppercase font-black">{client.clientTypeCode}</span>}
@@ -2313,10 +2319,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           <div className="flex flex-col">
                             <span className="uppercase text-slate-900 font-bold">{client.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[8px] text-slate-400 font-bold">ID: {client.documentId}</span>
-                              {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy])) && (
+                              {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])) && (
                                 <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
-                                  VEND: {client.sellerCode || COLLECTOR_SELLER_CODES[client.addedBy || '']}
+                                  VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (client._metrics.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[client._metrics.activeLoan.collectorId])}
                                 </span>
                               )}
                             </div>
@@ -2593,7 +2598,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         {/* LEGAJO / EXPEDIENTE DEL CLIENTE */}
         {
           showLegajo && clientInLegajo && (
-            <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[120] p-2 overflow-hidden pt-2 md:pt-6">
+            <div className="fixed inset-0 bg-[#0f172a] flex items-start justify-center z-[120] p-2 overflow-hidden pt-2 md:pt-6">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-full md:h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
                 <div className="p-2 md:p-4 bg-[#0f172a] text-white shrink-0 flex flex-col md:flex-row md:justify-between md:items-center border-b border-white/10 sticky top-0 z-20 gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -3403,82 +3408,6 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             </div>
           )
         }
-        {showImportModal && (
-          <div className="fixed inset-0 bg-black/95 flex items-start justify-center p-4 z-[9999] animate-fadeIn pt-10 md:pt-20">
-            <div className="bg-slate-900 rounded-[2rem] p-8 border border-white/10 w-full max-w-md shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-blue-500"></div>
-
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                  <i className="fa-solid fa-eye-slash text-red-500"></i> CLIENTES OCULTOS / INCOBRABLES
-                </h2>
-                <button
-                  onClick={handleRestoreAllClients}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 shadow-sm active:scale-95"
-                >
-                  <i className="fa-solid fa-rotate-left"></i> RESTAURAR TODOS
-                </button>
-              </div>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">
-                Sube tu archivo Excel (45 Columnas)
-              </p>
-
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">
-                    1. Asignar a Cobrador / Ruta
-                  </label>
-                  <div className="bg-slate-800 rounded-2xl border border-slate-700 p-1">
-                    <select
-                      className="w-full bg-transparent p-3 text-white font-bold outline-none cursor-pointer text-sm"
-                      value={selectedCollectorForImport}
-                      onChange={(e) => setSelectedCollectorForImport(e.target.value)}
-                    >
-                      <option value="">-- SELECCIONAR DESTINO --</option>
-                      {collectors.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all relative ${!selectedCollectorForImport ? 'border-slate-800 bg-slate-900/50 opacity-50 cursor-not-allowed' : 'border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 cursor-pointer'}`}>
-                  {isProcessingExcel ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-emerald-500 font-black text-[10px] uppercase">Procesando...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <i className="fa-solid fa-file-excel text-4xl text-emerald-500 mb-4 scale-animation"></i>
-                      <span className="text-slate-300 font-bold text-sm text-center">
-                        {selectedCollectorForImport ? 'Click para subir Excel' : 'Selecciona un cobrador primero'}
-                      </span>
-                      {selectedCollectorForImport && (
-                        <input
-                          type="file"
-                          accept=".xlsx, .xls"
-                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                          onChange={handleFileUploadMasivo}
-                        />
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    className="flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
-                    onClick={() => setShowImportModal(false)}
-                    disabled={isProcessingExcel}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </PullToRefresh>
   );

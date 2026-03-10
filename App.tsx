@@ -1332,7 +1332,7 @@ const App: React.FC = () => {
 
           {/* MOBILE MENU OVERLAY */}
           {isMobileMenuOpen && (
-            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-white/95 backdrop-blur-md border-b border-slate-200 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[90] overflow-y-auto">
+            <div className="fixed inset-0 top-[52px] left-0 w-full h-[calc(100vh-52px)] bg-slate-900 border-b border-slate-700 py-4 px-4 grid grid-cols-2 gap-2 animate-fadeIn shadow-2xl z-[90] overflow-y-auto">
               {[
                 { id: 'dashboard', icon: 'fa-chart-line', label: t.dashboard, powerOnly: true },
                 { id: 'clients', icon: 'fa-users', label: t.clients, powerOnly: false },
