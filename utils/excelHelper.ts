@@ -129,7 +129,7 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
     XLSX.writeFile(wb, `CARTERA_CLIENTES_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
 
-export const processExcelImport = async (file: File, collectorId: string): Promise<{ clients: Client[], loans: Loan[], logs: CollectionLog[] }> => {
+export const processExcelImport = async (file: File, collectorId: string, branchId?: string): Promise<{ clients: Client[], loans: Loan[], logs: CollectionLog[] }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -166,7 +166,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                     const clients: Client[] = [];
                     const loans: Loan[] = [];
                     jsonData.forEach((row, index) => {
-                        const clientId = row["ID / Código"] || `IMP-${Date.now()}-${index}`;
+                        const clientId = row["ID / Código"] || generateUUID();
                         clients.push({
                             id: clientId,
                             name: row["Nombre Completo"] || "NOMBRE A COMPLETAR",
@@ -176,6 +176,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                             addedBy: collectorId,
                             creditLimit: Number(row["Capital Préstamo"]) || 1000000,
                             isActive: true,
+                            branchId: branchId,
                             clientTypeCode: "131",
                             createdAt: new Date().toISOString()
                         });
@@ -191,6 +192,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                 totalAmount: Number(row["Total a Pagar"]) || Number(row["Capital Préstamo"]) * 1.2,
                                 installmentValue: Number(row["Valor Cuota"]) || 0,
                                 status: LoanStatus.ACTIVE,
+                                branchId: branchId,
                                 operationTypeCode: "202",
                                 createdAt: new Date().toISOString(),
                                 installments: []
@@ -252,7 +254,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                     const cRow = rows[i];
 
                     const nameIdx = findCol(clientMap, 'name', ["NOMBRE COMPLETO", "NOM. COMPLETO", "CLIENTE", "NOMBRE"]);
-                    const clientId = `IMP-${dataIndex}-${Date.now()}`;
+                    const clientId = generateUUID();
 
                     // --- EMPIEZA MAPEADO CRUDO COMPLETO ---
                     // Captura todo lo que vino en la fila de Excel para este cliente
@@ -273,6 +275,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                         secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2"]) ?? -1)] || 'SIN DATOS'),
                         address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM"]) ?? -1)] || 'SIN DATOS'),
                         addedBy: collectorId,
+                        branchId: branchId,
                         creditLimit: 1000000,
                         isActive: true,
                         createdAt: parseExcelDate(cRow[findCol(clientMap, 'date', ["FECHA", "REGISTRO", "ALTA", "FECHA REGISTRO", "FEC", "FCH"]) ?? -1]),
@@ -428,6 +431,7 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                 installmentValue: instValue,
                                 frequency,
                                 status: LoanStatus.ACTIVE,
+                                branchId: branchId,
                                 operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
                                 sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR"]) ?? -1] || ''),
                                 interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
@@ -456,11 +460,12 @@ export const processExcelImport = async (file: File, collectorId: string): Promi
                                         id: generateUUID(),
                                         loanId: loan.id,
                                         clientId: client.id,
-                                        type: CollectionLogType.PAYMENT,
+                                        type: 'ARRASTRE' as CollectionLogType,
                                         amount: logAmount,
                                         date: loan.createdAt, // Usamos la fecha de inicio como referencia
                                         location: { lat: 0, lng: 0 },
                                         isOpening: true, // Esto indica que es un saldo de arrastre
+                                        branchId: branchId,
                                         recordedBy: collectorId
                                     });
                                 }

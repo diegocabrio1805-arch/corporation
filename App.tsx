@@ -41,6 +41,9 @@ import { StorageService } from './utils/localforageStorage';
 import { supabase } from './utils/supabaseClient';
 
 
+const CURRENT_VERSION_ID = '6.3.0-STABLE';
+const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,7 +65,7 @@ const App: React.FC = () => {
         const match = text.match(/CURRENT_VERSION\s*=\s*'([^']+)'/);
         if (match && match[1]) {
           const remoteVersion = match[1];
-          const localVersion = '6.3.0-STABLE';
+          const localVersion = CURRENT_VERSION_ID;
           // Extract numeric semver part for comparison (strip suffixes like -MIRROR, -PRIVACY-LAW)
           const toNum = (v: string) => v.split('-')[0].split('.').map(Number).reduce((a, b, i) => a + b * Math.pow(1000, 2 - i), 0);
           const localNum = toNum(localVersion);
@@ -100,8 +103,6 @@ const App: React.FC = () => {
   }, []);
   // 1. STATE INITIALIZATION
   const [state, setState] = useState<AppState>(() => {
-    const CURRENT_VERSION_ID = '6.2.0-STABLE';
-    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
     const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
     const defaultInitialState: AppState = {
       clients: [],
@@ -125,8 +126,7 @@ const App: React.FC = () => {
   // === CARGA INICIAL ASINCRONA ASYNC STORAGE ===
   useEffect(() => {
     const loadData = async () => {
-      const CURRENT_VERSION_ID = '6.3.0-STABLE';
-      const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+      const EMERGENCY_SYNC_VERSION = 633; // INCREMENTED AFTER BALANCE RESTORATION AND RELOAD FIX
       const initialAdmin: User = { id: SYSTEM_ADMIN_ID, name: 'Administrador', role: Role.ADMIN, username: 'DDANTE1983', password: 'Cobros2026' };
 
       const defaultInitialState: AppState = {
@@ -597,22 +597,27 @@ const App: React.FC = () => {
       }
     });
 
-    // --- EMERGENCY REMOTE SYNC TRIGGER (Forced by AI Assistant) ---
+    // --- EMERGENCY REMOTE SYNC TRIGGER (Forced by AI Assistant - MARCH 09 2026) ---
     const triggerEmergencySync = async () => {
       const user = state.currentUser;
       if (!user) return;
-      const syncKey = `emergency_sync_done_${user.username}_v630_mandatory_gps`;
-      const isRestoredUser = true; // Universal for this fix to ensure 300k shows up everywhere
+      const syncKey = `emergency_sync_v633_full_restore_v2`;
 
-      if (isRestoredUser && !localStorage.getItem(syncKey)) {
-        console.log("[EmergencySync] Restored collector detected. Forcing full sync...");
+      if (!localStorage.getItem(syncKey)) {
+        console.log("[EmergencySync] Out-of-sync browser detected. Forcing full sync...");
         localStorage.setItem(syncKey, 'true');
-        // Clear old markers to ensure a clean slate
-        localStorage.removeItem('last_sync_timestamp');
-        localStorage.removeItem('last_sync_timestamp_v6');
+
+        // Clear ALL possible sync markers to satisfy forceFullSync requirements
+        const keysToRemove = [
+          'last_sync_timestamp', 'last_sync_timestamp_ms',
+          'last_sync_timestamp_v6', 'last_sync_timestamp_v7',
+          'last_sync_timestamp_v8', 'last_sync_timestamp_v630'
+        ];
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+
         setTimeout(() => {
-          handleForceSync(false, "¡Actualizando Saldos y Clientes!", true);
-        }, 3000);
+          handleForceSync(false, "¡RECUPERANDO TODOS LOS DATOS!", true);
+        }, 2000);
       }
     };
     triggerEmergencySync();
@@ -759,9 +764,13 @@ const App: React.FC = () => {
 
     if (user.role === Role.COLLECTOR) {
       const myAssignedClientIds = new Set<string>();
-      loans.forEach(l => {
+
+      // Ampliar la búsqueda de préstamos usando raw state.loans en vez de los filtrados, para incluir históricos/PAGADOS
+      const allHistoricLoans = Array.isArray(state.loans) ? state.loans : [];
+      allHistoricLoans.forEach(l => {
         if ((l.collectorId || (l as any).collector_id) === user.id) myAssignedClientIds.add(l.clientId || (l as any).client_id);
       });
+
       clients = clients.filter(c => (c.addedBy || (c as any).added_by) === user.id || myAssignedClientIds.has(c.id));
       const visibleClientIds = new Set(clients.map(c => c.id));
       loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));

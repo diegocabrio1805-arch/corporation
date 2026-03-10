@@ -624,7 +624,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   const filteredClients = useMemo(() => {
-    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.isHidden && !c.deletedAt);
+    // La lista BASE debe ser TODOS los clientes activos de esta sucursal (ya filtrados en App.tsx vía state.clients)
+    let clients = (Array.isArray(state.clients) ? state.clients : []).filter(c => !c.deletedAt);
+
     if (debouncedSearch) {
       const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
       clients = clients.filter(c => {
@@ -635,11 +637,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         return nameNorm.includes(s) || docNorm.includes(s) || phoneNorm.includes(s) || secPhoneNorm.includes(s);
       });
     }
+
     if (selectedCollector !== 'all') {
       const collectorLower = selectedCollector.toLowerCase();
       clients = clients.filter(c => {
+        // En lugar de requerir que el préstamo activo sea del cobrador para mostrarlo,
+        // simplemente mostramos a TODOS los clientes cuyo 'addedBy' (creador/dueño)
+        // coincide con el cobrador seleccionado, O si da la casualidad
+        // de que tiene un préstamo activo con él. Esto evita ocultarlos si ya pagaron.
         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+        const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === collectorLower);
+        const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
+        return addedByLower === collectorLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || !!anyHistoricLoan;
       });
     }
     // SAFE SORT (NaN PROOF)
@@ -685,16 +694,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         if (!nameNorm.includes(s) && !docNorm.includes(s) && !phoneNorm.includes(s) && !secPhoneNorm.includes(s)) return null;
       }
 
+      // Filtro de Fecha (Registro/Préstamo)
       const cDate = new Date(client.createdAt || '');
       const inRange = cDate >= start && cDate <= end;
       if (!inRange) return null;
 
       const activeLoan = loans.find(l => l.clientId === client.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
+
+      // En la pestaña "NUEVOS", por definición no mostramos renovaciones (van a su propia pestaña)
       if (activeLoan?.isRenewal) return null;
 
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
-        const matchesCollector = (activeLoan && (activeLoan.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower) || ((client.addedBy || (client as any).added_by)?.toLowerCase() === collectorLower);
+        const addedByLower = (client.addedBy || (client as any).added_by || '').toLowerCase();
+        const matchesCollector = addedByLower === collectorLower || (activeLoan && (activeLoan.collectorId || (activeLoan as any).collector_id)?.toLowerCase() === collectorLower);
         if (!matchesCollector) return null;
       }
 
@@ -743,9 +756,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   const carteraExcelData = useMemo(() => {
     if (viewMode !== 'cartera') return [];
     const s = debouncedSearch.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+    const start = new Date(filterStartDate + 'T00:00:00');
+    const end = new Date(filterEndDate + 'T23:59:59');
 
     return (Array.isArray(state.clients) ? state.clients : []).filter(c => {
       if (c.isHidden || c.deletedAt) return false;
+
+      // Filtro de Fecha (Registro del Cliente) - Opcional: Solo si se activa explícitamente o se busca un rango específico
+      // Si las fechas son las de hoy (por defecto), mostramos todo para evitar que parezca que faltan clientes
+      // FILTRO DE FECHA REMOVIDO: En CARTERA GENERAL queremos ver toda la cartera histórica o activa independientemente de la fecha ingresada
 
       // Búsqueda Global
       if (s) {
@@ -759,7 +778,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       if (selectedCollector !== 'all') {
         const collectorLower = selectedCollector.toLowerCase();
         const activeLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT));
-        return (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || (c.addedBy || (c as any).added_by)?.toLowerCase() === collectorLower;
+        const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(l => (l.clientId || (l as any).client_id) === c.id && (l.collectorId || (l as any).collector_id)?.toLowerCase() === collectorLower);
+        const addedByLower = (c.addedBy || (c as any).added_by || '').toLowerCase();
+        return addedByLower === collectorLower || (activeLoan?.collectorId || (activeLoan as any)?.collector_id)?.toLowerCase() === collectorLower || !!anyHistoricLoan;
       }
       return true;
     }).map(client => {
@@ -783,7 +804,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
     });
-  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch]);
+  }, [state.clients, state.loans, viewMode, selectedCollector, carteraSortBy, debouncedSearch, filterStartDate, filterEndDate]);
 
   const ocultosExcelData = useMemo(() => {
     if (viewMode !== 'ocultos') return [];
@@ -823,6 +844,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     await updateClient({ ...client, isHidden: false });
     alert("CLIENTE RESTAURADO A LA CARTERA.");
   };
+
 
   const handlePermanentDeleteClient = async (clientId: string) => {
     if (!window.confirm("¿ESTÁ SEGURO DE ELIMINAR A ESTE CLIENTE?")) return;
@@ -1860,7 +1882,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
     setIsProcessingExcel(true);
     try {
-      const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport);
+      const user = state.currentUser;
+      const calculatedBranchId = (user?.role === Role.ADMIN || user?.role === Role.MANAGER)
+        ? user.id
+        : (user?.managedBy || (user as any)?.managed_by || user?.id);
+
+      const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId);
 
       for (const client of clients) {
         await addClient(client);
@@ -3329,9 +3356,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="bg-slate-900 rounded-[2rem] p-8 border border-white/10 w-full max-w-md shadow-2xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-blue-500"></div>
 
-              <h3 className="text-2xl font-black text-white mb-2 flex items-center gap-3">
-                <Upload className="text-emerald-500" /> IMPORTAR CARTERA
-              </h3>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <i className="fa-solid fa-eye-slash text-red-500"></i> CLIENTES OCULTOS / INCOBRABLES
+                </h2>
+                <button
+                  onClick={handleRestoreAllClients}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 shadow-sm active:scale-95"
+                >
+                  <i className="fa-solid fa-rotate-left"></i> RESTAURAR TODOS
+                </button>
+              </div>
               <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-6">
                 Sube tu archivo Excel (45 Columnas)
               </p>

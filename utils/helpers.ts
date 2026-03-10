@@ -69,6 +69,9 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     if (isDeleted) return false;
     if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
 
+    // EXCLUDE INITIAL GRANTS MASKED AS PAYMENTS
+    if (isOpening) return false;
+
     // Coincidencia directa por loan_id (caso normal)
     if (logLoanId === lId) return true;
 
