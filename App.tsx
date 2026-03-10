@@ -41,7 +41,7 @@ import { StorageService } from './utils/localforageStorage';
 import { supabase } from './utils/supabaseClient';
 
 
-const CURRENT_VERSION_ID = '6.3.0-STABLE';
+const CURRENT_VERSION_ID = '6.3.1-STABLE';
 const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 const App: React.FC = () => {
