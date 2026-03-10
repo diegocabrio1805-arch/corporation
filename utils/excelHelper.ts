@@ -129,7 +129,7 @@ export const exportClientsToExcel = (clients: Client[], loans: Loan[]) => {
     XLSX.writeFile(wb, `CARTERA_CLIENTES_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
 
-export const processExcelImport = async (file: File, collectorId: string, branchId?: string): Promise<{ clients: Client[], loans: Loan[], logs: CollectionLog[] }> => {
+export const processExcelImport = async (file: File, collectorId: string, branchId?: string, sellerCode?: string): Promise<{ clients: Client[], loans: Loan[], logs: CollectionLog[] }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -177,6 +177,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                             creditLimit: Number(row["Capital Préstamo"]) || 1000000,
                             isActive: true,
                             branchId: branchId,
+                            sellerCode: sellerCode,
                             clientTypeCode: "131",
                             createdAt: new Date().toISOString()
                         });
@@ -193,6 +194,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 installmentValue: Number(row["Valor Cuota"]) || 0,
                                 status: LoanStatus.ACTIVE,
                                 branchId: branchId,
+                                sellerCode: sellerCode,
                                 operationTypeCode: "202",
                                 createdAt: new Date().toISOString(),
                                 installments: []
@@ -317,6 +319,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                         clientTypeCode: String(cRow[findCol(clientMap, 'clientType', ["BANCA (TIPO DE CLIENTE)", "BANCA", "TIPO CLIENTE", "BANCA (TIPO DE CLIENTE", "TIPO CLT"]) ?? -1] || '131'),
                         systemRating: String(cRow[findCol(clientMap, 'rating', ["CALIFICACION EN EL SISTEMA", "CALIFICACION", "CALIF"]) ?? -1] || ''),
+                        sellerCode: String(cRow[findCol(clientMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
                         externalId: String(cRow[findCol(clientMap, 'externalId', ["NRO DE OPERACIÓN EN SISTEMA BASE", "OPERACION BASE", "NRO OPERACION", "ID BASE", "ID EXTERNO", "NRO DE OPERACIÓN EN SISTEMA BASE"]) ?? -1] || '').replace(/\D/g, ''),
                         raw_data: clientRawData
                     };
@@ -433,7 +436,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 status: LoanStatus.ACTIVE,
                                 branchId: branchId,
                                 operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
-                                sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR"]) ?? -1] || ''),
+                                sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
                                 interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
                                 createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO"]) ?? -1]),
                                 installments: [],

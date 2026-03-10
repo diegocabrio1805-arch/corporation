@@ -27,6 +27,13 @@ const BANCA_CLIENT_TYPES = [
   { code: '500', label: 'ASOCIACIONES' }
 ];
 
+const COLLECTOR_SELLER_CODES: Record<string, string> = {
+  'a3b09603-57e2-4030-8043-4e92898b932c': '001', // JUVE VILLALBA
+  '09772bd7-c65b-4692-8c8f-6061bd744863': '003', // DERLIS ARMOA
+  'c956ea2f-99d7-4956-93d5-36842aeb0d54': '004', // FABIAN ARRUA
+  'a69e2207-db0a-49b7-a764-2787624e5777': '003', // FABIAN ARRUA2
+};
+
 const OPERATION_TYPES = [
   { code: '114', label: 'ASOCIACIONES' },
   { code: '202', label: 'PRESTAMO DIARIO' },
@@ -886,11 +893,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         ? user.id
         : (user?.managedBy || (user as any)?.managed_by || user?.id);
 
+      const sellerCode = COLLECTOR_SELLER_CODES[currentUserId] || '';
+
       const client: Client = {
         ...clientData,
         id: clientId,
         addedBy: currentUserId,
         branchId: calculatedBranchId,
+        sellerCode: clientData.sellerCode || sellerCode,
         isActive: true,
         isHidden: false,
         createdAt: new Date().toISOString()
@@ -927,7 +937,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           createdAt: validStartDate.toISOString(),
           customHolidays: initialLoan.customHolidays,
           operationTypeCode: initialLoan.operationTypeCode || '202',
-          sellerCode: initialLoan.sellerCode || '',
+          sellerCode: initialLoan.sellerCode || client.sellerCode || sellerCode,
           promissoryNoteAmount: safeParseFloat(initialLoan.promissoryNoteAmount),
           promissoryNoteExpiration: initialLoan.promissoryNoteExpiration || '',
           installments: generateAmortizationTable(p, i, inst, initialLoan.frequency, validStartDate, state.settings.country, initialLoan.customHolidays)
@@ -1887,7 +1897,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         ? user.id
         : (user?.managedBy || (user as any)?.managed_by || user?.id);
 
-      const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId);
+      const sellerCode = COLLECTOR_SELLER_CODES[selectedCollectorForImport] || '';
+
+      const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode);
 
       for (const client of clients) {
         await addClient(client);
@@ -2100,7 +2112,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     {(Array.isArray(nuevosExcelData) ? nuevosExcelData : []).map(client => (
                       <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 uppercase text-slate-500">{client._metrics.activeLoan?.createdAt ? new Date(client._metrics.activeLoan.createdAt).toLocaleDateString() : '---'}</td>
-                        <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">ID: {client.documentId}</span></td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="uppercase text-slate-900 font-bold">{client.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[8px] text-slate-400 font-bold">ID: {client.documentId}</span>
+                               {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy])) && (
+                                <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
+                                  VEND: {client.sellerCode || COLLECTOR_SELLER_CODES[client.addedBy || '']}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-blue-600">{client.phone}</td>
                         <td className="px-6 py-4 text-right">{formatCurrency(client._metrics.activeLoan?.totalAmount || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-center text-emerald-600">{client._metrics.activeLoan?.interestRate}%</td>
@@ -2145,7 +2169,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     {(Array.isArray(renovacionesExcelData) ? renovacionesExcelData : []).map(item => (
                       <tr key={item._loan!.id} className="hover:bg-orange-50 transition-colors">
                         <td className="px-6 py-4 uppercase text-slate-500">{new Date(item._loan!.createdAt).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 uppercase text-slate-900">{item.name}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="uppercase text-slate-900 font-bold">{item.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[8px] text-slate-400 font-bold">ID: {item.documentId}</span>
+                              {(item.sellerCode || (item.addedBy && COLLECTOR_SELLER_CODES[item.addedBy])) && (
+                                <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
+                                  VEND: {item.sellerCode || COLLECTOR_SELLER_CODES[item.addedBy || '']}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-right text-emerald-700">{formatCurrency(item._loan!.totalAmount, state.settings)}</td>
                         <td className="px-6 py-4 text-center">{item._loan!.totalInstallments}</td>
                         <td className="px-6 py-4 text-right font-mono text-red-600">{item._metrics.daysOverdue} d</td>
@@ -2210,7 +2246,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <span className="uppercase text-slate-900 font-bold">{client.name}</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="text-[7px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded border border-slate-200 uppercase font-black">ID: {client.documentId}</span>
-                              {client.sellerCode && <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">VEND: {client.sellerCode}</span>}
+                              {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy])) && (
+                                <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
+                                  VEND: {client.sellerCode || COLLECTOR_SELLER_CODES[client.addedBy || '']}
+                                </span>
+                              )}
                               {client.clientTypeCode && <span className="text-[7px] bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded border border-indigo-100 uppercase font-black">{client.clientTypeCode}</span>}
                             </div>
                           </div>
@@ -2269,7 +2309,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     {(Array.isArray(ocultosExcelData) ? ocultosExcelData : []).map(client => (
                       <tr key={client.id} className="hover:bg-red-50 transition-colors">
                         <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
-                        <td className="px-6 py-4 uppercase text-slate-900">{client.name}<br /><span className="text-[8px] text-slate-400">DOC: {client.documentId}</span></td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="uppercase text-slate-900 font-bold">{client.name}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[8px] text-slate-400 font-bold">ID: {client.documentId}</span>
+                              {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy])) && (
+                                <span className="text-[7px] bg-blue-50 text-blue-600 px-1 py-0.5 rounded border border-blue-100 uppercase font-black">
+                                  VEND: {client.sellerCode || COLLECTOR_SELLER_CODES[client.addedBy || '']}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-blue-700">{client.phone}</td>
                         <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
