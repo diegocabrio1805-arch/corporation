@@ -1,0 +1,390 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.anexocobro.app"
+4    android:versionCode="6140"
+5    android:versionName="6.1.40" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="36" />
+10
+11    <!-- Permissions -->
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:35:5-67
+12-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:35:22-64
+13    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+13-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:36:5-81
+13-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:36:22-78
+14    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+14-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:37:5-79
+14-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:37:22-76
+15
+16    <uses-feature android:name="android.hardware.location.gps" />
+16-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:38:5-66
+16-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:38:19-63
+17
+18    <uses-permission android:name="android.permission.CAMERA" />
+18-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:39:5-65
+18-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:39:22-62
+19    <uses-permission android:name="android.permission.READ_CONTACTS" />
+19-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:40:5-72
+19-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:40:22-69
+20    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+20-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:41:5-73
+20-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:41:22-70
+21    <uses-permission android:name="android.permission.BLUETOOTH" />
+21-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:42:5-68
+21-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:42:22-65
+22    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+22-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:43:5-74
+22-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:43:22-71
+23    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+23-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:44:5-73
+23-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:44:22-70
+24    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+24-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:45:5-76
+24-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:45:22-73
+25    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+25-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:46:5-77
+25-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:46:22-74
+26    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+26-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:47:5-79
+26-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:47:22-76
+27    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+27-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:48:5-80
+27-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:48:22-77
+28    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+28-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:49:5-81
+28-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:49:22-78
+29
+30    <!-- Permisos para Sincronización en Segundo Plano -->
+31    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+31-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:52:5-77
+31-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:52:22-74
+32    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+32-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:53:5-81
+32-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:53:22-78
+33    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+33-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:54:5-87
+33-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:54:22-84
+34
+35    <queries>
+35-->[:capacitor-camera] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\camera\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-11:15
+36        <intent>
+36-->[:capacitor-camera] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\camera\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-10:18
+37            <action android:name="android.media.action.IMAGE_CAPTURE" />
+37-->[:capacitor-camera] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\camera\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-73
+37-->[:capacitor-camera] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\camera\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:21-70
+38        </intent>
+39    </queries>
+40
+41    <uses-permission android:name="android.permission.WAKE_LOCK" /> <!-- Required by older versions of Google Play services to create IID tokens -->
+41-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:24:5-68
+41-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:24:22-65
+42    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+42-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:26:5-82
+42-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:26:22-79
+43
+44    <permission
+44-->[androidx.core:core:1.17.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\11094a199bb7945826b161d8a9c17beb\transformed\core-1.17.0\AndroidManifest.xml:22:5-24:47
+45        android:name="com.anexocobro.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+45-->[androidx.core:core:1.17.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\11094a199bb7945826b161d8a9c17beb\transformed\core-1.17.0\AndroidManifest.xml:23:9-81
+46        android:protectionLevel="signature" />
+46-->[androidx.core:core:1.17.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\11094a199bb7945826b161d8a9c17beb\transformed\core-1.17.0\AndroidManifest.xml:24:9-44
+47
+48    <uses-permission android:name="com.anexocobro.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+48-->[androidx.core:core:1.17.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\11094a199bb7945826b161d8a9c17beb\transformed\core-1.17.0\AndroidManifest.xml:26:5-97
+48-->[androidx.core:core:1.17.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\11094a199bb7945826b161d8a9c17beb\transformed\core-1.17.0\AndroidManifest.xml:26:22-94
+49
+50    <application
+50-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:3:5-32:19
+51        android:allowBackup="true"
+51-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:4:9-35
+52        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+52-->[androidx.core:core:1.17.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\11094a199bb7945826b161d8a9c17beb\transformed\core-1.17.0\AndroidManifest.xml:28:18-86
+53        android:debuggable="true"
+54        android:extractNativeLibs="false"
+55        android:icon="@mipmap/ic_launcher"
+55-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:6:9-43
+56        android:label="@string/app_name"
+56-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:7:9-41
+57        android:largeHeap="true"
+57-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:5:9-33
+58        android:roundIcon="@mipmap/ic_launcher_round"
+58-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:8:9-54
+59        android:supportsRtl="true"
+59-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:9:9-35
+60        android:theme="@style/AppTheme"
+60-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:10:9-40
+61        android:usesCleartextTraffic="true" >
+61-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:11:9-44
+62        <activity
+62-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:12:9-23:20
+63            android:name="com.anexocobro.app.MainActivity"
+63-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:14:13-41
+64            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+64-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:13:13-148
+65            android:exported="true"
+65-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:18:13-36
+66            android:label="@string/title_activity_main"
+66-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:15:13-56
+67            android:launchMode="singleTask"
+67-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:17:13-44
+68            android:theme="@style/AppTheme.NoActionBarLaunch" >
+68-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:16:13-62
+69            <intent-filter>
+69-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:19:13-22:29
+70                <action android:name="android.intent.action.MAIN" />
+70-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:20:17-69
+70-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:20:25-66
+71
+72                <category android:name="android.intent.category.LAUNCHER" />
+72-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:21:17-77
+72-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:21:27-74
+73            </intent-filter>
+74        </activity>
+75
+76        <provider
+77            android:name="androidx.core.content.FileProvider"
+77-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:26:13-62
+78            android:authorities="com.anexocobro.app.fileprovider"
+78-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:27:13-64
+79            android:exported="false"
+79-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:28:13-37
+80            android:grantUriPermissions="true" >
+80-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:29:13-47
+81            <meta-data
+81-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:30:13-112
+82                android:name="android.support.FILE_PROVIDER_PATHS"
+82-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:30:24-74
+83                android:resource="@xml/file_paths" />
+83-->C:\Users\DANIEL\Desktop\cobros\android\app\src\main\AndroidManifest.xml:30:75-109
+84        </provider>
+85
+86        <service
+86-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-14:19
+87            android:name="com.capacitorjs.plugins.pushnotifications.MessagingService"
+87-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-86
+88            android:exported="false" >
+88-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-37
+89            <intent-filter>
+89-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-13:29
+90                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+90-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:17-78
+90-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:25-75
+91            </intent-filter>
+92        </service>
+93
+94        <receiver
+94-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:29:9-40:20
+95            android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver"
+95-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:30:13-78
+96            android:exported="true"
+96-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:31:13-36
+97            android:permission="com.google.android.c2dm.permission.SEND" >
+97-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:32:13-73
+98            <intent-filter>
+98-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:33:13-35:29
+99                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+99-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:34:17-81
+99-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:34:25-78
+100            </intent-filter>
+101
+102            <meta-data
+102-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:37:13-39:40
+103                android:name="com.google.android.gms.cloudmessaging.FINISHED_AFTER_HANDLED"
+103-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:38:17-92
+104                android:value="true" />
+104-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:39:17-37
+105        </receiver>
+106        <!--
+107             FirebaseMessagingService performs security checks at runtime,
+108             but set to not exported to explicitly avoid allowing another app to call it.
+109        -->
+110        <service
+110-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:46:9-53:19
+111            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+111-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:47:13-82
+112            android:directBootAware="true"
+112-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:48:13-43
+113            android:exported="false" >
+113-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:49:13-37
+114            <intent-filter android:priority="-500" >
+114-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-13:29
+115                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+115-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:17-78
+115-->[:capacitor-push-notifications] C:\Users\DANIEL\Desktop\cobros\node_modules\@capacitor\push-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:25-75
+116            </intent-filter>
+117        </service>
+118        <service
+118-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:54:9-63:19
+119            android:name="com.google.firebase.components.ComponentDiscoveryService"
+119-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:55:13-84
+120            android:directBootAware="true"
+120-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:32:13-43
+121            android:exported="false" >
+121-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:56:13-37
+122            <meta-data
+122-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:57:13-59:85
+123                android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingKtxRegistrar"
+123-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:58:17-122
+124                android:value="com.google.firebase.components.ComponentRegistrar" />
+124-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:59:17-82
+125            <meta-data
+125-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:60:13-62:85
+126                android:name="com.google.firebase.components:com.google.firebase.messaging.FirebaseMessagingRegistrar"
+126-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:61:17-119
+127                android:value="com.google.firebase.components.ComponentRegistrar" />
+127-->[com.google.firebase:firebase-messaging:25.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\fee7827030cf30b9c64fc7d59fae02bb\transformed\firebase-messaging-25.0.1\AndroidManifest.xml:62:17-82
+128            <meta-data
+128-->[com.google.firebase:firebase-installations:18.0.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\df907beae055c1d2434697ac5cd0594d\transformed\firebase-installations-18.0.0\AndroidManifest.xml:15:13-17:85
+129                android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsKtxRegistrar"
+129-->[com.google.firebase:firebase-installations:18.0.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\df907beae055c1d2434697ac5cd0594d\transformed\firebase-installations-18.0.0\AndroidManifest.xml:16:17-130
+130                android:value="com.google.firebase.components.ComponentRegistrar" />
+130-->[com.google.firebase:firebase-installations:18.0.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\df907beae055c1d2434697ac5cd0594d\transformed\firebase-installations-18.0.0\AndroidManifest.xml:17:17-82
+131            <meta-data
+131-->[com.google.firebase:firebase-installations:18.0.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\df907beae055c1d2434697ac5cd0594d\transformed\firebase-installations-18.0.0\AndroidManifest.xml:18:13-20:85
+132                android:name="com.google.firebase.components:com.google.firebase.installations.FirebaseInstallationsRegistrar"
+132-->[com.google.firebase:firebase-installations:18.0.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\df907beae055c1d2434697ac5cd0594d\transformed\firebase-installations-18.0.0\AndroidManifest.xml:19:17-127
+133                android:value="com.google.firebase.components.ComponentRegistrar" />
+133-->[com.google.firebase:firebase-installations:18.0.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\df907beae055c1d2434697ac5cd0594d\transformed\firebase-installations-18.0.0\AndroidManifest.xml:20:17-82
+134            <meta-data
+134-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:35:13-37:85
+135                android:name="com.google.firebase.components:com.google.firebase.FirebaseCommonKtxRegistrar"
+135-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:36:17-109
+136                android:value="com.google.firebase.components.ComponentRegistrar" />
+136-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:37:17-82
+137            <meta-data
+137-->[com.google.firebase:firebase-datatransport:18.2.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\37804962654ec3e9f031e2012e83e63f\transformed\firebase-datatransport-18.2.0\AndroidManifest.xml:25:13-27:85
+138                android:name="com.google.firebase.components:com.google.firebase.datatransport.TransportRegistrar"
+138-->[com.google.firebase:firebase-datatransport:18.2.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\37804962654ec3e9f031e2012e83e63f\transformed\firebase-datatransport-18.2.0\AndroidManifest.xml:26:17-115
+139                android:value="com.google.firebase.components.ComponentRegistrar" />
+139-->[com.google.firebase:firebase-datatransport:18.2.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\37804962654ec3e9f031e2012e83e63f\transformed\firebase-datatransport-18.2.0\AndroidManifest.xml:27:17-82
+140        </service>
+141
+142        <activity
+142-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\c1b0052ae712299163f2612d6db27779\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:9-173
+143            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+143-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\c1b0052ae712299163f2612d6db27779\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:19-85
+144            android:exported="false"
+144-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\c1b0052ae712299163f2612d6db27779\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:146-170
+145            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+145-->[com.google.android.gms:play-services-base:18.5.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\c1b0052ae712299163f2612d6db27779\transformed\play-services-base-18.5.0\AndroidManifest.xml:5:86-145
+146
+147        <provider
+147-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+148            android:name="androidx.startup.InitializationProvider"
+148-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:25:13-67
+149            android:authorities="com.anexocobro.app.androidx-startup"
+149-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:26:13-68
+150            android:exported="false" >
+150-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:27:13-37
+151            <meta-data
+151-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+152                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+152-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
+153                android:value="androidx.startup" />
+153-->[androidx.emoji2:emoji2:1.3.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\353d69426d62513a7e19e841051a3a44\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
+154            <meta-data
+154-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\14a3b51da1167f75215e7e32d2231e74\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:29:13-31:52
+155                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+155-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\14a3b51da1167f75215e7e32d2231e74\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:30:17-78
+156                android:value="androidx.startup" />
+156-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\14a3b51da1167f75215e7e32d2231e74\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:31:17-49
+157            <meta-data
+157-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+158                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+158-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+159                android:value="androidx.startup" />
+159-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+160        </provider>
+161        <provider
+161-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:23:9-28:39
+162            android:name="com.google.firebase.provider.FirebaseInitProvider"
+162-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:24:13-77
+163            android:authorities="com.anexocobro.app.firebaseinitprovider"
+163-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:25:13-72
+164            android:directBootAware="true"
+164-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:26:13-43
+165            android:exported="false"
+165-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:27:13-37
+166            android:initOrder="100" />
+166-->[com.google.firebase:firebase-common:22.0.1] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\cb546919c09df4bb1e2d2127157bcaa2\transformed\firebase-common-22.0.1\AndroidManifest.xml:28:13-36
+167
+168        <meta-data
+168-->[com.google.android.gms:play-services-basement:18.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\535e9dd0a65eaa85bd344836d560144e\transformed\play-services-basement-18.4.0\AndroidManifest.xml:6:9-122
+169            android:name="com.google.android.gms.version"
+169-->[com.google.android.gms:play-services-basement:18.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\535e9dd0a65eaa85bd344836d560144e\transformed\play-services-basement-18.4.0\AndroidManifest.xml:6:20-65
+170            android:value="@integer/google_play_services_version" />
+170-->[com.google.android.gms:play-services-basement:18.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\535e9dd0a65eaa85bd344836d560144e\transformed\play-services-basement-18.4.0\AndroidManifest.xml:6:66-119
+171
+172        <receiver
+172-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+173            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+173-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+174            android:directBootAware="false"
+174-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+175            android:enabled="true"
+175-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+176            android:exported="true"
+176-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+177            android:permission="android.permission.DUMP" >
+177-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+178            <intent-filter>
+178-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+179                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+179-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+179-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+180            </intent-filter>
+181            <intent-filter>
+181-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+182                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+182-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+182-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+183            </intent-filter>
+184            <intent-filter>
+184-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+185                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+185-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+185-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+186            </intent-filter>
+187            <intent-filter>
+187-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+188                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+188-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+188-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\f95ab50c54d3211c648684c462933e30\transformed\profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+189            </intent-filter>
+190        </receiver>
+191
+192        <service
+192-->[com.google.android.datatransport:transport-backend-cct:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\ea620a6b5afc7c5e432bbec109041d91\transformed\transport-backend-cct-3.1.9\AndroidManifest.xml:28:9-34:19
+193            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+193-->[com.google.android.datatransport:transport-backend-cct:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\ea620a6b5afc7c5e432bbec109041d91\transformed\transport-backend-cct-3.1.9\AndroidManifest.xml:29:13-103
+194            android:exported="false" >
+194-->[com.google.android.datatransport:transport-backend-cct:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\ea620a6b5afc7c5e432bbec109041d91\transformed\transport-backend-cct-3.1.9\AndroidManifest.xml:30:13-37
+195            <meta-data
+195-->[com.google.android.datatransport:transport-backend-cct:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\ea620a6b5afc7c5e432bbec109041d91\transformed\transport-backend-cct-3.1.9\AndroidManifest.xml:31:13-33:39
+196                android:name="backend:com.google.android.datatransport.cct.CctBackendFactory"
+196-->[com.google.android.datatransport:transport-backend-cct:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\ea620a6b5afc7c5e432bbec109041d91\transformed\transport-backend-cct-3.1.9\AndroidManifest.xml:32:17-94
+197                android:value="cct" />
+197-->[com.google.android.datatransport:transport-backend-cct:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\ea620a6b5afc7c5e432bbec109041d91\transformed\transport-backend-cct-3.1.9\AndroidManifest.xml:33:17-36
+198        </service>
+199        <service
+199-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:26:9-30:19
+200            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+200-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:27:13-117
+201            android:exported="false"
+201-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:28:13-37
+202            android:permission="android.permission.BIND_JOB_SERVICE" >
+202-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:29:13-69
+203        </service>
+204
+205        <receiver
+205-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:32:9-34:40
+206            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+206-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:33:13-132
+207            android:exported="false" />
+207-->[com.google.android.datatransport:transport-runtime:3.1.9] C:\Users\DANIEL\.gradle\caches\8.14.3\transforms\1491c73c5d15eb22051217da9a2fb39c\transformed\transport-runtime-3.1.9\AndroidManifest.xml:34:13-37
+208    </application>
+209
+210</manifest>

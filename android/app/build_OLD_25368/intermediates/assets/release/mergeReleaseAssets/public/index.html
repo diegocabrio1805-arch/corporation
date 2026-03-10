@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Anexo Cobro v6.1.25 ARMAGEDON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="icon" type="image/png" href="./assets/favicon-xKCe1lSF.png">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script type="module" crossorigin src="./assets/index-CNoweM2c.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/vendor-DY8k1ES-.js">
+  <link rel="modulepreload" crossorigin href="./assets/capacitor-BK0YX2Ro.js">
+  <link rel="modulepreload" crossorigin href="./assets/supabase-C8peGVGg.js">
+  <link rel="stylesheet" crossorigin href="./assets/index-DFip5jBl.css">
+  <script type="module">import.meta.url;import("_").catch(()=>1);(async function*(){})().next();if(location.protocol!="file:"){window.__vite_is_modern_browser=true}</script>
+  <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
+<link rel="manifest" href="./manifest.webmanifest"></head>
+
+<body>
+  <!-- VERSION_V5_2_0_FORCE_REDEPLOY -->
+  <div id="error-trap"
+    style="display:none; color:red; padding:20px; font-family:monospace; background:white; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999;">
+  </div>
+  <script>
+    (function () {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          for (let registration of registrations) {
+            console.log("Unregistering Service Worker:", registration);
+            registration.unregister();
+          }
+        });
+      }
+    })();
+
+    // Asset Loading Error Handler (Integrity Check)
+    window.addEventListener('error', function (event) {
+      const element = event.target || event.srcElement;
+      if (element.tagName === 'LINK' || element.tagName === 'SCRIPT') {
+        const src = element.src || element.href;
+        console.error('Falla crítica al cargar recurso:', src);
+
+        // Si falla el CSS principal o el index.tsx, forzamos un reload sin caché
+        if (src && (src.includes('index.css') || src.includes('.js') || src.includes('.tsx'))) {
+          const reloadCount = parseInt(sessionStorage.getItem('asset_reload_count') || '0');
+          if (reloadCount < 5) {
+            console.log('Intentando recarga de emergencia...');
+            sessionStorage.setItem('asset_reload_count', (reloadCount + 1).toString());
+
+            // Clean SW if possible before reload
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                for (let r of regs) r.unregister();
+                window.location.reload(true);
+              });
+            } else {
+              window.location.reload(true);
+            }
+          }
+        }
+      }
+    }, true);
+
+    // WSOD Self-Repair removed to prevent infinite loops during debugging
+
+    window.onerror = function (msg, url, line, col, error) {
+      var trap = document.getElementById('error-trap');
+      if (trap) {
+        trap.style.display = 'block';
+        trap.innerHTML += '<h3>Fatal Error:</h3><p>' + msg + '</p><p>' + url + ':' + line + '</p><hr>';
+      }
+    };
+    window.addEventListener('unhandledrejection', function (event) {
+      var trap = document.getElementById('error-trap');
+      if (trap) {
+        trap.style.display = 'block';
+        trap.innerHTML += '<h3>Unhandled Promise Rejection:</h3><pre>' + JSON.stringify(event.reason?.message || event.reason, null, 2) + '</pre><hr>';
+      }
+    });
+
+    // Reset reload counter if everything loads fine after 10s
+    setTimeout(() => sessionStorage.removeItem('asset_reload_count'), 10000);
+  </script>
+  <div id="root"></div>
+  <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
+  <script nomodule crossorigin id="vite-legacy-polyfill" src="./assets/polyfills-legacy-Bg96UyPx.js"></script>
+  <script nomodule crossorigin id="vite-legacy-entry" data-src="./assets/index-legacy-B7Cjf4sU.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
+</body>
+
+</html>
