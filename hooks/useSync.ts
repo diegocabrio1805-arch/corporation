@@ -88,6 +88,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         const lastSyncTime = localStorage.getItem('last_sync_timestamp_ms');
                         const timeSinceLastSync = lastSyncTime ? Date.now() - parseInt(lastSyncTime) : 9999999;
 
+                        // SAFETY CATCH: If Android put the app to sleep while syncing, 
+                        // the previous operation was killed by the OS. We must manually 
+                        // reset the lock so the queue can process again.
+                        isProcessingRef.current = false;
+                        setIsSyncing(false);
+
                         if (hasPending) {
                             console.log('App resumed: Uploading pending items...');
                             processQueue(false);
@@ -212,7 +218,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (isDuplicate) return;
         }
 
-        queue.push({ operation, data, timestamp: Date.now(), retryCount: 0 });
+        const _id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+        queue.push({ _id, operation, data, timestamp: Date.now(), retryCount: 0 });
         localStorage.setItem('syncQueue', JSON.stringify(queue));
         setQueueLength(queue.length);
 
@@ -378,7 +385,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         } catch (err) { return null; }
     };
 
-    const processQueue = async (force = false, fullSync = false) => {
+    const processQueue = async (force = false, fullSync = false, skipPull = false) => {
         if (isProcessingRef.current && !force) return;
         isProcessingRef.current = true;
         try {
@@ -412,6 +419,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'DELETE_LOG': [], 'DELETE_PAYMENT': [], 'DELETE_LOAN': [], 'DELETE_CLIENT': [], 'DELETE_EXPENSE': []
             };
 
+            const processedIds = new Set<string>();
             const processedIndices = new Set<number>();
             queue.forEach((item: any, index: number) => {
                 if (groups[item.operation]) groups[item.operation].push({ item, index });
@@ -426,7 +434,10 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     try {
                         const { error } = await supabase.from(table).upsert(dataToUpsert);
                         if (error) throw error;
-                        chunk.forEach(x => processedIndices.add(x.index));
+                        chunk.forEach(x => {
+                            if (x.item._id) processedIds.add(x.item._id);
+                            else processedIndices.add(x.index);
+                        });
                     } catch (err) {
                         console.error(`Batch sync error for ${table}, retrying individually:`, err);
                         // Fallback: Try individually to isolate the bad apple
@@ -434,7 +445,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             try {
                                 const { error } = await supabase.from(table).upsert(mapper(x.item.data));
                                 if (error) throw error;
-                                processedIndices.add(x.index);
+                                if (x.item._id) processedIds.add(x.item._id);
+                                else processedIndices.add(x.index);
                             } catch (singleErr) {
                                 console.error(`Individual sync error for ${table} record ${x.item.data.id}:`, singleErr);
                                 // Increment retry count for this item
@@ -444,7 +456,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 // to avoid blocking the queue forever, but we need to track it.
                                 if (x.item.retryCount > 5) {
                                     console.warn(`Record ${x.item.data.id} reached max retries. Skipping for now to avoid queue blockage.`);
-                                    processedIndices.add(x.index); // Mark as processed so it leaves the main queue
+                                    if (x.item._id) processedIds.add(x.item._id);
+                                    else processedIndices.add(x.index); // Mark as processed so it leaves the main queue
 
                                     // Store in a "failed items" log for admin review
                                     const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
@@ -576,7 +589,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             .from('branch_settings')
                             .upsert({ id: item.data.branchId, settings: item.data.settings, updated_at: new Date().toISOString() });
                         if (error) throw error;
-                        processedIndices.add(index);
+                        if (item._id) processedIds.add(item._id);
+                        else processedIndices.add(index);
                     } catch (err) { console.error("Settings sync error:", err); }
                 }
             }
@@ -610,21 +624,35 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         // Then perform the actual deletion (or soft delete update handled by DB trigger/policy)
                         const { error } = await supabase.from(table).delete().in('id', idsToDelete);
                         if (error) throw error;
-                        groups[op].forEach(x => processedIndices.add(x.index));
+                        groups[op].forEach(x => {
+                            if (x.item._id) processedIds.add(x.item._id);
+                            else processedIndices.add(x.index);
+                        });
                     } catch (err) { console.error(`Delete error for ${table}:`, err); }
                 }
             }
 
-            const newQueue = queue.filter((_: any, index: number) => !processedIndices.has(index));
+            // RACE CONDITION FIX: Read fresh queue because addToQueue might have pushed new items
+            const freshQueueStr = localStorage.getItem('syncQueue');
+            const freshQueue = JSON.parse(freshQueueStr || '[]');
+            
+            const newQueue = freshQueue.filter((item: any) => {
+                if (item._id) return !processedIds.has(item._id);
+                // Legacy fallback for pending items strictly without _id existing in memory before fix
+                const memIdx = queue.findIndex((q: any) => !q._id && q.operation === item.operation && q.timestamp === item.timestamp);
+                if (memIdx !== -1 && processedIndices.has(memIdx)) return false;
+                return true;
+            });
+
             localStorage.setItem('syncQueue', JSON.stringify(newQueue));
             setQueueLength(newQueue.length);
 
             if (newQueue.length > 0) {
                 setSyncError(`Pendientes: ${newQueue.length}. Reintentando automáticamente...`);
-                setTimeout(() => processQueue(true), 5000);
+                setTimeout(() => processQueue(true, fullSync, skipPull), 5000);
             } else {
                 setSyncError(null);
-                pullData(fullSync);
+                if (!skipPull) pullData(fullSync);
             }
         } catch (err) { setSyncError("Error sincronización."); } finally {
             isProcessingRef.current = false;

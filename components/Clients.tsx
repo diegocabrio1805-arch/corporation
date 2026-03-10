@@ -62,7 +62,7 @@ interface ClientsProps {
   deleteLoan?: (loanId: string) => void;
   addCollectionAttempt: (log: CollectionLog) => void;
   globalState: AppState;
-  onForceSync?: (silent?: boolean, message?: string) => Promise<void>;
+  onForceSync?: (silent?: boolean, message?: string, fullSync?: boolean, skipPull?: boolean) => Promise<void>;
   setActiveTab?: (tab: string) => void;
   fetchClientPhotos?: (clientId: string) => Promise<Partial<Client> | null>;
   recalculateLoanStatus?: (loanId: string) => void;
@@ -1136,7 +1136,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
 
       if (type === CollectionLogType.PAYMENT || type === CollectionLogType.NO_PAGO) {
-        if (onForceSync) onForceSync(false);
+        if (onForceSync) onForceSync(true, "Registrando...", false, true);
       }
 
       if (type === CollectionLogType.PAYMENT) {
@@ -1182,11 +1182,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         printText(receiptText).catch(err => console.warn("Auto-print failed:", err));
 
         // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
-        const phone = clientInLegajo.phone.replace(/\D/g, '');
-        const cleanReceipt = convertReceiptForWhatsApp(receiptText);
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57'; // Dynamic prefix fallback
-        const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent(cleanReceipt)}`;
-        window.open(wpUrl, '_blank');
+        setTimeout(() => {
+          const phone = clientInLegajo.phone.replace(/\D/g, '');
+          const cleanReceipt = convertReceiptForWhatsApp(receiptText);
+          const countryPrefix = state.settings.country === 'PY' ? '595' : '57'; // Dynamic prefix fallback
+          const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent(cleanReceipt)}`;
+          window.open(wpUrl, '_blank');
+        }, 2000);
       } else if (type === CollectionLogType.NO_PAGO) {
         const metrics = getClientMetrics(clientInLegajo);
         let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(
@@ -1196,8 +1198,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           state.settings,
           metrics.balance
         );
-        const cleanMsg = convertReceiptForWhatsApp(msg);
-        window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+        setTimeout(() => {
+          const cleanMsg = convertReceiptForWhatsApp(msg);
+          window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+        }, 2000);
       }
     } catch (e) { console.error(e); } finally {
       setIsProcessingDossierAction(false);

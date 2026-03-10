@@ -9,11 +9,11 @@ import PullToRefresh from './PullToRefresh';
 
 interface CollectionRouteProps {
   state: AppState;
-  addCollectionAttempt: (log: CollectionLog) => void;
+  addCollectionAttempt: (log: CollectionLog, skipSync?: boolean) => void;
   deleteCollectionLog?: (logId: string) => void;
   updateClient?: (client: Client) => void;
   deleteClient?: (clientId: string) => void;
-  onForceSync?: (silent?: boolean) => Promise<void>;
+  onForceSync?: (silent?: boolean, message?: string, fullSync?: boolean, skipPull?: boolean) => Promise<void>;
 }
 
 const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, deleteClient, onForceSync }) => {
@@ -276,10 +276,11 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
         companySnapshot: state.settings
       };
 
-      addCollectionAttempt(log);
+      // Add record via parent callback, omitting auto-sync to let onForceSync handle it efficiently
+      addCollectionAttempt(log, true);
 
       if (type === CollectionLogType.PAYMENT || type === CollectionLogType.NO_PAGO) {
-        if (onForceSync) onForceSync(true);
+        if (onForceSync) onForceSync(true, "Registrando...", false, true);
       }
 
       const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
@@ -332,8 +333,10 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           setReceipt(null);
         }
 
-        const phone = client.phone.replace(/\D/g, '');
-        window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
+        setTimeout(() => {
+          const phone = client.phone.replace(/\D/g, '');
+          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent(receiptText)}`, '_blank');
+        }, 2000);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         let msg = '';
         if (client.customNoPayMessage) {
@@ -344,8 +347,10 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           const overdueDays = getDaysOverdue(loan, state.settings);
           msg = await generateNoPaymentAIReminder(loan, client, overdueDays, state.settings, currentBalance);
         }
-        const cleanMsg = convertReceiptForWhatsApp(msg);
-        window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+        setTimeout(() => {
+          const cleanMsg = convertReceiptForWhatsApp(msg);
+          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(cleanMsg)}`, '_blank');
+        }, 2000);
         resetUI();
       }
     } catch (e) {

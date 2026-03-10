@@ -41,7 +41,7 @@ import { StorageService } from './utils/localforageStorage';
 import { supabase } from './utils/supabaseClient';
 
 
-const CURRENT_VERSION_ID = '6.3.1-STABLE';
+const CURRENT_VERSION_ID = '6.3.3-SYNCFIX';
 const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 const App: React.FC = () => {
@@ -297,9 +297,9 @@ const App: React.FC = () => {
       local.forEach(l => {
         if (!l || !l.id) return;
 
-        // PROTECTION: If local item is very recent (< 5 mins), keep it even if not in remote/result
+        // PROTECTION: If local item is very recent (< 24 hours), keep it even if not in remote/result
         // This protects against "Push -> FullSync -> Remote lag -> Delete" race condition
-        const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 300000);
+        const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
 
         if ((pendingAddIds.has(l.id) || isRecent) && !remoteIds.has(l.id)) {
           result.push(l);
@@ -317,9 +317,9 @@ const App: React.FC = () => {
       if (!l || !l.id || pendingDeleteIds.has(l.id)) return;
       const r = remoteMap.get(l.id);
 
-      // PROTECTION: If local item is very recent (< 5 mins), keep it even if not in remote/result
+      // PROTECTION: If local item is very recent (< 24 hours), keep it even if not in remote/result
       // This protects against "Push -> FullSync -> Remote lag -> Delete" race condition
-      const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 300000);
+      const isRecent = l.updated_at && (Date.now() - new Date(l.updated_at).getTime() < 86400000);
 
       if (!r) {
         if ((pendingAddIds.has(l.id) || isRecent) && !resultMap.has(l.id)) {
@@ -548,10 +548,10 @@ const App: React.FC = () => {
   };
 
   // 4. COMMAND FUNCTIONS
-  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false) => {
+  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
     if (!silent) setSuccessMessage(message);
     if (fullSync) await forceFullSync();
-    else await processQueue(true);
+    else await processQueue(true, false, skipPull);
   };
 
   // --- 4. EFFECTS ---
@@ -1034,7 +1034,7 @@ const App: React.FC = () => {
     handleForceSync(false);
   };
 
-  const addCollectionAttempt = async (log: CollectionLog) => {
+  const addCollectionAttempt = async (log: CollectionLog, skipSync: boolean = false) => {
     const branchId = getBranchId(state.currentUser);
     const newLog = { ...log, branchId, recordedBy: state.currentUser?.id, updated_at: new Date().toISOString() };
 
@@ -1050,7 +1050,7 @@ const App: React.FC = () => {
     // Si es un log de apertura, no procesamos abonos ni cuotas
     if (newLog.type === CollectionLogType.OPENING) {
       setState(prev => ({ ...prev, collectionLogs: [newLog, ...prev.collectionLogs] }));
-      handleForceSync(true);
+      if (!skipSync) handleForceSync(true);
       return;
     }
 
@@ -1105,9 +1105,10 @@ const App: React.FC = () => {
     if (newPaymentsForSync.length > 0 || loansToSync.length > 0) {
       for (const p of newPaymentsForSync) pushPayment(p);
       for (const l of loansToSync) pushLoan(l);
+      pushLog(newLog);
     }
 
-    handleForceSync(true);
+    if (!skipSync) handleForceSync(true);
   };
 
   const deleteCollectionLog = async (logId: string) => {
