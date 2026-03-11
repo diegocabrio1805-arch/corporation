@@ -1930,8 +1930,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
   };
 
   return (
-    <PullToRefresh onRefresh={async () => { await forceSync(); }}>
-      <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
+    <>
+      <PullToRefresh onRefresh={async () => { await forceSync(); }}>
+        <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
         <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-wrap items-center gap-1">
           <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> REGISTROS</button>
           <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> AGREGAR</button>
@@ -2584,8 +2585,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }
 
         {/* CONTENEDOR OCULTO PARA CAPTURA DE RECIBO EN PDF */}
-        <div id="receipt-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
-          <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
+        {receipt && (
+          <div id="receipt-container-hidden" style={{ position: 'fixed', left: '-5000px', top: '0', opacity: '0', pointerEvents: 'none', zIndex: -1, background: 'white', width: '400px', padding: '20px' }}>
+            <div ref={receiptCardRef} className="bg-white p-6 border-2 border-slate-900 rounded-lg text-black font-mono text-sm leading-relaxed whitespace-pre-wrap">
             <div className="text-center mb-4">
               <h2 className="text-xl font-black uppercase">{state.settings.companyName || 'ANEXO COBROS'}</h2>
               <p className="text-[10px] uppercase font-bold text-slate-500">{state.settings.companyAlias || ''}</p>
@@ -2596,8 +2598,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               <p className="text-[10px] font-black uppercase">¡Gracias por su confianza!</p>
               <p className="text-[8px] mt-1">{state.settings.shareLabel || 'Cuenta'}: {state.settings.shareValue || ''}</p>
             </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* LEGAJO / EXPEDIENTE DEL CLIENTE */}
         {
@@ -3414,6 +3417,76 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }
       </div>
     </PullToRefresh>
+
+      {showImportModal && (
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-16 md:pt-24 px-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl p-8 border border-slate-200 w-full max-w-md shadow-2xl relative animate-scaleIn">
+            <button 
+              onClick={() => setShowImportModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all"
+            >
+              <i className="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
+              <Upload />
+            </div>
+
+            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">Importar Cartera</h3>
+            <p className="text-slate-500 text-[10px] font-bold mb-6 uppercase tracking-widest text-center">
+              Seleccione un cobrador para asignar la nueva cartera
+            </p>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Cobrador / Ruta Destino</label>
+                <select 
+                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-black text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
+                  value={selectedCollectorForImport}
+                  onChange={(e) => setSelectedCollectorForImport(e.target.value)}
+                >
+                  <option value="">-- SELECCIONAR COBRADOR --</option>
+                  {collectors.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative group">
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  disabled={isProcessingExcel}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  onChange={handleFileUploadMasivo}
+                />
+                <div className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center transition-all ${isProcessingExcel ? 'bg-slate-50 border-slate-200' : 'border-slate-300 group-hover:border-emerald-500 group-hover:bg-emerald-50'}`}>
+                  {isProcessingExcel ? (
+                    <>
+                      <i className="fa-solid fa-spinner animate-spin text-3xl text-emerald-500 mb-2"></i>
+                      <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Procesando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-file-excel text-3xl text-slate-300 group-hover:text-emerald-500 mb-2 transition-colors"></i>
+                      <span className="text-[10px] font-black text-slate-500 group-hover:text-emerald-700 uppercase tracking-widest">Seleccionar Excel</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setShowImportModal(false)}
+                className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+
   );
 };
 
