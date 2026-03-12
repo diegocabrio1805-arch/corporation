@@ -188,7 +188,10 @@ export interface Loan {
   sellerCode?: string; // NUEVO: Código de Vendedor (31, 38, etc.)
   promissoryNoteAmount?: number; // Monto del Pagaré
   promissoryNoteExpiration?: string; // Fecha de Vencimiento del Pagaré
+  balance?: number; // Nuevo: Saldo actual
+  totalPaid?: number; // Nuevo: Total pagado
   deletedAt?: string;
+  updatedAt?: string; // Para consistencia con recalculateLoanStatus
   updated_at?: string;
   raw_data?: any;
 }

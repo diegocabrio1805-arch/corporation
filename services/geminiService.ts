@@ -11,9 +11,10 @@ const fetchGemini = async (prompt: string, isJson: boolean = false) => {
     throw new Error("API Key missing");
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${MODEL}:generateContent?key=${apiKey}`,
-    {
+  // Usamos el endpoint v1 con el formato de modelo completo
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  
+  const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -150,24 +151,25 @@ export const mapHeadersWithAI = async (headers: string[]): Promise<Record<string
     Dada una lista de encabezados de una hoja de Excel de préstamos/cobranzas, mapea cada encabezado a una de nuestras claves internas si hay una coincidencia clara.
     
     CLAVES INTERNAS:
-    - name: Nombre del cliente
-    - documentId: Cédula, DNI, Identificación
-    - phone: Teléfono, celular
-    - address: Dirección, domicilio
-    - principal: Capital inicial, monto prestado, préstamo
-    - totalAmount: Monto total con intereses, total pagadero
-    - installmentValue: Valor de la cuota, monto cuota
-    - totalInstallments: Cantidad de cuotas, plan
-    - pendingInstallments: Cuotas pendientes, cuotas que faltan, saldo en cuotas, CUOTA PENDIENTE
-    - paidInstallments: Cuotas pagadas, cuotas abonadas, cuotas ya cobradas
-    - balance: Saldo actual, lo que debe hoy, SALDO PENDIENTE, SALDO TOTAL
-    - frequency: Frecuencia de pago (DIARIO, SEMANAL, QUINCENAL, MENSUAL)
+    - name: Nombre del cliente, Nombres y Apellidos, Titular, Razon Social, Cliente, Sujeto, Deudor
+    - documentId: Cédula, DNI, Identificación, CC, Registro, Nro Doc, Doc Identidad, CI, Ced
+    - phone: Teléfono, celular, Móvil, Tel, Cel, Whatsapp, Contacto, Telf
+    - address: Dirección, domicilio, Residencia, Ubicación, Calle, Depto, Dir
+    - principal: Capital inicial, monto prestado, préstamo, Liquido, Desembolso, Importe Cap, Principal, Monto Credito
+    - totalAmount: Monto total con intereses, total pagadero, Total Credito, Total Deuda, Total Pagar, Monto Total Pagare, Total Devension
+    - installmentValue: Valor de la cuota, monto cuota, Importe Cuota, Val Cuota, Cuota Fija, Valor Plan
+    - totalInstallments: Cantidad de cuotas, plan, Plazo, Total Ctas, Nro Cuotas, Cuotas Totales
+    - paidInstallments: Cuotas pagadas, cuotas abonadas, cuotas ya cobradas, Cta Pag, Cantidad cobrada, PAGADAS, CTA. PAG., Cobradas, Ya Pagas
+    - pendingInstallments: Cuotas pendientes, cuotas que faltan, saldo en cuotas, CUOTA PENDIENTE, Ctas Pend, Por cobrar, CTAS. PEND., Restantes, Saldo Ctas, Faltantes, Pendientes
+    - balance: Saldo actual, lo que debe hoy, SALDO PENDIENTE, SALDO TOTAL, Saldo, SALDO., Resto Deuda, Saldo Deudor, Monto Pendiente
+    - frequency: Frecuencia de pago, Modalidad, Forma Pago, Periodo (DIARIO, SEMANAL, QUINCENAL, MENSUAL)
+    - date: Fecha de otorgamiento, Fecha de inicio, Fecha crédito, Desembolso, Fch Alta, Fec Credito
     
     ENCABEZADOS EXCEL:
     ${headers.join(', ')}
     
     Responde solo con un JSON plano donde la clave es el ENCABEZADO EXCEL y el valor es la CLAVE INTERNA.
-    Ejemplo: {"Nombres y Apellidos": "name", "CC": "documentId"}
+    Ejemplo: {"Nombres y Apellidos": "name", "CC": "documentId", "Cta Pag": "paidInstallments", "Ctas Pend": "pendingInstallments"}
   `;
 
   try {

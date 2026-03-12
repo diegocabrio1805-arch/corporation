@@ -2,14 +2,12 @@
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
-// import { useRegisterSW } from 'virtual:pwa-register/react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppState, Client, Loan, Role, LoanStatus, PaymentStatus, Expense, CollectionLog, CollectionLogType, User, AppSettings, PaymentRecord, CommissionBracket } from './types';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
 import Loans from './components/Loans';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import CollectionRoute from './components/CollectionRoute';
 import Expenses from './components/Expenses';
@@ -596,28 +594,40 @@ const App: React.FC = () => {
         setState((prev: AppState) => ({ ...prev, currentUser: null }));
       }
     });
-
-    // --- EMERGENCY REMOTE SYNC TRIGGER (Forced by AI Assistant - MARCH 09 2026) ---
+    // --- EMERGENCY REMOTE SYNC TRIGGER (Forced by AI Assistant - MARCH 12 2026) ---
     const triggerEmergencySync = async () => {
-      const user = state.currentUser;
-      if (!user) return;
-      const syncKey = `emergency_sync_v637_robust_headers`;
-
-      if (!localStorage.getItem(syncKey)) {
-        console.log("[EmergencySync] Out-of-sync browser detected. Forcing full sync...");
-        localStorage.setItem(syncKey, 'true');
-
-        // Clear ALL possible sync markers to satisfy forceFullSync requirements
+      const lastSyncKey = localStorage.getItem('last_emergency_sync_key');
+      const syncKey = 'emergency_sync_v639_FINAL_COMPLETE';
+      
+      if (lastSyncKey !== syncKey && state.currentUser) {
+        console.log("🚨 [EMERGENCY] Triggering specialized sync:", syncKey);
+        setSuccessMessage("¡RECUPERANDO DATOS v6.4.0!");
+        
+        // Limpiar timestamps antiguos y claves de sincronización para forzar descarga total
         const keysToRemove = [
-          'last_sync_timestamp', 'last_sync_timestamp_ms',
-          'last_sync_timestamp_v6', 'last_sync_timestamp_v7',
-          'last_sync_timestamp_v8', 'last_sync_timestamp_v630'
+          'last_sync_timestamp',
+          'last_full_sync',
+          'sync_metadata',
+          'local_changes_queue',
+          'emergency_sync_v638_UPDATE_FINAL',
+          'emergency_sync_v639_UPDATE_FINAL',
+          'emergency_sync_v639_FINAL_COMPLETE',
+          'last_sync_timestamp_ms',
+          'last_sync_timestamp_v6',
+          'last_sync_timestamp_v7',
+          'last_sync_timestamp_v8',
+          'last_sync_timestamp_v630'
         ];
+        
         keysToRemove.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem('last_emergency_sync_key', syncKey);
 
+        console.log("🔄 [EMERGENCY] Synchronization forced. Reloading application...");
+        
+        // Un pequeño retraso para asegurar que el mensaje de éxito se vea antes de recargar
         setTimeout(() => {
-          handleForceSync(false, "¡RECUPERANDO TODOS LOS DATOS!", true);
-        }, 2000);
+          window.location.reload();
+        }, 1500);
       }
     };
     triggerEmergencySync();
@@ -625,7 +635,7 @@ const App: React.FC = () => {
     return () => {
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [state.currentUser]);
 
   useEffect(() => {
     startConnectionKeeper();
@@ -1202,6 +1212,80 @@ const App: React.FC = () => {
     }
   };
 
+  const addBulkData = async (clients: Client[], loans: Loan[], logs: CollectionLog[]) => {
+    const branchId = getBranchId(state.currentUser);
+    const timestamp = new Date().toISOString();
+
+    const newClients = clients.map(c => ({ ...c, branchId: c.branchId || branchId, createdAt: c.createdAt || timestamp, updated_at: timestamp }));
+    const newLoans = loans.map(l => ({ ...l, branchId: l.branchId || branchId, updated_at: timestamp }));
+    const newLogs = logs.map(l => ({ ...l, branchId: l.branchId || branchId, recordedBy: state.currentUser?.id, updated_at: timestamp }));
+
+    // Pre-calculate payments for logs
+    const allNewPayments: PaymentRecord[] = [];
+    const updatedLoansWithPayments = newLoans.map(loan => {
+      const loanLogs = newLogs.filter(log => log.loanId === loan.id && log.type === CollectionLogType.PAYMENT);
+      let totalToApply = loanLogs.reduce((sum, log) => sum + (log.amount || 0), 0);
+      
+      if (totalToApply <= 0) return loan;
+
+      const newInstallments = (loan.installments || []).map(i => ({ ...i }));
+      for (let i = 0; i < newInstallments.length && totalToApply > 0.01; i++) {
+        const inst = newInstallments[i];
+        if (inst.status === PaymentStatus.PAID) continue;
+
+        const remainingInInst = Math.round((inst.amount - (inst.paidAmount || 0)) * 100) / 100;
+        const appliedToInst = Math.min(totalToApply, remainingInInst);
+        inst.paidAmount = Math.round(((inst.paidAmount || 0) + appliedToInst) * 100) / 100;
+        totalToApply = Math.round((totalToApply - appliedToInst) * 100) / 100;
+        inst.status = inst.paidAmount >= inst.amount - 0.01 ? PaymentStatus.PAID : PaymentStatus.PARTIAL;
+
+        allNewPayments.push({
+          id: `pay-bulk-${loan.id}-${inst.number}-${Date.now()}`,
+          loanId: loan.id,
+          clientId: loan.clientId,
+          collectorId: loan.collectorId,
+          branchId: loan.branchId || branchId,
+          amount: appliedToInst,
+          date: loan.createdAt,
+          installmentNumber: inst.number,
+          isVirtual: false,
+          isRenewal: false,
+          created_at: timestamp,
+          updated_at: timestamp
+        });
+      }
+
+      const allPaid = newInstallments.length > 0 && newInstallments.every(inst => inst.status === PaymentStatus.PAID);
+      const totalPaidSoFar = newInstallments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+      const currentBalance = Math.round((loan.totalAmount - totalPaidSoFar) * 100) / 100;
+
+      return { 
+        ...loan, 
+        installments: newInstallments, 
+        status: allPaid ? LoanStatus.PAID : LoanStatus.ACTIVE,
+        totalPaid: totalPaidSoFar,
+        balance: currentBalance,
+        updatedAt: timestamp
+      };
+    });
+
+    setState(prev => ({
+      ...prev,
+      clients: [...prev.clients, ...newClients],
+      loans: [...updatedLoansWithPayments, ...prev.loans],
+      collectionLogs: [...newLogs, ...prev.collectionLogs],
+      payments: [...allNewPayments, ...prev.payments]
+    }));
+
+    // Background push
+    for (const c of newClients) pushClient(c);
+    for (const l of updatedLoansWithPayments) pushLoan(l);
+    for (const log of newLogs) pushLog(log);
+    for (const p of allNewPayments) pushPayment(p);
+
+    handleForceSync(false, "Importación masiva completada");
+  };
+
   const updateCollectionLogNotes = (logId: string, notes: string) => {
     setState(prev => ({
       ...prev,
@@ -1325,7 +1409,7 @@ const App: React.FC = () => {
 
             <div className="flex items-center gap-2">
               {queueLength > 0 && <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 animate-pulse">{queueLength}</span>}
-              <p className="text-[10px] text-slate-400 font-mono">v6.3.0-STABLE</p>
+              <p className="text-[10px] text-slate-400 font-mono">v6.4.0-STABLE</p>
               <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-xs font-black" onClick={() => setActiveTab('profile')}>
                 {state.currentUser?.name.charAt(0)}
               </div>
@@ -1407,6 +1491,7 @@ const App: React.FC = () => {
               setActiveTab={setActiveTab}
               fetchClientPhotos={fetchClientPhotos}
               deleteClient={deleteClient}
+              addBulkData={addBulkData}
               setState={setState}
               pushLoan={pushLoan}
             />

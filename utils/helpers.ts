@@ -1,4 +1,4 @@
-﻿import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { Client, Loan, CollectionLog, AppSettings, CountryCode, Frequency, LoanStatus, CollectionLogType, PaymentStatus } from '../types';
 
 export const generateUUID = (): string => {
@@ -628,19 +628,35 @@ export const parseAmount = (input: string | number): number => {
   if (!input) return 0;
 
   let str = String(input).trim();
+  
+  // Si tiene puntos y comas, asumimos que el último es el decimal
   const clean = str.replace(/[^\d.,-]/g, '');
-
-  const dots = (clean.match(/\./g) || []).length;
-  const commas = (clean.match(/,/g) || []).length;
-
-  if (dots > 1 && commas === 0) return parseFloat(clean.replace(/\./g, '')) || 0;
-  if (commas > 1 && dots === 0) return parseFloat(clean.replace(/,/g, '')) || 0;
-
   const lastDot = clean.lastIndexOf('.');
   const lastComma = clean.lastIndexOf(',');
 
-  if (lastDot > lastComma) return parseFloat(clean.replace(/,/g, '')) || 0;
-  if (lastComma > lastDot) return parseFloat(clean.replace(/\./g, '').replace(',', '.')) || 0;
+  // Caso específico de Paraguay/Argentina: "1.320.000" o "1.320" 
+  // No hay comas, pero hay puntos. Si el punto NO es el decimal (porque hay múltiples o porque hay 3 dígitos después)
+  if (lastComma === -1 && lastDot !== -1) {
+    const dots = (clean.match(/\./g) || []).length;
+    const afterLastDot = clean.substring(lastDot + 1);
+    
+    // Si hay más de un punto, DEFINITIVAMENTE son separadores de miles
+    if (dots > 1) return parseFloat(clean.replace(/\./g, '')) || 0;
+    
+    // Si hay un solo punto pero tiene 3 dígitos después (ej: 1.500), tratamos como miles
+    // EXCEPCIÓN: Si es un número pequeño con decimales (ej: 1.50). 
+    // En el contexto de esta App (Cobros), 1.320 suele ser mil trescientos veinte, no uno punto tres.
+    if (afterLastDot.length === 3) return parseFloat(clean.replace(/\./g, '')) || 0;
+  }
+
+  // Lógica estándar para otros casos
+  if (lastDot > lastComma) {
+    // El punto es el decimal, quitamos comas
+    return parseFloat(clean.replace(/,/g, '')) || 0;
+  } else if (lastComma > lastDot) {
+    // La coma es el decimal, quitamos puntos y cambiamos coma por punto
+    return parseFloat(clean.replace(/\./g, '').replace(',', '.')) || 0;
+  }
 
   const res = parseFloat(clean);
   return isNaN(res) ? 0 : res;

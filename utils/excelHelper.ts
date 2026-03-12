@@ -304,10 +304,10 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                     const client: Client = {
                         id: clientId,
                         name: String(cRow[nameIdx ?? -1] || ''),
-                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID"]) ?? -1)] || '0'),
-                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV"]) ?? -1)] || '0'),
-                        secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2"]) ?? -1)] || 'SIN DATOS'),
-                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM"]) ?? -1)] || 'SIN DATOS'),
+                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID", "DOCUMENTO", "CC"]) ?? -1)] || '0'),
+                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV", "WHATSAPP", "CONTACTO"]) ?? -1)] || '0'),
+                        secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2", "TEL SEC", "CEL SEC"]) ?? -1)] || 'SIN DATOS'),
+                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM", "UBICACION", "RESIDENCIA"]) ?? -1)] || 'SIN DATOS'),
                         addedBy: collectorId,
                         branchId: branchId,
                         creditLimit: 1000000,
@@ -371,12 +371,12 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 }
                             });
 
-                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "IMPORT PAGARE", "IMP PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL"]);
+                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "IMPORT PAGARE", "IMP PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL", "LIQUIDO", "MONTO CREDITO", "PRINCIPAL"]);
                             const rawPrincipal = lRow[principalIdx ?? -1];
                             const principal = parseAmount(rawPrincipal);
                             console.log(`💰 [FORENSIC] Campo 'principal': Original="${rawPrincipal}", Final=${principal}`);
 
-                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "SALDO PEND", "SALDO PEND.", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR"]);
+                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "SALDO PEND", "SALDO PEND.", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR", "SALDO DEUDOR", "MONTO PENDIENTE", "RESTO"]);
                             const rawBalance = lRow[importedBalanceIdx ?? -1];
                             const legacyBalance = parseAmount(rawBalance);
                             console.log(`💰 [FORENSIC] Campo 'balance': Original="${rawBalance}", Final=${legacyBalance}`);
@@ -391,7 +391,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 '0'
                             );
 
-                            const capitalStr = String(lRow[loanMap["SALDO CAPITAL"] ?? loanMap["SALDO CAP"] ?? loanMap["CAPITAL"] ?? (principalIdx ?? -1)] || '0');
+                            const capitalStr = String(lRow[loanMap["SALDO CAPITAL"] ?? loanMap["SALDO CAP"] ?? loanMap["CAPITAL"] ?? -1] || '0');
                             const interestStr = String(lRow[loanMap["SALDO INTERES"] ?? loanMap["SALDO INT"] ?? loanMap["INTERES"] ?? -1] || '0');
 
                             const valCapital = parseAmount(capitalStr);
@@ -399,17 +399,17 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                             // RECONSTRUCCIÓN MATEMÁTICA v2.4 (Requerimiento Usuario)
                             // 1. Obtener Monto Cuota y Cantidades
-                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VAL CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA"]);
+                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VAL CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA", "IMPORTE CUOTA", "VALOR PLAN"]);
                             const instValue = parseAmount(lRow[instValueIdx ?? -1]);
 
-                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "CANT CUOTAS", "PLAZO"]);
-                            const totalInstInput = Number(lRow[totalInstIdx ?? -1] || 0);
+                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "CANT CUOTAS", "PLAZO", "TOTAL CTAS", "NRO CUOTAS"]);
+                            const totalInstInput = parseAmount(lRow[totalInstIdx ?? -1] || 0);
 
-                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES"]);
-                            const pendingInst = Number(lRow[pendingInstIdx ?? -1] || 0);
+                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES", "COBRAR CUOTAS", "FALTANTES"]);
+                            const pendingInst = parseAmount(lRow[pendingInstIdx ?? -1] || 0);
 
-                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE"]);
-                            let paidInst = Number(lRow[paidInstIdx ?? -1] || 0);
+                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE", "COBRADAS", "PAGAS", "YA PAGAS"]);
+                            let paidInst = parseAmount(lRow[paidInstIdx ?? -1] || 0);
 
                             // Si no viene el total de cuotas, intentar deducirlo de pagadas + pendientes
                             const totalInst = totalInstInput || (paidInst + pendingInst) || 24; 
@@ -418,45 +418,45 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                             // Monto Total = Cuotas Totales * Monto Cuota
                             let totalAmount = totalInst * instValue;
 
-                            // Saldo Actual = Cuotas Pendientes * Monto Cuota
-                            const currentBalance = pendingInst * instValue;
+                            // 4. Determinar Saldo Final (REQUERIMIENTO v2.12 - PRIORIDAD ABSOLUTA)
+                            // A. Prioridad 1: Campo "Saldo" directo (legacyBalance)
+                            // B. Prioridad 2: Suma de Saldo Capital + Saldo Interes
+                            // C. Prioridad 3: Cálculo por Cuotas Pendientes
+                            
+                            const sumBalance = valCapital + valInterest;
+                            let importedBalance = 0;
 
-                            // Si no hay cuotas pagadas explícitas, deducirlas
-                            if (paidInst === 0 && totalInst > 0) {
-                                paidInst = totalInst - pendingInst;
+                            if (legacyBalance > 0) {
+                                importedBalance = legacyBalance;
+                                console.log(`🧮 [MATH v2.12] Saldo PRIORITARIO por columna "Saldo": ${importedBalance}`);
+                            } else if (sumBalance > 0) {
+                                importedBalance = sumBalance;
+                                console.log(`🧮 [MATH v2.12] Saldo por SUMA (Cap + Int): ${valCapital} + ${valInterest} = ${importedBalance}`);
+                            } else if (pendingInst > 0) {
+                                importedBalance = pendingInst * instValue;
+                                console.log(`🧮 [MATH v2.12] Saldo por CUOTAS: ${pendingInst} * ${instValue} = ${importedBalance}`);
                             }
 
-                            console.log(`🧮 [MATH FORENSIC v2.4] Cuota=${instValue} | Totales=${totalInst} | Pendientes=${pendingInst} | Pagadas=${paidInst}`);
-                            console.log(`🧮 [MATH FORENSIC v2.4] RESULTADO -> Total=${totalAmount} | Saldo=${currentBalance}`);
+                            // Si no hay cuotas pagadas explícitas, deducirlas del saldo
+                            if (paidInst === 0 && totalInst > 0 && totalAmount > importedBalance) {
+                                paidInst = Math.round((totalAmount - importedBalance) / (instValue || 1));
+                            }
+
+                            console.log(`🧮 [MATH FORENSIC v2.12] Cuota=${instValue} | Totales=${totalInst} | Pendientes=${pendingInst} | Pagadas=${paidInst}`);
+                            console.log(`🧮 [MATH FORENSIC v2.12] RESULTADO -> Total=${totalAmount} | Saldo=${importedBalance}`);
 
                             // Fallback por si lo anterior falla
                             if (totalAmount === 0) {
-                                totalAmount = parseAmount(totalAmountStr) || (valCapital + valInterest);
+                                totalAmount = parseAmount(totalAmountStr) || (valCapital + valInterest) || principal;
                             }
 
-                            // 3. Detectar frecuencia (INTELIGENTE)
+                            // 5. Detectar frecuencia (INTELIGENTE)
                             let frequency = Frequency.DAILY;
                             const freqIdx = findCol(loanMap, 'frequency', ["FRECUENCIA", "MODALIDAD"]);
                             const freqStr = String(lRow[freqIdx ?? -1] || '').toUpperCase();
                             if (freqStr.includes('SEM') || freqStr.includes('7 D')) frequency = Frequency.WEEKLY;
                             else if (freqStr.includes('QUIN') || freqStr.includes('15 D')) frequency = Frequency.BIWEEKLY;
                             else if (freqStr.includes('MEN') || freqStr.includes('30 D')) frequency = Frequency.MONTHLY;
-
-                            // 4. Determinar Saldo Final (REQUERIMIENTO v2.10)
-                            // A. Prioridad 1: Suma de Saldo Capital + Saldo Interes
-                            const sumBalance = valCapital + valInterest;
-
-                            // B. Prioridad 2: Saldo importado legado si existe
-                            // C. Prioridad 3: Cálculo por Cuotas Pendientes
-                            let importedBalance = sumBalance > 0 ? sumBalance : (legacyBalance || (pendingInst * instValue));
-
-                            if (sumBalance > 0) {
-                                console.log(`🧮 [MATH v2.10] Saldo por SUMA (Cap + Int): ${valCapital} + ${valInterest} = ${importedBalance}`);
-                            } else if (pendingInst > 0 && (!legacyBalance || legacyBalance === 0)) {
-                                console.log(`🧮 [MATH v2.10] Saldo por CUOTAS: ${pendingInst} * ${instValue} = ${importedBalance}`);
-                            }
-
-                            totalAmount = totalAmount || importedBalance || legacyBalance;
                             // ---------------------------------------------
 
                             const loan: Loan = {
@@ -467,8 +467,10 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 totalAmount,
                                 totalInstallments: totalInst,
                                 installmentValue: instValue,
+                                totalPaid: Math.round((totalAmount - importedBalance) * 100) / 100,
+                                balance: Math.round(importedBalance * 100) / 100,
                                 frequency,
-                                status: LoanStatus.ACTIVE,
+                                status: importedBalance <= 100 ? LoanStatus.PAID : LoanStatus.ACTIVE,
                                 branchId: branchId,
                                 operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
                                 sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
@@ -478,14 +480,14 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 raw_data: loanRawData // <-- GUARDA TODO
                             };
 
-                            // Generate historical installments
+                            // Generate historical installments (Always PENDING initial, log applicator will mark them)
                             for (let j = 1; j <= totalInst; j++) {
                                 loan.installments.push({
                                     number: j,
                                     amount: instValue,
-                                    dueDate: new Date().toISOString(), // Standard generation
-                                    status: j <= paidInst ? PaymentStatus.PAID : PaymentStatus.PENDING,
-                                    paidAmount: j <= paidInst ? instValue : 0
+                                    dueDate: new Date().toISOString(), 
+                                    status: PaymentStatus.PENDING,
+                                    paidAmount: 0
                                 });
                             }
 

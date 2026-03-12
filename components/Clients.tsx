@@ -67,6 +67,7 @@ interface ClientsProps {
   fetchClientPhotos?: (clientId: string) => Promise<Partial<Client> | null>;
   recalculateLoanStatus?: (loanId: string) => void;
   deleteClient?: (clientId: string) => void;
+  addBulkData?: (clients: Client[], loans: Loan[], logs: CollectionLog[]) => Promise<void> | void;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -216,7 +217,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   );
 };
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, setActiveTab, fetchClientPhotos, deleteLoan, recalculateLoanStatus, deleteClient }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData }) => {
   const { forceSync } = useSync();
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
 
@@ -1906,15 +1907,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const { clients, loans, logs } = await processExcelImport(file, selectedCollectorForImport, calculatedBranchId, sellerCode);
 
-      for (const client of clients) {
-        await addClient(client);
-      }
-      for (const loan of loans) {
-        await addLoan(loan);
-      }
-      if (Array.isArray(logs)) {
-        for (const log of logs) {
-          if (addCollectionAttempt) await addCollectionAttempt(log);
+      if (addBulkData) {
+        console.log("🚀 [BULK] Executing atomic bulk import...");
+        await addBulkData(clients, loans, logs);
+      } else {
+        // Fallback for safety (though addBulkData should be present)
+        for (const client of clients) {
+          const clientLoan = loans.find(l => l.clientId === client.id);
+          await addClient(client, clientLoan);
+          
+          const loanLogs = logs.filter(log => log.loanId === clientLoan?.id);
+          for (const log of loanLogs) {
+             addCollectionAttempt(log);
+          }
         }
       }
 
