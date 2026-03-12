@@ -150,12 +150,27 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                     const row = rows[i].map(c => String(c || '').toUpperCase());
 
                     // Detectar si la fila tiene datos de Clientes
-                    if (clientHeaderRow === -1 && (row.some(r => r.includes("NOMBRE COMPLETO") || r.includes("CLIENTE") || r.includes("NOM. COMPLETO")))) {
+                    if (clientHeaderRow === -1 && (row.some(r => 
+                        r.includes("NOMBRE COMPLETO") || 
+                        r.includes("CLIENTE") || 
+                        r.includes("NOM. COMPLETO") || 
+                        r.includes("RAZON SOCIAL") || 
+                        r.includes("RAZÓN SOCIAL")
+                    ))) {
                         clientHeaderRow = i;
                     }
 
-                    // Detectar si la fila tiene datos de Préstamos (independiente de si ya es de clientes)
-                    if (loanHeaderRow === -1 && (row.some(r => r.includes("LIQUIDO DESEMBOLSADO") || r.includes("SALDO CAPITAL") || r.includes("LIQ. DESEMB") || r.includes("MONTO PAGARE") || r.includes("SALDO ACTUAL") || r.includes("MONTO PAG")))) {
+                    // Detectar si la fila tiene datos de Préstamos
+                    if (loanHeaderRow === -1 && (row.some(r => 
+                        r.includes("LIQUIDO DESEMBOLSADO") || 
+                        r.includes("SALDO CAPITAL") || 
+                        r.includes("LIQ. DESEMB") || 
+                        r.includes("MONTO PAGARE") || 
+                        r.includes("IMPORT. PAGARE") ||
+                        r.includes("IMP. PAGARE") ||
+                        r.includes("SALDO ACTUAL") || 
+                        r.includes("MONTO PAG")
+                    ))) {
                         loanHeaderRow = i;
                     }
                 }
@@ -254,8 +269,11 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                 let dataIndex = 0;
                 for (let i = clientHeaderRow + 1; i < rows.length; i++) {
                     const cRow = rows[i];
+                    if (!cRow || cRow.length === 0) continue;
 
-                    const nameIdx = findCol(clientMap, 'name', ["NOMBRE COMPLETO", "NOM. COMPLETO", "CLIENTE", "NOMBRE"]);
+                    const nameIdx = findCol(clientMap, 'name', ["NOMBRE COMPLETO", "NOM. COMPLETO", "CLIENTE", "NOMBRE", "RAZON SOCIAL", "RAZÓN SOCIAL", "NOMBRES"]);
+                    if (nameIdx === undefined || !cRow[nameIdx]) continue; // Skip empty rows or rows without name
+                    
                     const clientId = generateUUID();
 
                     // --- EMPIEZA MAPEADO CRUDO COMPLETO ---
@@ -339,12 +357,12 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 }
                             });
 
-                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL"]);
+                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL"]);
                             const rawPrincipal = lRow[principalIdx ?? -1];
                             const principal = parseAmount(rawPrincipal);
                             console.log(`💰 [FORENSIC] Campo 'principal': Original="${rawPrincipal}", Final=${principal}`);
 
-                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO", "SALDO TOTAL", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR"]);
+                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR"]);
                             const rawBalance = lRow[importedBalanceIdx ?? -1];
                             const legacyBalance = parseAmount(rawBalance);
                             console.log(`💰 [FORENSIC] Campo 'balance': Original="${rawBalance}", Final=${legacyBalance}`);
@@ -367,18 +385,21 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                             // RECONSTRUCCIÓN MATEMÁTICA v2.4 (Requerimiento Usuario)
                             // 1. Obtener Monto Cuota y Cantidades
-                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "CUOTA", "VALOR CUOTA", "PRECIO CUOTA"]);
+                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA"]);
                             const instValue = parseAmount(lRow[instValueIdx ?? -1]);
 
                             const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "PLAZO"]);
-                            const totalInst = Number(lRow[totalInstIdx ?? -1] || 0);
+                            const totalInstInput = Number(lRow[totalInstIdx ?? -1] || 0);
 
-                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES"]);
+                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES"]);
                             const pendingInst = Number(lRow[pendingInstIdx ?? -1] || 0);
 
-                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE"]);
+                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE"]);
                             let paidInst = Number(lRow[paidInstIdx ?? -1] || 0);
 
+                            // Si no viene el total de cuotas, intentar deducirlo de pagadas + pendientes
+                            const totalInst = totalInstInput || (paidInst + pendingInst) || 24; 
+                            
                             // 2. Aplicar Fórmulas del Usuario
                             // Monto Total = Cuotas Totales * Monto Cuota
                             let totalAmount = totalInst * instValue;
@@ -438,7 +459,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
                                 sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
                                 interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
-                                createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO"]) ?? -1]),
+                                createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO", "FECHA PAGAR"]) ?? -1]),
                                 installments: [],
                                 raw_data: loanRawData // <-- GUARDA TODO
                             };
