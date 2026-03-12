@@ -889,9 +889,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       // FIX: Explicitly assign branchId so it belongs to the Manager/Admin, not the Collector's private scope
       // This ensures it appears on the Web Dashboard (Admin) AND the Collector's App (via managedBy view)
       const user = state.currentUser;
-      const calculatedBranchId = (user?.role === Role.ADMIN || user?.role === Role.MANAGER)
-        ? user.id
-        : (user?.managedBy || (user as any)?.managed_by || user?.id);
+      const targetCollectorId = addInitialLoan ? (initialLoan.selectedCollectorId || currentUserId) : currentUserId;
+      const targetCollector = (Array.isArray(state.users) ? state.users : []).find(u => u.id === targetCollectorId);
+      const collectorManager = targetCollector?.managedBy || (targetCollector as any)?.managed_by;
+      const calculatedBranchId = collectorManager || user?.id;
 
       const sellerCode = COLLECTOR_SELLER_CODES[currentUserId] || '';
 
@@ -1897,9 +1898,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     setIsProcessingExcel(true);
     try {
       const user = state.currentUser;
-      const calculatedBranchId = (user?.role === Role.ADMIN || user?.role === Role.MANAGER)
-        ? user.id
-        : (user?.managedBy || (user as any)?.managed_by || user?.id);
+      const targetCollector = (Array.isArray(state.users) ? state.users : []).find(u => u.id === selectedCollectorForImport);
+      const collectorManager = targetCollector?.managedBy || (targetCollector as any)?.managed_by;
+      const calculatedBranchId = collectorManager || user?.id;
 
       const sellerCode = COLLECTOR_SELLER_CODES[selectedCollectorForImport] || '';
 

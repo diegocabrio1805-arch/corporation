@@ -463,11 +463,12 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                         id: generateUUID(),
                                         loanId: loan.id,
                                         clientId: client.id,
-                                        type: 'ARRASTRE' as CollectionLogType,
+                                        type: CollectionLogType.PAYMENT,
                                         amount: logAmount,
                                         date: loan.createdAt, // Usamos la fecha de inicio como referencia
                                         location: { lat: 0, lng: 0 },
-                                        isOpening: true, // Esto indica que es un saldo de arrastre
+                                        isOpening: false, // Falso para que 'helpers.ts' lo cuente como un pago real
+                                        notes: "Pago histórico importado (Ajuste de Saldo)",
                                         branchId: branchId,
                                         recordedBy: collectorId
                                     });

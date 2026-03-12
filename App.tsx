@@ -755,8 +755,9 @@ const App: React.FC = () => {
       !log.deletedAt
     );
 
-    // Users: only show myself + my direct collectors (managed_by === my id)
+    // Users: only show myself + my direct collectors (managed_by === my id), EXCEPT if Admin, then see all.
     let users = (Array.isArray(state.users) ? state.users : []).filter(u => {
+      if (user.role === Role.ADMIN) return true; // ADMIN ve a todos (gerentes y los cobradores debajo de ellos)
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       return uId === myIdLower || (uManagedBy && uManagedBy === branchIdLower);
