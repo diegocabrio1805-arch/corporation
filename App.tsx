@@ -601,7 +601,7 @@ const App: React.FC = () => {
     const triggerEmergencySync = async () => {
       const user = state.currentUser;
       if (!user) return;
-      const syncKey = `emergency_sync_v633_full_restore_v2`;
+      const syncKey = `emergency_sync_v634_final_fix`;
 
       if (!localStorage.getItem(syncKey)) {
         console.log("[EmergencySync] Out-of-sync browser detected. Forcing full sync...");
