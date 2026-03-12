@@ -303,11 +303,11 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                     const client: Client = {
                         id: clientId,
-                        name: String(cRow[nameIdx ?? -1] || ''),
-                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID", "DOCUMENTO", "CC"]) ?? -1)] || '0'),
-                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV", "WHATSAPP", "CONTACTO"]) ?? -1)] || '0'),
+                        name: String(cRow[findCol(clientMap, 'name', ["NOMBRE / RAZON SOCIAL", "TITULAR", "RAZON SOCIAL", "NOMBRES Y APELLIDOS", "NOMBRE", "CLIENTE"]) ?? -1] || ''),
+                        documentId: String(cRow[(findCol(clientMap, 'documentId', ["NRO DE DOCUMENTO", "CÉDULA", "CEDULA", "DNI", "IDENTIFICACION", "NRO DE DOCUMENTO DE IDENT.", "CI", "CED", "DOC", "NRO DOC", "ID", "DOCUMENTO", "CC", "CI/RUC", "NRO DOC"]) ?? -1)] || '0'),
+                        phone: String(cRow[(findCol(clientMap, 'phone', ["TELÉFONO", "TELEFONO", "CELULAR", "MOVIL", "TELÉFONO PRIMARIO", "(PARTICULAR - TELÉFONO)", "(PARTICULAR - TELEFONO)", "TEL", "CEL", "MOV", "WHATSAPP", "CONTACTO", "CELULAR"]) ?? -1)] || '0'),
                         secondaryPhone: String(cRow[(findCol(clientMap, 'secondaryPhone', ["TELÉFONO SECUNDARIO", "CELULAR 2", "CONTACTO 2", "PARTICULAR 2", "TEL 2", "CEL 2", "TEL SEC", "CEL SEC"]) ?? -1)] || 'SIN DATOS'),
-                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM", "UBICACION", "RESIDENCIA"]) ?? -1)] || 'SIN DATOS'),
+                        address: String(cRow[(findCol(clientMap, 'address', ["DIRECCIÓN", "DIRECCION", "DOMICILIO", "CALLE", "DIRECCIÓN DOMICILIO", "(PARTICULAR - DIRECCIÓN)", "DIR", "DOM", "UBICACION", "RESIDENCIA", "LOCALIDAD"]) ?? -1)] || 'SIN DATOS'),
                         addedBy: collectorId,
                         branchId: branchId,
                         creditLimit: 1000000,
@@ -349,9 +349,9 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                         workIncome: parseAmount(cRow[findCol(clientMap, 'workIncome', ["(LABORAL INGRESOS / SALARIO)", "SALARIO / INGRESOS", "SALARIO", "ING LAB"]) ?? -1] || '0'),
                         workPhone: String(cRow[findCol(clientMap, 'workPhone', ["TELÉFONO LABORAL", "TELÉFONO NEGOCIO", "(LABORAL - TELÉFONO)", "(LABORAL - TELEFONO)", "TEL LAB", "TEL NEG"]) ?? -1] || 'SIN DATOS'),
 
-                        clientTypeCode: String(cRow[findCol(clientMap, 'clientType', ["BANCA (TIPO DE CLIENTE)", "BANCA", "TIPO CLIENTE", "BANCA (TIPO DE CLIENTE", "TIPO CLT"]) ?? -1] || '131'),
-                        systemRating: String(cRow[findCol(clientMap, 'rating', ["CALIFICACION EN EL SISTEMA", "CALIFICACION", "CALIF"]) ?? -1] || ''),
-                        sellerCode: String(cRow[findCol(clientMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
+                        clientTypeCode: String(cRow[findCol(clientMap, 'clientType', ["BANCA (TIPO DE CLIENTE)", "BANCA", "TIPO CLIENTE", "BANCA (TIPO DE CLIENTE", "TIPO CLT", "PRODUCTO"]) ?? -1] || '131'),
+                        systemRating: String(cRow[findCol(clientMap, 'rating', ["CALIFICACION EN EL SISTEMA", "CALIFICACION", "CALIF", "CALIT."]) ?? -1] || ''),
+                        sellerCode: String(cRow[findCol(clientMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR", "COD. VEND."]) ?? -1] || sellerCode || ''),
                         externalId: String(cRow[findCol(clientMap, 'externalId', ["NRO DE OPERACIÓN EN SISTEMA BASE", "OPERACION BASE", "NRO OPERACION", "ID BASE", "ID EXTERNO", "NRO DE OPERACIÓN EN SISTEMA BASE"]) ?? -1] || '').replace(/\D/g, ''),
                         raw_data: clientRawData
                     };
@@ -371,7 +371,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 }
                             });
 
-                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "IMPORT PAGARE", "IMP PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL", "LIQUIDO", "MONTO CREDITO", "PRINCIPAL"]);
+                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "IMPORT PAGARE", "IMP PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL", "LIQUIDO", "MONTO CREDITO", "PRINCIPAL", "IMPORT.PAGARE"]);
                             const rawPrincipal = lRow[principalIdx ?? -1];
                             const principal = parseAmount(rawPrincipal);
                             console.log(`💰 [FORENSIC] Campo 'principal': Original="${rawPrincipal}", Final=${principal}`);
@@ -402,13 +402,13 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                             const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VAL CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA", "IMPORTE CUOTA", "VALOR PLAN"]);
                             const instValue = parseAmount(lRow[instValueIdx ?? -1]);
 
-                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "CANT CUOTAS", "PLAZO", "TOTAL CTAS", "NRO CUOTAS"]);
+                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "CANT CUOTAS", "PLAZO", "TOTAL CTAS", "NRO CUOTAS", "CTAS. TOT", "CTAS.TOT"]);
                             const totalInstInput = parseAmount(lRow[totalInstIdx ?? -1] || 0);
 
-                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES", "COBRAR CUOTAS", "FALTANTES"]);
+                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES", "COBRAR CUOTAS", "FALTANTES", "CTAS.PEND"]);
                             const pendingInst = parseAmount(lRow[pendingInstIdx ?? -1] || 0);
 
-                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE", "COBRADAS", "PAGAS", "YA PAGAS"]);
+                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE", "COBRADAS", "PAGAS", "YA PAGAS", "CTA. PAG."]);
                             let paidInst = parseAmount(lRow[paidInstIdx ?? -1] || 0);
 
                             // Si no viene el total de cuotas, intentar deducirlo de pagadas + pendientes
@@ -472,10 +472,12 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 frequency,
                                 status: importedBalance <= 100 ? LoanStatus.PAID : LoanStatus.ACTIVE,
                                 branchId: branchId,
-                                operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP"]) ?? -1] || '202'),
-                                sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR"]) ?? -1] || sellerCode || ''),
+                                operationTypeCode: String(lRow[findCol(loanMap, 'operationType', ["TIPO DE OPERACION", "TIPO OPERACION", "TIPO OP", "OP. Nº", "OP. NRO"]) ?? -1] || '202'),
+                                sellerCode: String(lRow[findCol(loanMap, 'seller', ["CODIGO DE VENDEDOR", "CODIGO VENDEDOR", "VENDEDOR", "CÓD. VENDEDOR", "COD. VEND."]) ?? -1] || sellerCode || ''),
                                 interestRate: principal > 0 ? Math.round(((totalAmount / principal) - 1) * 100) : 20,
-                                createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO", "FECHA PAGAR"]) ?? -1]),
+                                createdAt: parseExcelDate(lRow[findCol(loanMap, 'date', ["FECHA DE DESEMBOLSO", "FEC. DESEMB", "FECHA INICIO", "FECHA PAGAR", "FEC.DES.", "FEC. DES."]) ?? -1]),
+                                promissoryNoteAmount: parseAmount(lRow[findCol(loanMap, 'promissoryNoteAmount', ["MONTO PAGARE", "TOTAL PAGARE", "IMPORT. PAGARE", "IMP. PAGARE", "MONTO NOMINAL"]) ?? -1] || principal),
+                                promissoryNoteExpiration: parseExcelDate(lRow[findCol(loanMap, 'promissoryNoteExpiration', ["VENCIMIENTO PAGARE", "VTO PAGARE", "FEC. VTO.", "VENC. PAGARE", "VTO. PAGARE"]) ?? -1]),
                                 installments: [],
                                 raw_data: loanRawData // <-- GUARDA TODO
                             };

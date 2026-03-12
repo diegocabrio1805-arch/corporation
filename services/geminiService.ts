@@ -151,19 +151,20 @@ export const mapHeadersWithAI = async (headers: string[]): Promise<Record<string
     Dada una lista de encabezados de una hoja de Excel de préstamos/cobranzas, mapea cada encabezado a una de nuestras claves internas si hay una coincidencia clara.
     
     CLAVES INTERNAS:
-    - name: Nombre del cliente, Nombres y Apellidos, Titular, Razon Social, Cliente, Sujeto, Deudor
+    - name: Nombre del cliente, Nombre / Razon Social, Nombres y Apellidos, Titular, Razon Social, Cliente, Sujeto, Deudor
     - documentId: Cédula, DNI, Identificación, CC, Registro, Nro Doc, Doc Identidad, CI, Ced
-    - phone: Teléfono, celular, Móvil, Tel, Cel, Whatsapp, Contacto, Telf
-    - address: Dirección, domicilio, Residencia, Ubicación, Calle, Depto, Dir
-    - principal: Capital inicial, monto prestado, préstamo, Liquido, Desembolso, Importe Cap, Principal, Monto Credito
+    - phone: Teléfono, celular, Móvil, Tel, Cel, Whatsapp, Contacto, Telf, Celular
+    - address: Dirección, domicilio, Residencia, Ubicación, Calle, Depto, Dir, Localidad
+    - principal: Capital inicial, monto prestado, préstamo, Liquido, Desembolso, Importe Cap, Principal, Monto Credito, Import. Pagare, Import.Pagare
     - totalAmount: Monto total con intereses, total pagadero, Total Credito, Total Deuda, Total Pagar, Monto Total Pagare, Total Devension
-    - installmentValue: Valor de la cuota, monto cuota, Importe Cuota, Val Cuota, Cuota Fija, Valor Plan
-    - totalInstallments: Cantidad de cuotas, plan, Plazo, Total Ctas, Nro Cuotas, Cuotas Totales
-    - paidInstallments: Cuotas pagadas, cuotas abonadas, cuotas ya cobradas, Cta Pag, Cantidad cobrada, PAGADAS, CTA. PAG., Cobradas, Ya Pagas
-    - pendingInstallments: Cuotas pendientes, cuotas que faltan, saldo en cuotas, CUOTA PENDIENTE, Ctas Pend, Por cobrar, CTAS. PEND., Restantes, Saldo Ctas, Faltantes, Pendientes
+    - installmentValue: Valor de la cuota, monto cuota, Importe Cuota, Val Cuota, Cuota Fija, Valor Plan, Val. Cuota
+    - totalInstallments: Cantidad de cuotas, plan, Plazo, Total Ctas, Nro Cuotas, Cuotas Totales, Ctas. Tot, Ctas.Tot
+    - paidInstallments: Cuotas pagadas, cuotas abonadas, cuotas ya cobradas, Cta Pag, Cantidad cobrada, PAGADAS, CTA. PAG., Cobradas, Ya Pagas, Cta. Pag
+    - pendingInstallments: Cuotas pendientes, cuotas que faltan, saldo en cuotas, CUOTA PENDIENTE, Ctas Pend, Por cobrar, CTAS. PEND., Restantes, Saldo Ctas, Faltantes, Pendientes, Ctas. Pend, Ctas.Pend
     - balance: Saldo actual, lo que debe hoy, SALDO PENDIENTE, SALDO TOTAL, Saldo, SALDO., Resto Deuda, Saldo Deudor, Monto Pendiente
     - frequency: Frecuencia de pago, Modalidad, Forma Pago, Periodo (DIARIO, SEMANAL, QUINCENAL, MENSUAL)
-    - date: Fecha de otorgamiento, Fecha de inicio, Fecha crédito, Desembolso, Fch Alta, Fec Credito
+    - date: Fecha de otorgamiento, Fecha de inicio, Fecha crédito, Desembolso, Fch Alta, Fec Credito, Fec.Des., Fec. Des.
+    - seller: Código de vendedor, Vendedor, Cod. Vend., Cod Vend, Ejecutivo de cuenta
     
     ENCABEZADOS EXCEL:
     ${headers.join(', ')}
