@@ -220,12 +220,21 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                     return;
                 }
 
+                // Normalización avanzada para ignorar puntos, acentos y espacios extra
+                const normalizeHeader = (s: string) => 
+                    String(s || '')
+                        .toUpperCase()
+                        .normalize("NFD")
+                        .replace(/[\u0300-\u036f]/g, "") // Quitar acentos
+                        .replace(/\./g, "")              // Quitar puntos
+                        .trim();
+
                 // 2. Map Columns for each section
                 const getColMap = (headerRowIndex: number) => {
                     const map: Record<string, number> = {};
                     rows[headerRowIndex].forEach((val, idx) => {
-                        const key = String(val || '').toUpperCase().trim();
-                        map[key] = idx;
+                        const key = normalizeHeader(String(val || ''));
+                        if (key) map[key] = idx;
                     });
                     return map;
                 };
@@ -233,7 +242,7 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                 const clientMap = getColMap(clientHeaderRow);
                 const loanMap = loanHeaderRow !== -1 ? getColMap(loanHeaderRow) : null;
 
-                console.log("🔍 [FORENSIC] Headers Detectados:", { clientMap, loanMap });
+                console.log("🔍 [FORENSIC] Headers Detectados (Normalizados):", { clientMap, loanMap });
 
                 // --- INTEGRACIÓN IA: DESCUBRIMIENTO DE COLUMNAS CON GEMINI ---
                 const allHeaders = [...Object.keys(clientMap), ...(loanMap ? Object.keys(loanMap) : [])];
@@ -243,19 +252,24 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                 const findCol = (map: Record<string, number> | null, internalKey: string, synonyms: string[]) => {
                     if (!map) return undefined;
+                    
                     // 1. Check IA Mapping
-                    const aiMatch = Object.entries(aiMap).find(([header, target]) => target === internalKey && map[header.toUpperCase()] !== undefined);
+                    // Normalizamos también lo que devuelve la IA para comparar
+                    const aiMatch = Object.entries(aiMap).find(([header, target]) => {
+                        return target === internalKey && map[normalizeHeader(header)] !== undefined;
+                    });
                     if (aiMatch) {
                         console.log(`✅ [FORENSIC] IA encontró '${internalKey}' en columna: "${aiMatch[0]}"`);
-                        return map[aiMatch[0].toUpperCase()];
+                        return map[normalizeHeader(aiMatch[0])];
                     }
 
-                    // 2. Check Synonyms
+                    // 2. Check Synonyms (Normalizando cada sinónimo)
                     for (const s of synonyms) {
-                        const sUpper = s.toUpperCase();
-                        if (map[sUpper] !== undefined) return map[sUpper];
-                        // Partial match
-                        const partial = Object.keys(map).find(k => k.includes(sUpper));
+                        const sNorm = normalizeHeader(s);
+                        if (map[sNorm] !== undefined) return map[sNorm];
+                        
+                        // Partial match sobre las llaves normalizadas del mapa
+                        const partial = Object.keys(map).find(k => k.includes(sNorm) || sNorm.includes(k));
                         if (partial !== undefined) return map[partial];
                     }
                     return undefined;
@@ -357,12 +371,12 @@ export const processExcelImport = async (file: File, collectorId: string, branch
                                 }
                             });
 
-                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL"]);
+                            const principalIdx = findCol(loanMap, 'principal', ["LIQUIDO DESEMBOLSADO", "LIQ. DESEMB", "MONTO PAGARE", "MONTO PAG", "IMPORT. PAGARE", "IMP. PAGARE", "IMPORT PAGARE", "IMP PAGARE", "TOTAL DESEMBOLSADO", "PRÉSTAMO", "PRESTAMO", "CAPITAL INICIAL"]);
                             const rawPrincipal = lRow[principalIdx ?? -1];
                             const principal = parseAmount(rawPrincipal);
                             console.log(`💰 [FORENSIC] Campo 'principal': Original="${rawPrincipal}", Final=${principal}`);
 
-                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR"]);
+                            const importedBalanceIdx = findCol(loanMap, 'balance', ["SALDO ACTUAL", "SALDO PENDIENTE", "SALDO TOTAL", "SALDO", "SALDO PEND", "SALDO PEND.", "DEUDA ACTUAL", "RESTANTE", "TOTAL DEUDA", "SALDO A PAGAR"]);
                             const rawBalance = lRow[importedBalanceIdx ?? -1];
                             const legacyBalance = parseAmount(rawBalance);
                             console.log(`💰 [FORENSIC] Campo 'balance': Original="${rawBalance}", Final=${legacyBalance}`);
@@ -385,16 +399,16 @@ export const processExcelImport = async (file: File, collectorId: string, branch
 
                             // RECONSTRUCCIÓN MATEMÁTICA v2.4 (Requerimiento Usuario)
                             // 1. Obtener Monto Cuota y Cantidades
-                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA"]);
+                            const instValueIdx = findCol(loanMap, 'installmentValue', ["MONTO CUOTA", "VAL. CUOTA", "VAL CUOTA", "VALOR CUOTA", "CUOTA", "PRECIO CUOTA"]);
                             const instValue = parseAmount(lRow[instValueIdx ?? -1]);
 
-                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "PLAZO"]);
+                            const totalInstIdx = findCol(loanMap, 'totalInstallments', ["CUOTAS TOTALES", "CUOTAS TOT", "CANT. CUOTAS", "CANT CUOTAS", "PLAZO"]);
                             const totalInstInput = Number(lRow[totalInstIdx ?? -1] || 0);
 
-                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES"]);
+                            const pendingInstIdx = findCol(loanMap, 'pendingInstallments', ["CUOTAS PENDIENTES", "CTAS. PEND", "CTAS PEND", "CTAS. PEND.", "CUOTAS PENDIENTE", "CUOTA PENDIENTE", "CUOTAS PEND", "RESTANTES", "PENDIENTES", "SALDO CUOTAS", "CUOTAS FALTANTES"]);
                             const pendingInst = Number(lRow[pendingInstIdx ?? -1] || 0);
 
-                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE"]);
+                            const paidInstIdx = findCol(loanMap, 'paidInstallments', ["CUOTAS PAGADAS", "CTA. PAG", "CTA PAG", "CTA. PAG.", "CUOTAS PAG", "CANT. PAG.", "PAGADAS", "CUOTAS COBRADAS", "CUOTAS TIENE"]);
                             let paidInst = Number(lRow[paidInstIdx ?? -1] || 0);
 
                             // Si no viene el total de cuotas, intentar deducirlo de pagadas + pendientes
