@@ -641,8 +641,8 @@ export const useAppActions = (
 
       const newAuditLog: CollectionLog = {
         id: crypto.randomUUID(),
-        loanId: null as any,
-        clientId: null as any,
+        loanId: (clientLoans.length > 0 ? clientLoans[0].id : clientId) as any,
+        clientId: clientId as any,
         branchId: state.currentUser?.managedBy || state.currentUser?.id,
         type: CollectionLogType.DELETED_PAYMENT,
         amount: totalCapital,
