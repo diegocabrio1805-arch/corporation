@@ -680,7 +680,7 @@ export const useAppActions = (
       loans: prev.loans.filter(l => l.clientId !== clientId),
     }));
     await deleteRemoteClient(clientId);
-    await handleSync();
+    await handleForceSync(false);
   };
 
   return {
