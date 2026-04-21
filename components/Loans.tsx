@@ -119,6 +119,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           return sum + Math.max(0, l.totalAmount - lp);
       }, 0);
       
+      const consolidatedPrincipal = clientLoans.reduce((sum, l) => sum + (l.principal || 0), 0);
+      const consolidatedTotalAmount = clientLoans.reduce((sum, l) => sum + (l.totalAmount || 0), 0);
+      const consolidatedInstallmentValue = clientLoans.reduce((sum, l) => sum + (l.installmentValue || 0), 0);
+
       const consolidatedMora = Math.max(0, ...clientLoans.map(l => {
           const lp = calculateTotalPaidFromLogs(l, allLogs);
           return getDaysOverdue(l, state.settings, lp);
@@ -128,6 +132,9 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         ...baseLoan,
         _consolidatedPaid: totalPaid,
         _consolidatedBalance: consolidatedBalance,
+        _consolidatedPrincipal: consolidatedPrincipal,
+        _consolidatedTotalAmount: consolidatedTotalAmount,
+        _consolidatedInstallmentValue: consolidatedInstallmentValue,
         _consolidatedMora: consolidatedMora,
         _isConsolidated: clientLoans.length > 1,
         _clientName: client.name 
@@ -934,19 +941,19 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           <div className="bg-slate-950 p-3 md:p-4 rounded-xl md:rounded-2xl space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
                             <div className="flex justify-between items-center opacity-60">
                               <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Monto habilitado</p>
-                              <p className="text-[10px] md:text-xs font-black text-slate-400 font-mono">{formatCurrency(loan.principal, state.settings)}</p>
+                              <p className="text-[10px] md:text-xs font-black text-slate-400 font-mono">{formatCurrency((loan as any)._consolidatedPrincipal || loan.principal, state.settings)}</p>
                             </div>
                             
                             {loan.interestRate > 0 && (
                               <div className="flex justify-between items-center border-b border-slate-800/50 pb-2">
-                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Credito habilitado</p>
-                                <p className="text-[10px] md:text-xs font-black text-slate-300 font-mono">{formatCurrency(loan.totalAmount, state.settings)}</p>
+                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Monto Total</p>
+                                <p className="text-[10px] md:text-xs font-black text-slate-300 font-mono">{formatCurrency((loan as any)._consolidatedTotalAmount || loan.totalAmount, state.settings)}</p>
                               </div>
                             )}
 
                             <div className="flex justify-between items-center pt-1">
                               <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Cuota</p>
-                              <p className="text-sm md:text-lg font-black text-blue-400 font-mono">{formatCurrency(loan.installmentValue, state.settings)}</p>
+                              <p className="text-sm md:text-lg font-black text-blue-400 font-mono">{formatCurrency((loan as any)._consolidatedInstallmentValue || loan.installmentValue, state.settings)}</p>
                             </div>
                             <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-slate-800">
                               <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Saldo</p>

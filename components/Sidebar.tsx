@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { CURRENT_VERSION_ID } from '../hooks/useAppInitialization';
 import { User, Role, AppState, CountryCode } from '../types';
 import { getTranslation } from '../utils/translations';
 import { formatCountryTime, getCountryName } from '../utils/helpers';
@@ -86,7 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
           </div>
           <div className="min-w-0">
             <h1 className="text-lg font-black text-white uppercase tracking-tighter leading-none">ANEXO <span className="text-emerald-500">COBRO</span></h1>
-            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-70">Sistema Core v6.6.24</p>
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1 opacity-70">Sistema Core v{CURRENT_VERSION_ID}</p>
           </div>
         </div>
 

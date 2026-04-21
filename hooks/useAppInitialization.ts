@@ -4,7 +4,7 @@ import { AppState, User, Role, CollectionLogType, CollectionLog } from '../types
 import { StorageService } from '../utils/localforageStorage';
 import { resolveSettings } from '../utils/settingsHierarchy';
 
-export const CURRENT_VERSION_ID = '6.7.9-STABLE';
+export const CURRENT_VERSION_ID = '6.8.1-STABLE';
 export const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
 
 export const useAppInitialization = () => {
@@ -82,6 +82,11 @@ export const useAppInitialization = () => {
           
           // Borrar datos locales antiguos para evitar conflictos de esquema
           await StorageService.removeItem('prestamaster_v2');
+          
+          // FORZAR FULL SYNC: Eliminar timestamps de sincronización previa
+          localStorage.removeItem('lastSyncTime');
+          localStorage.removeItem('lastAppSync_timestamp');
+          localStorage.removeItem('syncQueue'); // Limpiar cola si hay basura
           
           if ('serviceWorker' in navigator) {
             try {
