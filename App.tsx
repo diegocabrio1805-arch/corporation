@@ -64,7 +64,13 @@ const App: React.FC = () => {
   // GLOBAL EXPOSURE: For legacy handleSync alias support
   useEffect(() => {
     (window as any)._triggerForceSync = () => handleForceSync(true);
-  }, [handleForceSync]);
+    
+    // AUTO-SYNC ON EMPTY DATA: Si el usuario entra y no hay datos, forzar una descarga inicial
+    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing) {
+      console.log("[App] No data found. Triggering initial full sync...");
+      setTimeout(() => handleForceSync(false, "¡Descargando Datos!", true), 2000);
+    }
+  }, [handleForceSync, state.currentUser, state.clients.length]);
 
   // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
 
