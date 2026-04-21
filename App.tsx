@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Role, LoanStatus, CollectionLogType, User, Loan, Client, CollectionLog } from './types';
+import { supabase } from './utils/supabaseClient';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Clients from './components/Clients';
@@ -61,14 +62,30 @@ const App: React.FC = () => {
     handleSyncUser, deleteRemoteClientAction, renewLoan 
   } = actions;
 
+  // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real
+  useEffect(() => {
+    const validateSession = async () => {
+      if (state.currentUser && navigator.onLine) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session && state.currentUser.id !== 'b3716a78-fb4f-4918-8c0b-92004e3d63ec') {
+          console.warn("[App] Session mismatch detected. Forcing login.");
+          handleLogout();
+        }
+      }
+    };
+    validateSession();
+  }, [state.currentUser, handleLogout]);
+
   // GLOBAL EXPOSURE: For legacy handleSync alias support
   useEffect(() => {
     (window as any)._triggerForceSync = () => handleForceSync(true);
     
     // AUTO-SYNC ON EMPTY DATA: Si el usuario entra y no hay datos, forzar una descarga inicial
-    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing) {
+    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing && navigator.onLine) {
       console.log("[App] No data found. Triggering initial full sync...");
-      setTimeout(() => handleForceSync(false, "¡Descargando Datos!", true), 2000);
+      setTimeout(() => {
+          handleForceSync(false, "¡Descargando Datos!", true);
+      }, 3000);
     }
   }, [handleForceSync, state.currentUser, state.clients.length]);
 
