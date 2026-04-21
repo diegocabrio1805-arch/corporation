@@ -839,16 +839,22 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       const loanDate = new Date(l.createdAt);
       const loanDateMs = loanDate.getTime();
       
-      // Filtro por Colector (Buscamos coincidencia en el cobrador del préstamo O en quien agregó al cliente)
+      // Filtro por Colector (Buscamos coincidencia en el cobrador del préstamo O en quien agregó al cliente O si el colector tiene historial con el cliente)
       const loanCollectorId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
       const lClientId = (l.clientId || (l as any).client_id || '').toLowerCase();
       const clientObj = (clients || []).find(c => (c.id || '').toLowerCase() === lClientId);
       const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
       const collectorLower = (selectedCollector || '').toLowerCase();
       
+      const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(hl => 
+        (hl.clientId || (hl as any).client_id) === l.clientId && 
+        (hl.collectorId || (hl as any).collector_id || '').toLowerCase() === collectorLower
+      );
+      
       const matchesCollector = collectorLower === 'all' || 
                                loanCollectorId === collectorLower || 
-                               clientAddedBy === collectorLower;
+                               clientAddedBy === collectorLower ||
+                               !!anyHistoricLoan;
       
       // Permitimos un margen de 1 minuto para evitar problemas de precisión en los límites
       return loanDateMs >= (start.getTime() - 60000) && loanDateMs <= (end.getTime() + 60000) && matchesCollector;
