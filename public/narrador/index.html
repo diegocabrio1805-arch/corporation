@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narrador Personal Premium</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <main class="container">
+        <header>
+            <div class="header-content">
+                <h1><i class="fa-solid fa-microphone-lines"></i> Narrador <span>Premium</span></h1>
+                <p>Su asistente de voz personal, Señor.</p>
+            </div>
+            <div class="status-badge" id="syncStatus">
+                <span class="dot"></span> Modo Local
+            </div>
+        </header>
+
+        <section class="chat-section">
+            <div class="glass-panel chat-container" id="chatHistory">
+                <div class="chat-placeholder">Aquí aparecerán mis mensajes, Jefe... 💖</div>
+            </div>
+        </section>
+
+        <section class="editor-section">
+            <div class="glass-panel">
+                <textarea id="textInput" placeholder="Escriba algo aquí para que se lo lea, Jefe..."></textarea>
+                <div class="editor-footer">
+                    <span id="charCount">0 caracteres</span>
+                    <button id="clearBtn" title="Limpiar todo"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section class="controls-section">
+            <div class="glass-panel controls-grid">
+                <div class="voice-selector">
+                    <label for="voiceSelect"><i class="fa-solid fa-venus"></i> Seleccionar Voz</label>
+                    <select id="voiceSelect">
+                        <option value="">Cargando voces...</option>
+                    </select>
+                </div>
+
+                <div class="playback-controls">
+                    <button id="playBtn" class="btn-primary" title="Reproducir">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button id="pauseBtn" class="btn-secondary" title="Pausar">
+                        <i class="fa-solid fa-pause"></i>
+                    </button>
+                    <button id="stopBtn" class="btn-secondary" title="Detener">
+                        <i class="fa-solid fa-stop"></i>
+                    </button>
+                </div>
+
+                <div class="settings-grid">
+                    <div class="range-control">
+                        <label><i class="fa-solid fa-gauge-high"></i> Velocidad</label>
+                        <input type="range" id="rate" min="0.5" max="2" value="1.05" step="0.05">
+                    </div>
+                    <div class="range-control">
+                        <label><i class="fa-solid fa-sliders"></i> Tono (Más Femenino)</label>
+                        <input type="range" id="pitch" min="0.5" max="2" value="1.2" step="0.1">
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section class="bridge-section">
+            <div class="glass-panel bridge-grid">
+                <button id="linkBtn" class="btn-link">
+                    <i class="fa-solid fa-link"></i> <span>ENLAZAR RESPUESTAS</span>
+                </button>
+                <button id="copyToChatBtn" class="btn-link">
+                    <i class="fa-solid fa-paper-plane"></i> <span>ENVIAR AL CHAT</span>
+                </button>
+                <button id="micBtn" class="btn-mic">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

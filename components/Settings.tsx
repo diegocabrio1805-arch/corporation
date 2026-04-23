@@ -440,8 +440,8 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
         </div>
       )}
 
-      {/* ZONA DE ESTABILIZACIÓN - ACCESIBLE PARA ADMIN Y GERENTE */}
-      {isPowerUser && (
+      {/* ZONA DE ESTABILIZACIÓN - ACCESIBLE PARA TODOS (INCLUIDO COBRADOR) */}
+      {true && (
         <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-amber-400">
           <div className="flex items-center gap-3 mb-6">
             <i className="fa-solid fa-satellite-dish text-xl md:text-2xl text-amber-500 animate-pulse"></i>
@@ -512,13 +512,13 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
                 <span className="text-[10px] font-black uppercase tracking-widest text-center">REPARAR PROBL. SINCRONIZACIÓN</span>
               </button>
 
-              {/* BOTON DE REPARACIÓN PROFUNDA (EL DEFINITIVO) */}
+              {/* BOTON DE ACTUALIZACIÓN PROFUNDA (ANTES REPARACIÓN PROFUNDA) */}
               <button
                 onClick={onDeepReset}
-                className="w-full p-4 rounded-2xl border-2 border-red-600 bg-white text-red-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 hover:bg-red-50"
+                className="w-full p-4 rounded-2xl border-2 border-emerald-600 bg-white text-emerald-600 flex items-center justify-center gap-4 transition-all shadow-lg active:scale-95 hover:bg-emerald-50"
               >
                 <i className="fa-solid fa-triangle-exclamation text-xl"></i>
-                <span className="text-[10px] font-black uppercase tracking-widest text-center">REPARACIÓN PROFUNDA (BORRAR TODO)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-center">ACTUALIZACIÓN PROFUNDA</span>
               </button>
             </div>
           </div>
