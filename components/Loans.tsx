@@ -468,26 +468,33 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         // WhatsApp
         if (client) {
           const phone = client.phone.replace(/\D/g, '');
-          window.open(`https://wa.me/${phone.length === 10 ? '57' + phone : phone}?text=${encodeURIComponent("ticket")}`, '_blank');
+          const cleanReceipt = convertReceiptForWhatsApp(finalReceipt);
+          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
         }
       } else if (type === CollectionLogType.NO_PAGO) {
         const client = state.clients.find(c => c.id === loan.clientId);
         if (!client) return;
         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
-        const currentBalance = loan.totalAmount - totalPaid;
-        const overdueDays = getDaysOverdue(loan, state.settings);
+        const currentBalance = Math.max(0, loan.totalAmount - totalPaid);
+        const overdueDays = getDaysOverdue(loan, state.settings, totalPaid);
 
-        const msg = client.customNoPayMessage || await generateNoPaymentAIReminder(
-          loan,
-          client,
-          overdueDays,
-          state.settings,
-          currentBalance
-        );
+        let msg = '';
+        if (client.customNoPayMessage) {
+          msg = client.customNoPayMessage
+              .replace('{cliente}', client.name)
+              .replace('{saldo}', formatCurrency(currentBalance, state.settings))
+              .replace('{atraso}', overdueDays.toString());
+        } else {
+          msg = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(currentBalance, state.settings)} y cuentas con ${overdueDays} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+        }
         
         setTimeout(() => {
-          const cleanMsg = convertReceiptForWhatsApp(msg);
-          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent("ticket")}`, '_blank');
+          const phone = client.phone.replace(/\D/g, '');
+          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
         }, 2000);
         resetUI();
       }
@@ -739,14 +746,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         link.download = fileName;
         link.click();
 
-        // Manual WhatsApp "ticket"
-        const client = (Array.isArray(state.clients) ? state.clients : []).find(c =>
-          receipt.includes(c.name.toUpperCase().substring(0, 10))
-        );
-        const phone = client?.phone.replace(/\D/g, '') || '';
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
+        const cleanReceipt = convertReceiptForWhatsApp(receipt);
+        window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
       }
     } catch (err) {
       console.error("Error sharing PDF:", err);
@@ -1626,14 +1627,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   const { printText } = await import('../services/bluetoothPrinterService');
                   printText(finalReceipt).catch(() => { });
 
-                  // WhatsApp Automático
-                  const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.name === editingReceipt.clientName);
-                  if (client) {
-                    const phone = client.phone.replace(/\D/g, '');
-                    const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-                    const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent("ticket")}`, '_blank');
-                  }
+                    const cleanReceipt = convertReceiptForWhatsApp(finalReceipt);
+                    window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
                 }}
                 className="flex-1 py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
               >

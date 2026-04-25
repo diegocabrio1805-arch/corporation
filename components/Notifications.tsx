@@ -61,8 +61,9 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
       totalInstallments: loan.totalInstallments
     };
 
-    const receipt = generateNoPaymentReceiptText(data, state.settings);
-    window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent("ticket")}`, '_blank');
+    const remainingBalance = loan.totalAmount - paidBefore;
+    const msg = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysDiff} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+    window.open(`https://wa.me/${phoneWithCode}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   return (

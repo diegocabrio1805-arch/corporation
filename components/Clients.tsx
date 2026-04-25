@@ -1307,13 +1307,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }
 
         // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
-        setTimeout(() => {
-          const phone = clientInLegajo.phone.replace(/\D/g, '');
-          const cleanReceipt = convertReceiptForWhatsApp(receiptText);
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57'; // Dynamic prefix fallback
-          const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("ticket")}`;
+          const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent(cleanReceipt)}`;
           window.open(wpUrl, '_blank');
-        }, 2000);
       } else if (type === CollectionLogType.NO_PAGO) {
         const metrics = getClientMetrics(clientInLegajo);
         const totalPaid = calculateTotalPaidFromLogs(activeLoanInLegajo, state.collectionLogs);
@@ -1606,11 +1601,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         link.click();
         document.body.removeChild(link);
 
-        // WhatsApp fallback (usando el texto limpio)
-        const phone = clientInLegajo.phone.replace(/\D/g, '');
-        const cleanReceipt = convertReceiptForWhatsApp(receipt || '');
-        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-        const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("ticket")}`;
+        const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent(cleanReceipt)}`;
         window.open(wpUrl, '_blank');
       } else {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
@@ -1688,12 +1679,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         principal: activeLoanInLegajo.totalAmount
       }, settingsToUse);
 
-      const printWin = window.open('', '_blank', 'width=400,height=600');
-      printWin?.document.write(`<html><body style="font-family:monospace;white-space:pre-wrap;padding:20px;font-size:12px;">${receiptText}</body></html>`);
-      printWin?.print();
-
-      const phone = clientInLegajo.phone.replace(/\D/g, '');
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent("ticket")}`, '_blank');
+      const cleanReceipt = convertReceiptForWhatsApp(receiptText);
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(cleanReceipt)}`, '_blank');
 
       setShowEditLogModal(false);
       setEditingLogId(null);
