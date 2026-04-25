@@ -1316,16 +1316,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         }, 2000);
       } else if (type === CollectionLogType.NO_PAGO) {
         const metrics = getClientMetrics(clientInLegajo);
-        let msg = clientInLegajo.customNoPayMessage || await generateNoPaymentAIReminder(
-          activeLoanInLegajo,
-          clientInLegajo,
-          metrics.daysOverdue,
-          state.settings,
-          metrics.balance
-        );
+        const totalPaid = calculateTotalPaidFromLogs(activeLoanInLegajo, state.collectionLogs);
+        const remainingBalance = Math.max(0, activeLoanInLegajo.totalAmount - totalPaid);
+        const daysOverdue = getDaysOverdue(activeLoanInLegajo, state.settings, totalPaid);
+        
+        let msg = '';
+        if (clientInLegajo.customNoPayMessage) {
+          msg = clientInLegajo.customNoPayMessage
+              .replace('{cliente}', clientInLegajo.name)
+              .replace('{saldo}', formatCurrency(remainingBalance, state.settings))
+              .replace('{atraso}', daysOverdue.toString());
+        } else {
+          msg = `Hola ${clientInLegajo.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysOverdue} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+        }
+        
         setTimeout(() => {
-          const cleanMsg = convertReceiptForWhatsApp(msg);
-          window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}?text=${encodeURIComponent("ticket")}`, '_blank');
+          const phone = clientInLegajo.phone.replace(/\D/g, '');
+          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
         }, 2000);
       }
     } catch (e) { console.error(e); } finally {

@@ -371,17 +371,25 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('ticket')}`, '_blank');
         }, 2000);
       } else if (client && type === CollectionLogType.NO_PAGO) {
+        const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
+        const remainingBalance = Math.max(0, loan.totalAmount - totalPaid);
+        const daysOverdue = getDaysOverdue(loan, state.settings, totalPaid);
+        
         let msg = '';
         if (client.customNoPayMessage) {
-          msg = client.customNoPayMessage;
+          msg = client.customNoPayMessage
+              .replace('{cliente}', client.name)
+              .replace('{saldo}', formatCurrency(remainingBalance, state.settings))
+              .replace('{atraso}', daysOverdue.toString());
         } else {
-          const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
-          const currentBalance = loan.totalAmount - totalPaid;
-          const overdueDays = getDaysOverdue(loan, state.settings);
-          msg = await generateNoPaymentAIReminder(loan, client, overdueDays, state.settings, currentBalance);
+          msg = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysOverdue} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
         }
+        
         setTimeout(() => {
-          window.open(`https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent("ticket")}`, '_blank');
+          const phone = client.phone.replace(/\D/g, '');
+          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
+          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
         }, 2000);
         resetUI();
       }
