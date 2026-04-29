@@ -631,7 +631,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
                             }
                             
-                            if (item.retryCount > 3) {
+                            if (item.retryCount > 20) {
                                 processedIds.add(item._id);
                                 const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
                                 failedItems.push({ ...item, lastError: String(err), fatal: true });
@@ -681,7 +681,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
                             }
                             
-                            if (item.retryCount > 3) {
+                            if (item.retryCount > 20) {
                                 processedIds.add(item._id);
                                 const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
                                 failedItems.push({ ...item, lastError: String(err), fatal: true });
@@ -727,8 +727,8 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                         localStorage.setItem('syncQueue', JSON.stringify(currentQueue));
                                     }
 
-                                    if (item.retryCount > 3) {
-                                        processedIds.add(item._id); // Skip after 3 failures
+                                    if (item.retryCount > 20) {
+                                        processedIds.add(item._id); // Skip after 20 failures
                                         const failedItems = JSON.parse(localStorage.getItem('failedSyncItems') || '[]');
                                         failedItems.push({ ...item, lastError: String(singleErr), fatal: true });
                                         localStorage.setItem('failedSyncItems', JSON.stringify(failedItems.slice(-20)));

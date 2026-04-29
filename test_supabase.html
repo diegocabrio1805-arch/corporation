@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Supabase Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family: sans-serif; padding: 2rem; background: #0f172a; color: #f8fafc;">
+  <h1 style="color: #38bdf8;">Supabase PAGO_ELIMINADO Test</h1>
+  <div id="output" style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border: 1px solid #334155; font-family: monospace;">
+    Iniciando prueba...
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://nscxipbtovfppwstfhyb.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zY3hpcGJ0b3ZmcHB3c3RmaHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDQ2NjM4MjcsImV4cCI6MjAxMzg0MjE2N30.C6XfUOnL6_qG00-0yE2yN2-P7k_jR-0w5GqE2O9Z5Sg';
+
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function test() {
+      const outputDiv = document.getElementById('output');
+      try {
+        outputDiv.innerHTML += '<br>Intentando insertar registro PAGO_ELIMINADO...';
+        const fakeId = 'test-browser-' + Date.now();
+        
+        const { data, error } = await supabase.from('collection_logs').insert([
+          {
+            id: fakeId,
+            loan_id: null,
+            client_id: null,
+            branch_id: 'test-branch',
+            recorded_by: 'test-user',
+            amount: 77.77,
+            type: 'PAGO_ELIMINADO',
+            date: new Date().toISOString(),
+            notes: JSON.stringify({ tipo: 'PAGO_ELIMINADO', context: 'browser-test' })
+          }
+        ]);
+
+        if (error) {
+          outputDiv.innerHTML += '<br><span style="color: #f43f5e;">ERROR: ' + JSON.stringify(error) + '</span>';
+        } else {
+          outputDiv.innerHTML += '<br><span style="color: #4ade80;">¡ÉXITO al insertar! Eliminándolo...</span>';
+          const { error: delError } = await supabase.from('collection_logs').delete().eq('id', fakeId);
+          if (delError) {
+            outputDiv.innerHTML += '<br><span style="color: #f43f5e;">ERROR AL ELIMINAR: ' + JSON.stringify(delError) + '</span>';
+          } else {
+            outputDiv.innerHTML += '<br><span style="color: #4ade80;">¡ÉXITO al limpiar el registro de prueba!</span>';
+          }
+        }
+      } catch (err) {
+        outputDiv.innerHTML += '<br><span style="color: #f43f5e;">EXCEPCIÓN: ' + err.message + '</span>';
+      }
+    }
+
+    test();
+  </script>
+</body>
+</html>

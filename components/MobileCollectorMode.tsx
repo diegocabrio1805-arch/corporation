@@ -136,21 +136,47 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
          } catch { /* ignore fallback */ }
       }
 
-      const log = {
-        id: generateUUID(),
-        clientId,
-        loanId: loan.id,
-        type,
-        amount: type === CollectionLogType.PAYMENT ? amountToApply : 0,
-        date: new Date().toISOString(),
-        location: currentLocation,
-        isVirtual: isVirtualProcessing,
-        isRenewal: isRenewalProcessing,
-        companySnapshot: state.settings
-      };
+      const loans = (Array.isArray(state.loans) ? state.loans : []);
+      const activeLoans = loans.filter(l => 
+        l.status !== LoanStatus.PAID && 
+        l.clientId === clientId && 
+        (l.balance === undefined || l.balance > 0) &&
+        (!isAdminOrManager && currentUserId ? (l.collectorId || (l as any).collector_id) === currentUserId : true)
+      );
 
-      await addCollectionAttempt(log, true);
-      if (onForceSync) await onForceSync(true, "Registrando...", false, true);
+      if (type === CollectionLogType.NO_PAGO && activeLoans.length > 1) {
+        for (const activeLoan of activeLoans) {
+          const log = {
+            id: generateUUID(),
+            clientId,
+            loanId: activeLoan.id,
+            type,
+            amount: 0,
+            date: new Date().toISOString(),
+            location: currentLocation,
+            isVirtual: isVirtualProcessing,
+            isRenewal: isRenewalProcessing,
+            companySnapshot: state.settings
+          };
+          await addCollectionAttempt(log, true);
+        }
+        if (onForceSync) await onForceSync(true, "Registrando...", false, true);
+      } else {
+        const log = {
+          id: generateUUID(),
+          clientId,
+          loanId: loan.id,
+          type,
+          amount: type === CollectionLogType.PAYMENT ? amountToApply : 0,
+          date: new Date().toISOString(),
+          location: currentLocation,
+          isVirtual: isVirtualProcessing,
+          isRenewal: isRenewalProcessing,
+          companySnapshot: state.settings
+        };
+        await addCollectionAttempt(log, true);
+        if (onForceSync) await onForceSync(true, "Registrando...", false, true);
+      }
 
       if (type === CollectionLogType.PAYMENT) {
           const client = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientId);
