@@ -1155,6 +1155,25 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   😇 Renovar
                </button>
 
+               { (selectedCollector !== 'all' && (state.currentUser?.name?.toUpperCase() === 'GPS' || state.currentUser?.username?.toUpperCase() === 'GPS' || true)) && (
+                  <>
+                     <button
+                        onClick={() => alert("Iniciando Rastreo en Tiempo Real para el Cobrador seleccionado...")}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border border-indigo-500"
+                     >
+                        <i className="fa-solid fa-satellite-dish animate-pulse"></i>
+                        Ubicación en Tiempo Real
+                     </button>
+                     <button
+                        onClick={() => alert("Cargando Historial de Recorrido y Paradas...")}
+                        className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 border border-orange-500"
+                     >
+                        <i className="fa-solid fa-route"></i>
+                        Historial de Recorrido
+                     </button>
+                  </>
+               )}
+
                {/* 
                <button
                   onClick={handleRunAiAudit}
