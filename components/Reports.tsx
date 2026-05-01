@@ -189,21 +189,45 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       import('../utils/supabaseClient').then(({ supabase }) => {
          console.log(`[Reports] 📡 Suscribiendo a GPS en vivo para: ${selectedCollector}`);
          
-         const channel = supabase.channel('room-gps');
-         
-         channel.on('broadcast', { event: 'location_update' }, (payload: any) => {
-            const data = payload.payload;
-            // Solo procesar si el mensaje es del cobrador seleccionado
-            if (data && data.collectorId === selectedCollector) {
-               console.log("[Reports] 📍 Coordenada en vivo recibida:", data);
+         // 1. Obtener la última posición guardada inmediatamente
+         const fetchLastLocation = async () => {
+            const { data, error } = await supabase
+               .from('gps_history')
+               .select('*')
+               .eq('collector_id', selectedCollector)
+               .order('timestamp', { ascending: false })
+               .limit(1)
+               .single();
+               
+            if (data && isLiveTracking) {
+               console.log("[Reports] 📍 Última coordenada cargada:", data);
                setLiveLocation({
-                  lat: data.lat,
-                  lng: data.lng,
-                  timestamp: data.timestamp,
-                  accuracy: data.accuracy
+                  lat: data.latitude,
+                  lng: data.longitude,
+                  timestamp: new Date(data.timestamp).getTime()
                });
             }
-         }).subscribe();
+         };
+         fetchLastLocation();
+
+         // 2. Escuchar nuevos puntos insertados por el celular
+         const channel = supabase.channel(`public:gps_history:${selectedCollector}`)
+            .on('postgres_changes', {
+               event: 'INSERT',
+               schema: 'public',
+               table: 'gps_history',
+               filter: `collector_id=eq.${selectedCollector}`
+            }, (payload: any) => {
+               const data = payload.new;
+               if (data) {
+                  console.log("[Reports] 📍 Nueva coordenada en vivo:", data);
+                  setLiveLocation({
+                     lat: data.latitude,
+                     lng: data.longitude,
+                     timestamp: new Date(data.timestamp).getTime()
+                  });
+               }
+            }).subscribe();
 
          return () => {
             console.log(`[Reports] 🔌 Desconectando GPS en vivo`);
