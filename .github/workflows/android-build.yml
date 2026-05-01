@@ -26,7 +26,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Project
         run: npm run build
