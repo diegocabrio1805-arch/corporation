@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const { isSyncing, isFullSyncing, isOnline, queueLength, filteredState, handleForceSync, handleDeepReset, clearQueue } = sync;
 
   // 3. Initialize GPS Warmer (Global Background Tracking)
-  const activeLocation = useGPSWarmer();
+  const activeLocation = useGPSWarmer(state.currentUser);
 
   // 3.5 Initialize Live Tracker (Broadcasts location for Admins)
   useLiveTracker(state.currentUser, activeLocation);
