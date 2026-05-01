@@ -13,16 +13,31 @@ export const useGPSWarmer = () => {
   const [activeLocation, setActiveLocation] = useState<GPSLocation | null>(null);
 
   useEffect(() => {
-    let watchId: string | Promise<string>;
+    let watchId: string | Promise<string> | null = null;
+    let isWatching = false;
+    let retryInterval: any;
     
     const startWatching = async () => {
       try {
+        const perm = await Geolocation.checkPermissions();
+        if (perm.location !== 'granted') {
+          return; // Esperar a que LocationEnforcer obtenga los permisos
+        }
+
+        if (isWatching) return;
+        isWatching = true;
+
         watchId = Geolocation.watchPosition({
           enableHighAccuracy: true,
           timeout: 15000,
           maximumAge: 3000
-        }, (position) => {
-          if (position) {
+        }, (position, err) => {
+          if (err) {
+            console.warn("[GPSWarmer] Error en watchPosition, reiniciando...", err);
+            isWatching = false;
+            return;
+          }
+          if (position && position.coords) {
             const loc = {
               lat: position.coords.latitude,
               lng: position.coords.longitude,
@@ -34,12 +49,20 @@ export const useGPSWarmer = () => {
         });
       } catch (e) {
         console.error("Error starting Global GPS watch:", e);
+        isWatching = false;
       }
     };
 
+    // Intentar iniciar. Si no hay permisos, el intervalo lo seguirá intentando.
     startWatching();
+    retryInterval = setInterval(() => {
+        if (!isWatching) {
+            startWatching();
+        }
+    }, 5000);
 
     return () => {
+      clearInterval(retryInterval);
       if (watchId) {
         if (typeof watchId === 'string') {
           Geolocation.clearWatch({ id: watchId });

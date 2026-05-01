@@ -53,7 +53,7 @@ const App: React.FC = () => {
   const activeLocation = useGPSWarmer();
 
   // 3.5 Initialize Live Tracker (Broadcasts location for Admins)
-  useLiveTracker(state.currentUser);
+  useLiveTracker(state.currentUser, activeLocation);
 
   // 4. Initialize Actions
   const actions = useAppActions(state, setState, setActiveTab, sync);
