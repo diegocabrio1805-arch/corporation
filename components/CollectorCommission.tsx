@@ -23,7 +23,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const currentUserId = state.currentUser?.id;
   const t = getTranslation(state.settings.language);
 
-  const [selectedHistoricalRoute, setSelectedHistoricalRoute] = useState<string>(isPowerUser ? 'all' : (currentUserId || ''));
+  const [selectedHistoricalRoutes, setSelectedHistoricalRoutes] = useState<string[]>(isPowerUser ? ['all'] : [currentUserId || '']);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showGlobalSummary, setShowGlobalSummary] = useState(false);
   const [showBracketModal, setShowBracketModal] = useState(false);
 
@@ -55,7 +56,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     return bracket ? bracket.payoutPercent / 100 : (sorted[sorted.length - 1]?.payoutPercent / 100 || 0);
   };
 
-  const calculateStatsForCollector = (targetUserId: string | 'all') => {
+  const calculateStatsForCollector = (targetUserIds: string[]) => {
     const todayDate = new Date();
     const dayOfWeek = todayDate.getDay();
     const diffToMonday = todayDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
@@ -76,7 +77,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const logDate = new Date(log.date);
         const isSameDay = logDate.toDateString() === currentDay.toDateString();
         const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
-        const matchesUser = targetUserId === 'all' ? true : (logCollectorId === targetUserId);
+        const matchesUser = targetUserIds.includes('all') ? true : targetUserIds.includes(logCollectorId);
         return isSameDay && matchesUser && !log.isOpening;
       });
 
@@ -99,7 +100,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
     const logsHoy = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
-      const matchesUser = targetUserId === 'all' ? true : (logCollectorId === targetUserId);
+      const matchesUser = targetUserIds.includes('all') ? true : targetUserIds.includes(logCollectorId);
       return matchesUser && new Date(log.date).toDateString() === new Date().toDateString() && !log.isOpening;
     });
 
@@ -118,7 +119,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     };
   };
 
-  const currentViewStats = useMemo(() => calculateStatsForCollector(selectedHistoricalRoute), [state.collectionLogs, state.loans, state.commissionBrackets, selectedHistoricalRoute]);
+  const currentViewStats = useMemo(() => calculateStatsForCollector(selectedHistoricalRoutes), [state.collectionLogs, state.loans, state.commissionBrackets, selectedHistoricalRoutes]);
 
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
@@ -126,7 +127,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     );
     return (Array.isArray(eligibleUsers) ? eligibleUsers : []).map(user => ({
       user,
-      stats: calculateStatsForCollector(user.id)
+      stats: calculateStatsForCollector([user.id])
     }));
   }, [state.users, state.collectionLogs, state.loans, state.commissionBrackets, currentUserId]);
 
@@ -155,7 +156,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       const d = new Date(log.date);
       if (!(d >= start && d <= end)) return false;
       const logCollectorId = log.collectorId || (log as any).recordedBy || (log as any).recorded_by;
-      if (selectedHistoricalRoute !== 'all' && logCollectorId !== selectedHistoricalRoute) return false;
+      if (!selectedHistoricalRoutes.includes('all') && !selectedHistoricalRoutes.includes(logCollectorId)) return false;
 
       // 4. Type Filters
       if (paymentTypeFilter === 'nopay') return log.type === CollectionLogType.NO_PAGO;
@@ -165,7 +166,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [state.collectionLogs, state.loans, excelStartDate, excelEndDate, selectedHistoricalRoute, paymentTypeFilter]);
+  }, [state.collectionLogs, state.loans, excelStartDate, excelEndDate, selectedHistoricalRoutes, paymentTypeFilter]);
 
   const auditLogs = useMemo(() => {
     const clients = Array.isArray(state.clients) ? state.clients : [];
@@ -467,7 +468,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="relative z-10 flex flex-col gap-6">
             <h3 className="text-white text-[10px] font-black uppercase tracking-tighter flex items-center gap-2 border-b border-white/10 pb-2">
               <i className="fa-solid fa-chart-line text-emerald-400"></i>
-              Histórico de Mora Semanal: <span className="text-emerald-400">{selectedHistoricalRoute === 'all' ? 'CONSOLIDADO' : (Array.isArray(state.users) ? state.users : []).find(u => u.id === selectedHistoricalRoute)?.name.toUpperCase()}</span>
+              Histórico de Mora Semanal: <span className="text-emerald-400 line-clamp-1">{selectedHistoricalRoutes.includes('all') ? 'CONSOLIDADO' : state.users.filter(u => selectedHistoricalRoutes.includes(u.id)).map(u => u.name.toUpperCase()).join(', ')}</span>
             </h3>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {(Array.isArray(currentViewStats.days) ? currentViewStats.days : []).map((stat, idx) => (
@@ -596,14 +597,64 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <i className="fa-solid fa-table-list text-emerald-400"></i> VER HISTORIAL DETALLADO EXCEL
         </button>
 
-        <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 w-full sm:w-auto">
+        <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 w-full sm:w-auto relative">
           <i className="fa-solid fa-route text-blue-600 text-xs"></i>
-          <select value={selectedHistoricalRoute} onChange={(e) => setSelectedHistoricalRoute(e.target.value)} className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase tracking-widest w-full">
-            <option value="all">CONSOLIDADO SUCURSAL</option>
-            {state.users.filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
-              <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
-            ))}
-          </select>
+          
+          <div className="relative w-full cursor-pointer" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+            <div className="flex items-center justify-between text-[10px] font-black text-slate-700 uppercase tracking-widest min-w-[180px]">
+              <span className="truncate max-w-[150px]">
+                {selectedHistoricalRoutes.includes('all') 
+                  ? 'CONSOLIDADO SUCURSAL' 
+                  : state.users.filter(u => selectedHistoricalRoutes.includes(u.id)).map(u => u.name).join(', ')}
+              </span>
+              <i className={`fa-solid fa-chevron-down ml-2 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
+            </div>
+            
+            {isDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-[90]" onClick={(e) => { e.stopPropagation(); setIsDropdownOpen(false); }}></div>
+                <div className="absolute top-full left-0 mt-3 w-[250px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-[100] max-h-64 overflow-y-auto custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+                  <div 
+                    className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                      if (selectedHistoricalRoutes.includes('all')) {
+                        setSelectedHistoricalRoutes([]);
+                      } else {
+                        setSelectedHistoricalRoutes(['all']);
+                      }
+                    }}
+                  >
+                    <div className={`w-4 h-4 rounded-[4px] border ${selectedHistoricalRoutes.includes('all') ? 'bg-blue-600 border-blue-600' : 'border-slate-300'} flex items-center justify-center`}>
+                      {selectedHistoricalRoutes.includes('all') && <i className="fa-solid fa-check text-[10px] text-white"></i>}
+                    </div>
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">TODOS (CONSOLIDADO)</span>
+                  </div>
+                  
+                  {state.users.filter(u => u.role === Role.COLLECTOR && (u.id === currentUserId || u.managedBy === currentUserId)).map(u => (
+                    <div 
+                      key={u.id}
+                      className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center gap-3 transition-colors"
+                      onClick={() => {
+                        let newRoutes = selectedHistoricalRoutes.filter(id => id !== 'all');
+                        if (newRoutes.includes(u.id)) {
+                          newRoutes = newRoutes.filter(id => id !== u.id);
+                          if (newRoutes.length === 0) newRoutes = ['all'];
+                        } else {
+                          newRoutes.push(u.id);
+                        }
+                        setSelectedHistoricalRoutes(newRoutes);
+                      }}
+                    >
+                      <div className={`w-4 h-4 rounded-[4px] border ${(selectedHistoricalRoutes.includes('all') || selectedHistoricalRoutes.includes(u.id)) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'} flex items-center justify-center`}>
+                        {(selectedHistoricalRoutes.includes('all') || selectedHistoricalRoutes.includes(u.id)) && <i className="fa-solid fa-check text-[10px] text-white"></i>}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest truncate">{u.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
