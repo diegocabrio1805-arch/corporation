@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client } from '../types';
+import { AppState, Loan, LoanStatus, Role, PaymentStatus, CollectionLog, CollectionLogType, Client, Frequency } from '../types';
 import { formatCurrency, generateReceiptText, getDaysOverdue, formatDate, generateUUID, ReceiptData, calculateTotalPaidFromLogs, convertReceiptForWhatsApp } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { generateAIStatement, generateNoPaymentAIReminder } from '../services/geminiService';
@@ -36,6 +36,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   const [editingReceipt, setEditingReceipt] = useState<ReceiptData | null>(null);
   const [lastLogId, setLastLogId] = useState<string | null>(null);
   const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+  const [frequencyFilter, setFrequencyFilter] = useState<'all' | 'Diaria' | Frequency>('all');
 
   // PAGINATION LOGIC
   const [currentPage, setCurrentPage] = useState(1);
@@ -176,6 +177,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       if (viewMode === 'renovaciones') {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
+      if (viewMode === 'gestion') {
+        const aActive = ((a as any)._consolidatedBalance || 0) > 0.01 ? 0 : 1;
+        const bActive = ((b as any)._consolidatedBalance || 0) > 0.01 ? 0 : 1;
+        if (aActive !== bActive) return aActive - bActive;
+        // Dentro del mismo grupo, los de mayor mora primero
+        const moraA = (a as any)._consolidatedMora || 0;
+        const moraB = (b as any)._consolidatedMora || 0;
+        return moraB - moraA;
+      }
       return 0;
     });
   }, [state.loans, state.clients, state.collectionLogs, searchTerm, state.currentUser, isAdminOrManager, viewMode, state.settings]);
@@ -183,15 +193,27 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
   // RESET PAGE ON FILTER CHANGE
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, viewMode]);
+  }, [searchTerm, viewMode, frequencyFilter]);
+
+  // FILTRO POR FRECUENCIA
+  const frequencyFilteredLoans = useMemo(() => {
+    if (frequencyFilter === 'all') return filteredLoans;
+    if (frequencyFilter === 'Diaria') {
+      return filteredLoans.filter(loan => 
+        !(loan as any)._isNewClient && 
+        (loan.frequency === Frequency.DAILY || loan.frequency === Frequency.DAILY_MF || loan.frequency === 'Diaria' as any)
+      );
+    }
+    return filteredLoans.filter(loan => (loan as any)._isNewClient ? false : loan.frequency === frequencyFilter);
+  }, [filteredLoans, frequencyFilter]);
 
   // PAGINATED DATA
   const paginatedLoans = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredLoans.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredLoans, currentPage]);
+    return frequencyFilteredLoans.slice(start, start + ITEMS_PER_PAGE);
+  }, [frequencyFilteredLoans, currentPage]);
 
-  const totalPages = Math.ceil(filteredLoans.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(frequencyFilteredLoans.length / ITEMS_PER_PAGE);
 
   // Filtrado de clientes ocultos
   const hiddenClientsData = useMemo(() => {
@@ -891,6 +913,35 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         </div>
       </div>
 
+      {/* FILTROS POR FRECUENCIA - solo en Gestión */}
+      {viewMode === 'gestion' && (
+        <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
+          {([
+            { key: 'all',              label: 'Todos',          icon: 'fa-layer-group',    active: 'bg-slate-900 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50' },
+            { key: 'Diaria',           label: 'Diarios',        icon: 'fa-sun',            active: 'bg-amber-500 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
+            { key: Frequency.WEEKLY,    label: 'Semanal',        icon: 'fa-calendar-week',  active: 'bg-violet-600 text-white shadow-lg',  idle: 'text-slate-400 hover:bg-violet-50 hover:text-violet-600' },
+            { key: Frequency.BIWEEKLY,  label: 'Quincenal',      icon: 'fa-calendar-days',  active: 'bg-blue-600 text-white shadow-lg',    idle: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600' },
+            { key: Frequency.MONTHLY,   label: 'Mensual',        icon: 'fa-calendar',       active: 'bg-slate-600 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setFrequencyFilter(tab.key as any)}
+              className={`flex-1 py-2.5 md:py-3 rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 min-w-[70px] ${frequencyFilter === tab.key ? tab.active : tab.idle}`}
+            >
+              <i className={`fa-solid ${tab.icon}`}></i>
+              {tab.label}
+              {tab.key !== 'all' && (
+                <span className={`text-[7px] font-black px-1 py-0.5 rounded-full ${frequencyFilter === tab.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
+                  {tab.key === 'Diaria' 
+                    ? filteredLoans.filter(l => !(l as any)._isNewClient && (l.frequency === Frequency.DAILY || l.frequency === Frequency.DAILY_MF || l.frequency === 'Diaria' as any)).length
+                    : filteredLoans.filter(l => !(l as any)._isNewClient && l.frequency === tab.key).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {(viewMode === 'gestion' || viewMode === 'renovaciones') && (
         <>
           <div className="grid grid-cols-1 gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -950,7 +1001,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           </p>
                           
                           {/* SECCIÓN GPS ESTILO EXPEDIENTE */}
-                          <div className="flex items-center gap-2 mt-1 py-1">
+                          <div className="flex items-center gap-2 mt-1 py-1 flex-wrap">
                             <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">Mapa GPS:</span>
                             <button 
                               onClick={() => handleOpenMap(client?.domicilioLocation)}
@@ -964,6 +1015,42 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                             >
                               <i className="fa-solid fa-briefcase"></i> Negocio
                             </button>
+                            {balance > 0.01 && (() => {
+                              const DIAS = ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
+                              const startDate = new Date(loan.createdAt.split('T')[0] + 'T00:00:00');
+                              const diaSemana = DIAS[startDate.getDay()];
+                              if (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) {
+                                return (
+                                  <span className="text-amber-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
+                                    <i className="fa-solid fa-sun text-xs"></i> DIARIO · LUN A SÁB
+                                  </span>
+                                );
+                              } else if (loan.frequency === Frequency.DAILY_MF) {
+                                return (
+                                  <span className="text-emerald-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
+                                    <i className="fa-solid fa-calendar-day text-xs"></i> DIARIO · LUN A VIE
+                                  </span>
+                                );
+                              } else if (loan.frequency === Frequency.WEEKLY) {
+                                return (
+                                  <span className="text-violet-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
+                                    <i className="fa-solid fa-calendar-week text-xs"></i> SEMANAL · {diaSemana}
+                                  </span>
+                                );
+                              } else if (loan.frequency === Frequency.BIWEEKLY) {
+                                return (
+                                  <span className="text-blue-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
+                                    <i className="fa-solid fa-calendar-days text-xs"></i> QUINCENAL
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="text-slate-300 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
+                                    <i className="fa-solid fa-calendar text-xs"></i> MENSUAL
+                                  </span>
+                                );
+                              }
+                            })()}
                           </div>
                         </div>
                       </div>

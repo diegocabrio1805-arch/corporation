@@ -394,7 +394,7 @@ export const generateAmortizationTable = (
 
     for (let i = 1; i <= numInstallments; i++) {
       // Calcular siguiente fecha según frecuencia
-      if (frequency === Frequency.DAILY) {
+      if (frequency === Frequency.DAILY || frequency === Frequency.DAILY_MF) {
         currentDate.setDate(currentDate.getDate() + 1);
       } else if (frequency === Frequency.WEEKLY) {
         currentDate.setDate(currentDate.getDate() + 7);
@@ -404,9 +404,10 @@ export const generateAmortizationTable = (
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
 
-      // REGLA DE ORO: Saltar Domingos (getDay === 0) y Festivos
       let safetyCounter = 0;
-      while ((currentDate.getDay() === 0 || isHoliday(currentDate, country, customHolidays)) && safetyCounter < 45) {
+      while ((currentDate.getDay() === 0 || 
+             (frequency === Frequency.DAILY_MF && currentDate.getDay() === 6) ||
+             isHoliday(currentDate, country, customHolidays)) && safetyCounter < 45) {
         currentDate.setDate(currentDate.getDate() + 1);
         safetyCounter++;
       }
@@ -484,9 +485,12 @@ export const getDaysOverdue = (loan: Loan, settings: AppSettings, customTotalPai
       if (tempDate >= today) break; // NO contar el día de hoy ni días después
 
       const isSun = tempDate.getDay() === 0;
+      const isSat = tempDate.getDay() === 6;
       const isHol = isHoliday(tempDate, settings?.country || 'CO', loan.customHolidays || []);
 
-      if (!isSun && !isHol) {
+      const shouldSkip = isSun || (loan.frequency === Frequency.DAILY_MF && isSat) || isHol;
+
+      if (!shouldSkip) {
         delayedWorkingDays++;
       }
     }
@@ -509,7 +513,13 @@ export const calculateOverdueDays = (dueDate: string, country: string, loan: Loa
   while (tempDate < today) {
     tempDate.setDate(tempDate.getDate() + 1);
     if (tempDate >= today) break; // Excluir hoy
-    if (tempDate.getDay() !== 0 && !isHoliday(tempDate, country, loan.customHolidays || [])) {
+    const isSun = tempDate.getDay() === 0;
+    const isSat = tempDate.getDay() === 6;
+    const isHol = isHoliday(tempDate, country, loan.customHolidays || []);
+    
+    const shouldSkip = isSun || (loan.frequency === Frequency.DAILY_MF && isSat) || isHol;
+
+    if (!shouldSkip) {
       diffDays++;
     }
   }

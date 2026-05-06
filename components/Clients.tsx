@@ -299,7 +299,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     errors: { row: number, clientName?: string, reason: string }[] 
   } | null>(null);
   const [importSummary, setImportSummary] = useState<{ success: number, failed: number } | null>(null);
-  const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos'>('cartera');
+  const [viewMode, setViewMode] = useState<'gestion' | 'nuevos' | 'renovaciones' | 'cartera' | 'ocultos' | 'finalizados'>('cartera');
   const [filterStartDate, setFilterStartDate] = useState(countryTodayStr);
   const [filterEndDate, setFilterEndDate] = useState(countryTodayStr);
   const [selectedCollector, setSelectedCollector] = useState<string>('all');
@@ -499,6 +499,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
   const [showCustomNoPayModal, setShowCustomNoPayModal] = useState(false);
   const [customNoPayText, setCustomNoPayText] = useState('');
+  const [finalizadosDate, setFinalizadosDate] = useState(countryTodayStr);
 
   const [addInitialLoan, setAddInitialLoan] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -962,6 +963,58 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       return dateB - dateA;
     });
   }, [state.clients, state.loans, viewMode, selectedCollector, debouncedSearch, clientMetricsMap]);
+
+  // VISTA: CRÉDITOS FINALIZADOS POR FECHA SELECCIONADA (saldo llegó a 0)
+  const finalizadosData = useMemo(() => {
+    if (viewMode !== 'finalizados') return [];
+    const allLoans = Array.isArray(state.loans) ? state.loans : [];
+    const allLogs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    const allClients = Array.isArray(state.clients) ? state.clients : [];
+
+    return allLoans.filter(loan => {
+      if (loan.status !== LoanStatus.PAID && loan.status !== LoanStatus.ACTIVE && loan.status !== LoanStatus.DEFAULT) return false;
+
+      // Filtrar por cobrador (misma lógica completa que las demás vistas)
+      const client = allClients.find(c => c.id === loan.clientId);
+      if (!client || client.deletedAt) return false;
+      if (selectedCollector !== 'all') {
+        const collectorLower = selectedCollector.toLowerCase();
+        const loanCollectorId = (loan.collectorId || (loan as any).collector_id || '').toLowerCase();
+        const addedByLower = (client.addedBy || (client as any).added_by || '').toLowerCase();
+        // También buscar en CUALQUIER préstamo histórico del cliente (igual que cartera/nuevos)
+        const anyHistoricMatch = allLoans.some(l =>
+          l.clientId === loan.clientId &&
+          (l.collectorId || (l as any).collector_id || '').toLowerCase() === collectorLower
+        );
+        const matchesCollector = loanCollectorId === collectorLower || addedByLower === collectorLower || anyHistoricMatch;
+        if (!matchesCollector) return false;
+      }
+
+      // Verificar que el saldo sea 0
+      const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
+      if ((loan.totalAmount - totalPaid) > 1) return false;
+
+      // Obtener el ÚLTIMO pago registrado para este préstamo
+      const allPaymentLogs = allLogs.filter(l =>
+        l.loanId === loan.id &&
+        l.type === CollectionLogType.PAYMENT &&
+        !l.isOpening &&
+        !l.deletedAt
+      );
+      if (allPaymentLogs.length === 0) return false;
+
+      // El último pago debe ser exactamente en la fecha seleccionada
+      const lastLog = [...allPaymentLogs].sort((a, b) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      )[0];
+
+      return (lastLog.date || '').startsWith(finalizadosDate);
+    }).map(loan => {
+      const client = allClients.find(c => c.id === loan.clientId)!;
+      const totalPaid = calculateTotalPaidFromLogs(loan, allLogs);
+      return { loan, client, totalPaid };
+    }) as { loan: any, client: any, totalPaid: number }[];
+  }, [viewMode, state.loans, state.collectionLogs, state.clients, finalizadosDate, selectedCollector]);
 
   const handleRestoreClient = async (clientId: string) => {
     const client = state.clients.find(c => c.id === clientId);
@@ -2171,6 +2224,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> AGREGAR</button>
           <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> RENOVACIONES</button>
           <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> CARTERA</button>
+          <button onClick={() => setViewMode('finalizados')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'finalizados' ? 'bg-slate-500 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-flag-checkered"></i> FINALIZADOS</button>
           {(isAdmin || isManager) && (
             <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> OCULTOS</button>
           )}
@@ -2179,8 +2233,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         <div className="bg-white p-4 md:p-6 rounded-3xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
             <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
-              <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : 'fa-briefcase text-slate-950'}`}></i>
-              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : viewMode === 'ocultos' ? 'Clientes Ocultos / Incobrables' : 'Cartera General'}
+              <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : viewMode === 'finalizados' ? 'fa-flag-checkered text-slate-600' : 'fa-briefcase text-slate-950'}`}></i>
+              {viewMode === 'gestion' ? 'Añadir Cliente' : viewMode === 'nuevos' ? 'Registros de Clientes' : viewMode === 'renovaciones' ? 'Cartera Renovada' : viewMode === 'ocultos' ? 'Clientes Ocultos / Incobrables' : viewMode === 'finalizados' ? `Finalizados Hoy — ${countryTodayStr}` : 'Cartera General'}
             </h2>
 
             {viewMode === 'cartera' && isAdminOrManager && (
@@ -2228,7 +2282,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </select>
               </div>
             )}
-            {viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' || viewMode === 'ocultos' ? (
+            {viewMode === 'finalizados' ? (
+              <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 px-4 py-2 rounded-xl shadow-inner">
+                <i className="fa-solid fa-calendar-day text-slate-600 text-sm"></i>
+                <input
+                  type="date"
+                  value={finalizadosDate}
+                  onChange={(e) => setFinalizadosDate(e.target.value)}
+                  className="bg-transparent text-[11px] font-black text-slate-800 outline-none uppercase"
+                />
+              </div>
+            ) : viewMode === 'cartera' || viewMode === 'nuevos' || viewMode === 'renovaciones' || viewMode === 'ocultos' ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full items-center">
                 <div className="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300 shadow-inner w-full sm:w-auto">
                   <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} className="bg-transparent text-[9px] font-black text-slate-950 outline-none uppercase w-full" />
@@ -2627,6 +2691,68 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           )
         }
 
+         {/* VISTA: FINALIZADOS POR FECHA */}
+         {viewMode === 'finalizados' && (
+           <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+             {finalizadosData.length === 0 ? (
+               <div className="py-24 flex flex-col items-center justify-center text-slate-400 gap-4">
+                 <i className="fa-solid fa-flag-checkered text-5xl opacity-10"></i>
+                 <p className="text-[11px] font-black uppercase tracking-widest">Ningún crédito finalizó el {finalizadosDate}</p>
+               </div>
+             ) : (
+               <>
+                 <div className="p-4 bg-slate-500 text-white flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                     <i className="fa-solid fa-flag-checkered text-xl"></i>
+                     <div>
+                       <p className="font-black text-sm uppercase tracking-tight">Créditos Finalizados</p>
+                       <p className="text-[9px] font-bold text-slate-200 uppercase tracking-widest">{finalizadosDate} · {finalizadosData.length} crédito{finalizadosData.length !== 1 ? 's' : ''}</p>
+                     </div>
+                   </div>
+                 </div>
+                 <div className="overflow-x-auto">
+                   <table className="w-full text-left border-collapse min-w-[700px]">
+                     <thead>
+                       <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
+                         <th className="px-5 py-4 border-r border-white/10">Cliente</th>
+                         <th className="px-5 py-4 border-r border-white/10">Teléfono</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">Frecuencia</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-right">Habilitado</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-right">Total</th>
+                         <th className="px-5 py-4 text-center">Cuotas</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                       {finalizadosData.map(({ loan, client }) => {
+                         const DIAS = ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
+                         const startDate = new Date(loan.createdAt.split('T')[0] + 'T00:00:00');
+                         const diaSemana = DIAS[startDate.getDay()];
+                         const freqLabel = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) ? 'DIARIO (L-S)' : loan.frequency === Frequency.DAILY_MF ? 'DIARIO (L-V)' : loan.frequency === Frequency.WEEKLY ? `SEMANAL · ${diaSemana}` : loan.frequency === Frequency.BIWEEKLY ? 'QUINCENAL' : 'MENSUAL';
+                         const freqColor = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) ? 'text-amber-600' : loan.frequency === Frequency.DAILY_MF ? 'text-emerald-600' : loan.frequency === Frequency.WEEKLY ? 'text-violet-600' : 'text-blue-600';
+                         return (
+                           <tr key={loan.id} className="hover:bg-slate-50/60 transition-colors text-[11px] font-bold text-slate-700">
+                             <td className="px-5 py-4 border-r border-slate-100">
+                               <p className="font-black text-slate-900 uppercase">{client.name}</p>
+                               <p className="text-[8px] text-slate-400 font-black tracking-widest">{client.documentId}</p>
+                             </td>
+                             <td className="px-5 py-4 border-r border-slate-100 text-blue-600 font-black">{client.phone}</td>
+                             <td className={`px-5 py-4 border-r border-slate-100 text-center font-black text-[10px] ${freqColor}`}>{freqLabel}</td>
+                             <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-700">{formatCurrency(loan.principal, state.settings)}</td>
+                             <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-900">{formatCurrency(loan.totalAmount, state.settings)}</td>
+                             <td className="px-5 py-4 text-center">
+                               <span className="bg-slate-200 text-slate-700 font-black text-[9px] px-3 py-1 rounded-lg uppercase">{loan.totalInstallments} CUOTAS</span>
+                             </td>
+                           </tr>
+                         );
+                       })}
+                     </tbody>
+                   </table>
+                 </div>
+               </>
+             )}
+           </div>
+         )}
+
         {/* MODAL REGISTRO CLIENTE NUEVO */}
         {
           showModal && (
@@ -2960,6 +3086,42 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             )}
                           </div>
                         </div>
+                        {activeLoanInLegajo && (() => {
+                          const DIAS_SEMANA = ['DOMINGOS', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADOS'];
+                          const startDate = new Date(activeLoanInLegajo.createdAt.split('T')[0] + 'T00:00:00');
+                          const diaSemana = DIAS_SEMANA[startDate.getDay()];
+                          const freq = activeLoanInLegajo.frequency;
+                          let texto = '';
+                          let badgeClass = '';
+                          let iconClass = '';
+                          if (freq === Frequency.DAILY || freq === 'Diaria' as any) {
+                            texto = 'DIARIO · PAGO DE LUNES A SÁBADO';
+                            badgeClass = 'bg-amber-50 text-amber-800 border-amber-300';
+                            iconClass = 'fa-sun';
+                          } else if (freq === Frequency.DAILY_MF) {
+                            texto = 'DIARIO · PAGO DE LUNES A VIERNES';
+                            badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+                            iconClass = 'fa-calendar-day';
+                          } else if (freq === Frequency.WEEKLY) {
+                            texto = `SEMANAL · PAGO LOS ${diaSemana}`;
+                            badgeClass = 'bg-violet-50 text-violet-800 border-violet-300';
+                            iconClass = 'fa-calendar-week';
+                          } else if (freq === Frequency.BIWEEKLY) {
+                            texto = 'QUINCENAL';
+                            badgeClass = 'bg-blue-50 text-blue-800 border-blue-300';
+                            iconClass = 'fa-calendar-days';
+                          } else {
+                            texto = 'MENSUAL';
+                            badgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
+                            iconClass = 'fa-calendar';
+                          }
+                          return (
+                            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 font-black text-[9px] uppercase tracking-wider shadow-sm ${badgeClass}`}>
+                              <i className={`fa-solid ${iconClass} text-[10px]`}></i>
+                              {texto}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">

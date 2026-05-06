@@ -18,7 +18,8 @@ export enum PaymentStatus {
 }
 
 export enum Frequency {
-  DAILY = 'Diaria',
+  DAILY = 'DIARIA ( L - S )',
+  DAILY_MF = 'DIARIA ( L - V )',
   WEEKLY = 'Semanal',
   BIWEEKLY = 'Quincenal',
   MONTHLY = 'Mensual'
