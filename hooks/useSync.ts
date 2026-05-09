@@ -11,6 +11,13 @@ const isValidUuid = (id: string | undefined | null) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || (id.length > 20 && id.includes('-'));
 };
 
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 30000): Promise<T> => {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_ERROR')), timeoutMs))
+    ]);
+};
+
 export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?: boolean) => void) => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isFullSyncing, setIsFullSyncing] = useState(false);
@@ -596,6 +603,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             for (const item of queue) {
                 if (batches[item.operation]) {
                     batches[item.operation].items.push(item);
+                } else {
+                    console.warn(`[Sync] Operación desconocida eliminada de la cola: ${item.operation}`);
+                    processedIds.add(item._id);
                 }
             }
 
@@ -621,12 +631,12 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             const { data: { session: currentSession } } = await supabase.auth.getSession();
                             if (currentSession) {
                                 const bId = (currentSession.user as any).user_metadata?.branchId || currentSession.user.id;
-                                await supabase.from('deleted_items').insert({
+                                await withTimeout(supabase.from('deleted_items').insert({
                                     table_name: table, record_id: item.data.id, branch_id: bId,
                                     deleted_at: new Date().toISOString()
-                                });
+                                }), 15000);
                             }
-                            const { error } = await supabase.from(table).delete().eq('id', item.data.id);
+                            const { error } = await withTimeout(supabase.from(table).delete().eq('id', item.data.id), 15000);
                             if (error) throw error;
                             processedIds.add(item._id);
                             setQueueLength(prev => Math.max(0, prev - 1));
@@ -659,14 +669,14 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             
                             // 1. Actualizar prestamos anteriores a 'Pagado'
                             if (d.previousLoanIds && d.previousLoanIds.length > 0) {
-                                const { error: updateErr } = await supabase.from('loans')
+                                const { error: updateErr } = await withTimeout(supabase.from('loans')
                                     .update({ status: 'Pagado', updated_at: new Date().toISOString() })
-                                    .in('id', d.previousLoanIds);
+                                    .in('id', d.previousLoanIds), 15000);
                                 if (updateErr) throw updateErr;
                             }
 
                             // 2. Insertar nuevo préstamo
-                            const { error: insertErr } = await supabase.from('loans').upsert({
+                            const { error: insertErr } = await withTimeout(supabase.from('loans').upsert({
                                 id: d.newLoan.id, client_id: d.newLoan.clientId, collector_id: d.newLoan.collectorId, branch_id: d.newLoan.branchId,
                                 principal: d.newLoan.principal, interest_rate: d.newLoan.interestRate, total_installments: d.newLoan.totalInstallments,
                                 installment_value: d.newLoan.installmentValue, total_amount: d.newLoan.totalAmount, status: d.newLoan.status,
@@ -674,7 +684,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 custom_holidays: d.newLoan.customHolidays || [], deleted_at: d.newLoan.deletedAt || null,
                                 updated_at: new Date().toISOString(), total_paid: d.newLoan.totalPaid, balance: d.newLoan.balance,
                                 raw_data: d.newLoan.raw_data || {}
-                            });
+                            }), 15000);
                             
                             if (insertErr) throw insertErr;
 
@@ -707,7 +717,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     await processInChunks(batch.items, 10, async (chunkItems) => {
                         try {
                             const payload = chunkItems.map(i => mapper(i.data));
-                            const { error } = await supabase.from(table).upsert(payload);
+                            const { error } = await withTimeout(supabase.from(table).upsert(payload), 15000);
                             if (error) {
                                 // Fallback a 1 por 1 si el chunk de 10 falla
                                 throw error;
@@ -722,7 +732,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                             console.warn(`Error en Bulk Upsert (${table}). Reintentando 1 a 1... Detalle:`, chunkErr);
                             for (const item of chunkItems) {
                                 try {
-                                    const { error } = await supabase.from(table).upsert(mapper(item.data));
+                                    const { error } = await withTimeout(supabase.from(table).upsert(mapper(item.data)), 15000);
                                     if (error) throw error;
                                     processedIds.add(item._id);
                                     setQueueLength(prev => Math.max(0, prev - 1));
