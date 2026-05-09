@@ -567,7 +567,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       </div>
 
       {/* PANEL DE DESEMPEÑO Y CÁLCULO VISUAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {isPowerUser && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* GRÁFICO SEMANAL (DERECHA) */}
         <div className="lg:col-span-8 bg-slate-900 rounded-[2rem] p-6 shadow-xl relative overflow-hidden">
           <div className="relative z-10 flex flex-col gap-6">
@@ -695,13 +697,17 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* SECCIÓN DE RENDICIÓN DE CAJA */}
       <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden relative mt-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           
-          {/* Valor Recaudo */}
-          <div className="flex-1 text-center space-y-1">
+          {isPowerUser && (
+            <>
+              {/* Valor Recaudo */}
+              <div className="flex-1 text-center space-y-1">
             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Recaudo Filtrado</p>
             <p className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p>
           </div>
@@ -750,6 +756,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           </div>
 
           <i className="fa-solid fa-equals text-slate-900 text-2xl"></i>
+            </>
+          )}
 
           {/* Total a Rendir */}
           <div className="flex-1 text-center md:text-right space-y-1 bg-slate-900 text-white p-5 rounded-[2rem] shadow-xl">
