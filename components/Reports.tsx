@@ -618,13 +618,16 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          const normalizedClId = normalizeId(client.id);
          const gestionesPeriodo = routeData.filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId);
-         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId && !log.deletedAt && !log.isOpening);
-         const lastVisit = allClientLogs.length > 0
-            ? new Date(Math.max(...allClientLogs.map(l => new Date(l.date).getTime())))
-            : null;
+         const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => normalizeId(log.clientId || (log as any).client_id) === normalizedClId && !log.deletedAt);
+         let lastVisitTime = allClientLogs.length > 0
+            ? Math.max(...allClientLogs.map(l => new Date(l.date).getTime()))
+            : 0;
+         
+         const loanCreationTime = activeLoan.createdAt ? new Date(activeLoan.createdAt).getTime() : 0;
+         lastVisitTime = Math.max(lastVisitTime, loanCreationTime);
 
-         const daysSinceVisit = lastVisit
-            ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
+         const daysSinceVisit = lastVisitTime > 0
+            ? Math.floor((today.getTime() - lastVisitTime) / (1000 * 60 * 60 * 24))
             : 999;
 
          const sLoan = sanitizeLoan(activeLoan);
@@ -800,14 +803,17 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          const clientLogs = routeData.filter(log => (log.clientId || (log as any).client_id) === (sLoan.clientId || (sLoan as any).client_id));
          const moraReal = getDaysOverdue(sLoan, state.settings);
 
-         // Calculate days since last visit (any log type)
+         // Calculate days since last visit (incluyendo fecha de creación del crédito)
          const allClientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => (log.clientId || (log as any).client_id) === (sLoan.clientId || (sLoan as any).client_id) && !log.deletedAt);
-         const lastVisit = allClientLogs.length > 0
-            ? new Date(Math.max(...(Array.isArray(allClientLogs) ? allClientLogs : []).map(l => new Date(l.date).getTime())))
-            : null;
+         let lastVisitTime = allClientLogs.length > 0
+            ? Math.max(...allClientLogs.map(l => new Date(l.date).getTime()))
+            : 0;
+         
+         const loanCreationTime = sLoan.createdAt ? new Date(sLoan.createdAt).getTime() : 0;
+         lastVisitTime = Math.max(lastVisitTime, loanCreationTime);
 
-         const daysSinceVisit = lastVisit
-            ? Math.floor((today.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24))
+         const daysSinceVisit = lastVisitTime > 0
+            ? Math.floor((today.getTime() - lastVisitTime) / (1000 * 60 * 60 * 24))
             : 999; // Large number if never visited
 
          // Get relevant installments (those due in the period or the latest one)
@@ -846,15 +852,17 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       const unvisitedClients = clientContexts.filter(c => c.alerta_critica);
 
       const prompt = `
-      Actúa como un Auditor Senior de Cobranza. Tu objetivo es evaluar el CRITERIO y CUMPLIMIENTO del cobrador "${collectorName}".
+      Actúa como un Auditor Senior de Cobranza implacable y analítico. Tu objetivo es evaluar el CRITERIO y CUMPLIMIENTO del cobrador "${collectorName}".
       PERIODO: ${selectedDate} hasta ${endDate || selectedDate}.
 
       REGLAS DE AUDITORÍA (Criterios):
       1. PRÉSTAMO DIARIO: Debe haber una gestión (PAGO o NO PAGO) CADA DÍA del periodo auditado. Si no hay registro, es falta grave.
       2. PRÉSTAMO SEMANAL: La gestión debe ocurrir máximo 1-3 días después del vencimiento de la cuota. Evalúa cuántos días pasaron.
       3. PRÉSTAMO MENSUAL: Si la cuota vence un día específico (ej. el día 4), el cobrador tiene un margen de 1 a 6 días para reportar la gestión o el no pago.
-      4. SIEMPRE prioriza la presencia: Si el cliente no pagó, el cobrador DEBE registrar un "NO PAGO". La ausencia de registro es peor que un no pago.
-      5. **ALERTA CRÍTICA**: Clientes con 6+ días hábiles sin visita DEBEN ser marcados en ROJO para auditoría física inmediata.
+      4. SIEMPRE prioriza la presencia: Si el cliente no pagó, el cobrador DEBE registrar un "NO PAGO". La ausencia de registro es peor que un no pago porque oculta la realidad de la ruta.
+      5. ALERTA CRÍTICA: Clientes con 6+ días hábiles sin visita DEBEN ser marcados en ROJO para auditoría física inmediata.
+      6. CERO ALUCINACIONES: Utiliza ESTRICTAMENTE los datos provistos en "Detalle Contextual por Cliente". NO INVENTES nombres, préstamos, días de atraso ni gestiones que no estén explícitamente en el JSON provisto.
+      7. EVALUACIÓN ESTRICTA: Una cobertura menor al 80% es inaceptable. Penaliza severamente la falta de visitas.
 
       DATOS DE LA RUTA:
       - Total Clientes Asignados: ${totalAssigned}
@@ -869,11 +877,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       ${JSON.stringify(clientContexts, null, 2)}
 
       INSTRUCCIONES DE SALIDA:
-      - Define si el cobrador tiene "Criterio de Cobranza" o si es descuidado.
-      - **MENCIONA ESPECÍFICAMENTE** los nombres de los clientes no visitados en el periodo.
-      - **MARCA EN ROJO** (usando formato de texto) los clientes con 6+ días sin visita que requieren auditoría física.
-      - Menciona casos específicos (nombres de clientes) donde se pasó de los días permitidos según la frecuencia.
-      - Sé firme: Un cobrador que no registra "No Pago" está ocultando la realidad de la ruta.
+      - Define con firmeza si el cobrador tiene "Criterio de Cobranza" o si es ineficiente y descuidado.
+      - Menciona ESPECÍFICAMENTE los nombres reales de los clientes no visitados extraídos del JSON (no inventes nombres).
+      - Marca las alertas críticas mencionando los días reales sin visita.
+      - Sé implacable: Un cobrador que no registra "No Pago" es una amenaza para las finanzas de la empresa.
 
       IMPORTANTE: Tu respuesta debe ser EXCLUSIVAMENTE un objeto JSON válido, sin texto explicativo antes o después.
       FORMATO JSON:

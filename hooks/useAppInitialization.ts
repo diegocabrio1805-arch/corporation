@@ -117,6 +117,10 @@ export const useAppInitialization = () => {
           if (value) {
             try {
               const user = JSON.parse(value);
+              console.log('[Auto-Curación] Iniciando sesión sin datos en IDB. Borrando timestamps de sync para Full Sync.');
+              const syncKeys = ['last_sync_timestamp_ms', 'last_sync_timestamp_v8'];
+              syncKeys.forEach(k => localStorage.removeItem(k));
+
               setState({ ...defaultInitialState, currentUser: user });
               setIsInitializing(false);
               return;
@@ -150,8 +154,15 @@ export const useAppInitialization = () => {
         }
 
         // 5. ATOMIC STATE UPDATE
+        const parsedClients = Array.isArray(rawData?.clients) ? rawData.clients : [];
+        if (parsedClients.length === 0) {
+            console.log('[Auto-Curación] IDB cargado pero sin clientes. Borrando timestamps de sync para Full Sync.');
+            const syncKeys = ['last_sync_timestamp_ms', 'last_sync_timestamp_v8'];
+            syncKeys.forEach(k => localStorage.removeItem(k));
+        }
+
         setState({
-          clients: Array.isArray(rawData?.clients) ? rawData.clients : [],
+          clients: parsedClients,
           loans: Array.isArray(rawData?.loans) ? rawData.loans : [],
           payments: Array.isArray(rawData?.payments) ? rawData.payments : [],
           expenses: Array.isArray(rawData?.expenses) ? rawData.expenses : [],
