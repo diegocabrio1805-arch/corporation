@@ -204,12 +204,26 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     startOfLimitWeek.setDate(diffToMondayLimit);
     startOfLimitWeek.setHours(0, 0, 0, 0);
     
+    const collectorLower = (showCollectorHistoryId || '').toLowerCase();
+    const clients = Array.isArray(state.clients) ? state.clients : [];
+
     const collectorLoans = (Array.isArray(state.loans) ? state.loans : []).filter(loan => {
       if (loan.deletedAt) return false;
       const loanDate = new Date(loan.createdAt || (loan as any).date);
       if (loanDate < startOfLimitWeek) return false;
-      const logCollectorId = loan.collectorId || (loan as any).collector_id || loan.branchId; 
-      return logCollectorId === showCollectorHistoryId;
+      
+      const loanCollectorId = (loan.collectorId || (loan as any).collector_id || loan.branchId || '').toLowerCase();
+      const lClientId = (loan.clientId || (loan as any).client_id || '').toLowerCase();
+      const clientObj = clients.find(c => (c.id || '').toLowerCase() === lClientId);
+      const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
+      
+      const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(hl => 
+        ((hl.clientId || (hl as any).client_id || '').toLowerCase() === lClientId) && 
+        ((hl.collectorId || (hl as any).collector_id || '').toLowerCase() === collectorLower)
+      );
+
+      const logCollectorIdMatches = loanCollectorId === collectorLower || clientAddedBy === collectorLower || !!anyHistoricLoan;
+      return logCollectorIdMatches;
     });
 
     type ColocacionOp = { amount: number, isRenewal: boolean, name: string };
@@ -225,7 +239,6 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       TotalNuevos: number, TotalRenovados: number 
     }>();
 
-    const clients = Array.isArray(state.clients) ? state.clients : [];
 
     collectorLoans.forEach(loan => {
       const d = new Date(loan.createdAt || (loan as any).date);
@@ -249,7 +262,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
       const weekData = weeksMap.get(mondayStr)!;
       const amount = Number(loan.principal) || 0;
-      const isR = !!loan.isRenewal;
+      const isR = !!loan.isRenewal || loan.operationTypeCode === '204' || loan.operationTypeCode === '205';
       
       const client = clients.find(c => c.id === loan.clientId || c.id === (loan as any).client_id);
       const clientName = client ? client.name : 'Desconocido';
