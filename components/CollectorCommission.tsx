@@ -400,22 +400,31 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         wsData.push([{ v: 'RECAUDO DE CUOTAS', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "2563EB" } } } }]);
         wsData.push(['Semana Del', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Total Semanal', `Comisión ${historyCommissionPercent}%`]);
         
+        // Formato de número: #,##0 para miles (Excel lo adapta según la región del usuario)
+        const nFmt = '#,##0';
+        const c = (v: number) => ({ v: Number(v) || 0, t: 'n', z: nFmt });
+
         thirtyDayHistory.forEach(week => {
           wsData.push([
             `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
-            week.Lunes, week.Martes, week.Miércoles, week.Jueves, week.Viernes, week.Sábado,
-            week.Total,
-            week.Total * (historyCommissionPercent / 100)
+            c(week.Lunes), c(week.Martes), c(week.Miércoles), c(week.Jueves), c(week.Viernes), c(week.Sábado),
+            c(week.Total),
+            c(week.Total * (historyCommissionPercent / 100))
           ]);
         });
         
-        wsData.push(['TOTAL RECAUDADO (30 DÍAS)', '', '', '', '', '', '', totals30Dias.recaudo, totals30Dias.comision]);
+        wsData.push([
+          { v: 'TOTAL RECAUDADO (30 DÍAS)', s: { font: { bold: true } } }, 
+          '', '', '', '', '', '', 
+          { ...c(totals30Dias.recaudo), s: { font: { bold: true } } }, 
+          { ...c(totals30Dias.comision), s: { font: { bold: true } } }
+        ]);
         wsData.push([]);
         
         // --- SECCIÓN BALANCE ---
         wsData.push([{ v: 'BALANCE DE RUTA (RECAUDO VS COLOCACIÓN)', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "475569" } } } }]);
         wsData.push(['Superávit/Déficit', totals30Dias.balance > 0 ? 'SUPERÁVIT (Mayor Recaudación)' : totals30Dias.balance < 0 ? 'DÉFICIT (Mayor Colocación)' : 'BALANCE NEUTRO']);
-        wsData.push(['Diferencia Neta', totals30Dias.balance]);
+        wsData.push(['Diferencia Neta', c(totals30Dias.balance)]);
         wsData.push([]);
 
         // --- SECCIÓN COLOCACIÓN ---
@@ -427,12 +436,16 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         thirtyDayColocacionHistory.forEach(week => {
           wsData.push([
             `${formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}`,
-            sumarDia(week.Lunes), sumarDia(week.Martes), sumarDia(week.Miércoles), sumarDia(week.Jueves), sumarDia(week.Viernes), sumarDia(week.Sábado),
-            week.TotalNuevos + week.TotalRenovados
+            c(sumarDia(week.Lunes)), c(sumarDia(week.Martes)), c(sumarDia(week.Miércoles)), c(sumarDia(week.Jueves)), c(sumarDia(week.Viernes)), c(sumarDia(week.Sábado)),
+            c(week.TotalNuevos + week.TotalRenovados)
           ]);
         });
 
-        wsData.push(['TOTAL COLOCADO (30 DÍAS)', '', '', '', '', '', '', totals30Dias.colocacion]);
+        wsData.push([
+          { v: 'TOTAL COLOCADO (30 DÍAS)', s: { font: { bold: true } } }, 
+          '', '', '', '', '', '', 
+          { ...c(totals30Dias.colocacion), s: { font: { bold: true } } }
+        ]);
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         
