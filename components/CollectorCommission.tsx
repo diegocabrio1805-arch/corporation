@@ -473,35 +473,32 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // Aseguramos que los elementos con line-clamp o truncado se vean bien en la captura
+          const elements = clonedDoc.querySelectorAll('.line-clamp-2, .truncate');
+          elements.forEach((el: any) => {
+            el.style.display = 'block';
+            el.style.webkitLineClamp = 'unset';
+            el.style.lineClamp = 'unset';
+            el.style.overflow = 'visible';
+          });
+        }
       });
       
       const imgData = canvas.toDataURL('image/png');
+      
+      // Calculamos dimensiones para un PDF de una sola página larga (evita cortes de filas)
+      const imgWidthmm = 297; // Ancho A4 Horizontal
+      const imgHeightmm = (canvas.height * imgWidthmm) / canvas.width;
+      
       const pdf = new jsPDF({
         orientation: 'l',
         unit: 'mm',
-        format: 'a4'
+        format: [imgWidthmm, imgHeightmm] // Página con altura dinámica
       });
       
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfPageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Primera página
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfPageHeight;
-
-      // Páginas adicionales si el contenido es más largo que una hoja A4
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfPageHeight;
-      }
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidthmm, imgHeightmm);
       
       const collectorName = state.users.find(u => u.id === showCollectorHistoryId)?.name || 'Gestor';
       pdf.save(`Historial_30Dias_${collectorName.replace(/\s+/g, '_')}.pdf`);
@@ -1490,13 +1487,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                              {nuevos.map((n, i) => (
                                <div key={`n-${i}`} className="flex flex-col items-center w-full bg-emerald-50 rounded shadow-sm p-1 border border-emerald-100">
                                  <span className="text-[9px] font-black text-emerald-600"><span className="text-emerald-400">N:</span> {formatCurrency(n.amount, state.settings)}</span>
-                                 <span className="text-[6.5px] uppercase font-bold text-emerald-800 leading-tight text-center break-words max-w-full line-clamp-2 mt-0.5" title={n.name}>{n.name}</span>
+                                 <span className="text-[6.5px] uppercase font-bold text-emerald-800 leading-tight text-center break-words w-full block mt-0.5">{n.name}</span>
                                </div>
                              ))}
                              {renov.map((r, i) => (
                                <div key={`r-${i}`} className="flex flex-col items-center w-full bg-amber-50 rounded shadow-sm p-1 border border-amber-100">
                                  <span className="text-[9px] font-black text-amber-600"><span className="text-amber-400">R:</span> {formatCurrency(r.amount, state.settings)}</span>
-                                 <span className="text-[6.5px] uppercase font-bold text-amber-800 leading-tight text-center break-words max-w-full line-clamp-2 mt-0.5" title={r.name}>{r.name}</span>
+                                 <span className="text-[6.5px] uppercase font-bold text-amber-800 leading-tight text-center break-words w-full block mt-0.5">{r.name}</span>
                                </div>
                              ))}
                            </div>
