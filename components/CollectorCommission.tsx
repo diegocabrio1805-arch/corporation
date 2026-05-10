@@ -468,22 +468,40 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     if (!historyPrintRef.current) return;
     setIsGeneratingImage(true);
     try {
-      const canvas = await html2canvas(historyPrintRef.current, {
+      const element = historyPrintRef.current;
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false
       });
+      
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'l',
         unit: 'mm',
         format: 'a4'
       });
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // Primera página
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfPageHeight;
+
+      // Páginas adicionales si el contenido es más largo que una hoja A4
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfPageHeight;
+      }
       
       const collectorName = state.users.find(u => u.id === showCollectorHistoryId)?.name || 'Gestor';
       pdf.save(`Historial_30Dias_${collectorName.replace(/\s+/g, '_')}.pdf`);
@@ -1359,7 +1377,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               </div>
             </div>
 
-            <div ref={historyPrintRef} className="flex-1 overflow-auto bg-white custom-scrollbar p-6">
+            <div className="flex-1 overflow-auto bg-white custom-scrollbar">
+              <div ref={historyPrintRef} className="p-6">
               <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-money-bill-wave"></i> Recaudo de Cuotas</h4>
               {thirtyDayHistory.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl mb-8">
@@ -1513,6 +1532,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 </table>
               )}
             </div>
+          </div>
             <div className="p-4 bg-slate-50 border-t border-slate-200 text-center md:rounded-b-[2.5rem]">
               <p className="text-[10px] text-slate-500 font-bold uppercase"><i className="fa-solid fa-info-circle mr-1"></i> El total semanal suma exclusivamente los cobros realizados de Lunes a Sábado.</p>
             </div>
