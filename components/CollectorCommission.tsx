@@ -191,6 +191,84 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
   }, [state.collectionLogs, showCollectorHistoryId]);
 
+  const thirtyDayColocacionHistory = useMemo(() => {
+    if (!showCollectorHistoryId) return [];
+
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    const dayOfWeekLimit = thirtyDaysAgo.getDay();
+    const diffToMondayLimit = thirtyDaysAgo.getDate() - dayOfWeekLimit + (dayOfWeekLimit === 0 ? -6 : 1);
+    const startOfLimitWeek = new Date(thirtyDaysAgo);
+    startOfLimitWeek.setDate(diffToMondayLimit);
+    startOfLimitWeek.setHours(0, 0, 0, 0);
+    
+    const collectorLoans = (Array.isArray(state.loans) ? state.loans : []).filter(loan => {
+      if (loan.deletedAt) return false;
+      const loanDate = new Date(loan.createdAt || (loan as any).date);
+      if (loanDate < startOfLimitWeek) return false;
+      const logCollectorId = loan.collectorId || (loan as any).collector_id || loan.branchId; 
+      return logCollectorId === showCollectorHistoryId;
+    });
+
+    const weeksMap = new Map<string, { 
+      weekStart: Date, 
+      weekEnd: Date, 
+      LunesN: number, LunesR: number, 
+      MartesN: number, MartesR: number, 
+      MiércolesN: number, MiércolesR: number, 
+      JuevesN: number, JuevesR: number, 
+      ViernesN: number, ViernesR: number, 
+      SábadoN: number, SábadoR: number, 
+      TotalNuevos: number, TotalRenovados: number 
+    }>();
+
+    collectorLoans.forEach(loan => {
+      const d = new Date(loan.createdAt || (loan as any).date);
+      const dayOfWeek = d.getDay(); 
+      const diffToMonday = d.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const monday = new Date(d);
+      monday.setDate(diffToMonday);
+      monday.setHours(0, 0, 0, 0);
+      const mondayStr = monday.toISOString().split('T')[0];
+
+      if (!weeksMap.has(mondayStr)) {
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        weeksMap.set(mondayStr, {
+          weekStart: monday,
+          weekEnd: sunday,
+          LunesN: 0, LunesR: 0, 
+          MartesN: 0, MartesR: 0, 
+          MiércolesN: 0, MiércolesR: 0, 
+          JuevesN: 0, JuevesR: 0, 
+          ViernesN: 0, ViernesR: 0, 
+          SábadoN: 0, SábadoR: 0, 
+          TotalNuevos: 0, TotalRenovados: 0
+        });
+      }
+
+      const weekData = weeksMap.get(mondayStr)!;
+      const amount = Number(loan.principal) || 0;
+      const isR = loan.isRenewal;
+      
+      if (dayOfWeek === 1) { if (isR) weekData.LunesR += amount; else weekData.LunesN += amount; }
+      else if (dayOfWeek === 2) { if (isR) weekData.MartesR += amount; else weekData.MartesN += amount; }
+      else if (dayOfWeek === 3) { if (isR) weekData.MiércolesR += amount; else weekData.MiércolesN += amount; }
+      else if (dayOfWeek === 4) { if (isR) weekData.JuevesR += amount; else weekData.JuevesN += amount; }
+      else if (dayOfWeek === 5) { if (isR) weekData.ViernesR += amount; else weekData.ViernesN += amount; }
+      else if (dayOfWeek === 6) { if (isR) weekData.SábadoR += amount; else weekData.SábadoN += amount; }
+      
+      if (dayOfWeek >= 1 && dayOfWeek <= 6) {
+        if (isR) weekData.TotalRenovados += amount;
+        else weekData.TotalNuevos += amount;
+      }
+    });
+
+    return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+  }, [state.loans, showCollectorHistoryId]);
+
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
       (u.role === Role.COLLECTOR) && (u.id === currentUserId || u.managedBy === currentUserId)
@@ -1139,11 +1217,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             </div>
 
             <div className="flex-1 overflow-auto bg-white custom-scrollbar p-6">
+              <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-money-bill-wave"></i> Recaudo de Cuotas</h4>
               {thirtyDayHistory.length === 0 ? (
-                <div className="text-center py-10 text-slate-400 font-bold uppercase text-sm">
+                <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl mb-8">
                   No hay cobros registrados en los últimos 30 días para este gestor.
                 </div>
               ) : (
+                <div className="mb-10">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead className="bg-slate-100 rounded-t-xl">
                     <tr className="text-[10px] font-black text-slate-600 uppercase">
@@ -1174,6 +1254,61 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         <td className="px-4 py-4 text-right font-mono text-emerald-700 font-black bg-emerald-50/30">{formatCurrency(week.Total * (historyCommissionPercent / 100), state.settings)}</td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+                </div>
+              )}
+
+              <h4 className="text-sm font-black text-orange-600 uppercase tracking-widest mt-6 mb-4 flex items-center gap-2 pt-4 border-t border-slate-100"><i className="fa-solid fa-hand-holding-dollar"></i> Colocación (Capital Prestado)</h4>
+              {thirtyDayColocacionHistory.length === 0 ? (
+                <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl">
+                  No hay créditos entregados en los últimos 30 días para este gestor.
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse min-w-[1000px]">
+                  <thead className="bg-slate-100 rounded-t-xl">
+                    <tr className="text-[10px] font-black text-slate-600 uppercase">
+                      <th className="px-4 py-4 rounded-tl-xl">Semana Del</th>
+                      <th className="px-4 py-4 text-center">Lunes</th>
+                      <th className="px-4 py-4 text-center">Martes</th>
+                      <th className="px-4 py-4 text-center">Miércoles</th>
+                      <th className="px-4 py-4 text-center">Jueves</th>
+                      <th className="px-4 py-4 text-center">Viernes</th>
+                      <th className="px-4 py-4 text-center">Sábado</th>
+                      <th className="px-4 py-4 text-right text-orange-700 bg-orange-50 rounded-tr-xl">Total Colocado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {thirtyDayColocacionHistory.map((week, idx) => {
+                      const showDay = (nuevos: number, renov: number) => {
+                         if (nuevos === 0 && renov === 0) return <span className="text-slate-300">-</span>;
+                         return (
+                           <div className="flex flex-col gap-1 items-center font-mono">
+                             {nuevos > 0 && <span className="text-[9px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded shadow-sm w-full" title="Nuevo Cliente"><span className="text-emerald-400">N:</span> {formatCurrency(nuevos, state.settings)}</span>}
+                             {renov > 0 && <span className="text-[9px] font-black bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded shadow-sm w-full" title="Renovación"><span className="text-amber-400">R:</span> {formatCurrency(renov, state.settings)}</span>}
+                           </div>
+                         );
+                      };
+                      return (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
+                        <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
+                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country)}
+                        </td>
+                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.LunesN, week.LunesR)}</td>
+                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.MartesN, week.MartesR)}</td>
+                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.MiércolesN, week.MiércolesR)}</td>
+                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.JuevesN, week.JuevesR)}</td>
+                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.ViernesN, week.ViernesR)}</td>
+                        <td className="px-4 py-4 text-center min-w-[120px]">{showDay(week.SábadoN, week.SábadoR)}</td>
+                        <td className="px-4 py-4 text-right font-mono text-orange-700 bg-orange-50/30 w-40">
+                          <span className="text-sm font-black block leading-none">{formatCurrency(week.TotalNuevos + week.TotalRenovados, state.settings)}</span>
+                          <div className="flex flex-col gap-0.5 mt-2 text-[8px] font-bold uppercase tracking-wider text-orange-800/60">
+                             {week.TotalNuevos > 0 && <span>+ Nuevos: {formatCurrency(week.TotalNuevos, state.settings)}</span>}
+                             {week.TotalRenovados > 0 && <span>+ Renov.: {formatCurrency(week.TotalRenovados, state.settings)}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    )})}
                   </tbody>
                 </table>
               )}
