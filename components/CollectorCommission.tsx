@@ -271,6 +271,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     return Array.from(weeksMap.values()).sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
   }, [state.loans, showCollectorHistoryId, state.clients]);
 
+  const totals30Dias = useMemo(() => {
+    const recaudo = thirtyDayHistory.reduce((acc, curr) => acc + curr.Total, 0);
+    const comision = thirtyDayHistory.reduce((acc, curr) => acc + (curr.Total * (historyCommissionPercent / 100)), 0);
+    const colocacion = thirtyDayColocacionHistory.reduce((acc, curr) => acc + curr.TotalNuevos + curr.TotalRenovados, 0);
+    const balance = recaudo - colocacion;
+    return { recaudo, colocacion, balance, comision };
+  }, [thirtyDayHistory, thirtyDayColocacionHistory, historyCommissionPercent]);
+
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
       (u.role === Role.COLLECTOR) && (u.id === currentUserId || u.managedBy === currentUserId)
@@ -1257,7 +1265,44 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="bg-blue-100/50">
+                    <tr>
+                      <td colSpan={7} className="px-4 py-4 text-right font-black text-blue-800 uppercase text-[10px] tracking-widest">TOTAL RECAUDADO (30 DÍAS):</td>
+                      <td className="px-4 py-4 text-right font-black font-mono text-blue-700 text-sm bg-blue-100">{formatCurrency(totals30Dias.recaudo, state.settings)}</td>
+                      <td className="px-4 py-4 text-right font-black font-mono text-emerald-700 text-sm bg-emerald-100">{formatCurrency(totals30Dias.comision, state.settings)}</td>
+                    </tr>
+                  </tfoot>
                 </table>
+                </div>
+              )}
+
+              {/* BALANCE BANNER */}
+              {(thirtyDayHistory.length > 0 || thirtyDayColocacionHistory.length > 0) && (
+                <div className={`my-8 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between border-2 shadow-sm transition-all ${totals30Dias.balance > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : totals30Dias.balance < 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-slate-50 border-slate-200 text-slate-800'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-inner ${totals30Dias.balance > 0 ? 'bg-emerald-200 text-emerald-700' : totals30Dias.balance < 0 ? 'bg-red-200 text-red-700' : 'bg-slate-200 text-slate-700'}`}>
+                      <i className={`fa-solid ${totals30Dias.balance > 0 ? 'fa-arrow-trend-up' : totals30Dias.balance < 0 ? 'fa-arrow-trend-down' : 'fa-minus'}`}></i>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Balance de Ruta (30 Días)</p>
+                      <h4 className="text-xl font-black tracking-tight">
+                        {totals30Dias.balance > 0 ? '🟢 SUPERÁVIT (Mayor Recaudación)' : totals30Dias.balance < 0 ? '🔴 DÉFICIT (Mayor Colocación)' : '⚪ BALANCE NEUTRO'}
+                      </h4>
+                      <p className="text-xs font-bold opacity-80 mt-1">
+                        {totals30Dias.balance > 0 
+                          ? 'El gestor ingresó más dinero del que entregó en créditos.' 
+                          : totals30Dias.balance < 0 
+                            ? 'El gestor entregó más dinero en créditos del que logró cobrar.' 
+                            : 'El dinero que entró fue exactamente el mismo que salió.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right mt-4 md:mt-0 bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Diferencia Neta</p>
+                    <p className="text-3xl font-black font-mono">
+                      {totals30Dias.balance > 0 ? '+' : totals30Dias.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(totals30Dias.balance), state.settings)}
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -1326,6 +1371,12 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       </tr>
                     )})}
                   </tbody>
+                  <tfoot className="bg-orange-100/50">
+                    <tr>
+                      <td colSpan={7} className="px-4 py-4 text-right font-black text-orange-800 uppercase text-[10px] tracking-widest">TOTAL COLOCADO (30 DÍAS):</td>
+                      <td className="px-4 py-4 text-right font-black font-mono text-orange-700 text-sm bg-orange-100">{formatCurrency(totals30Dias.colocacion, state.settings)}</td>
+                    </tr>
+                  </tfoot>
                 </table>
               )}
             </div>
