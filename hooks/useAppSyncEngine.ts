@@ -465,18 +465,18 @@ export const useAppSyncEngine = (
 
       const visibleClientIds = new Set(clients.map(c => c.id));
 
-      // 3. Filtrar préstamos: Solo los que pertenecen a este cobrador
-      loans = loans.filter(l => (l.collectorId || (l as any).collector_id) === user.id);
+      // 3. Filtrar préstamos: Todos los préstamos de mis clientes visibles
+      loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));
       const visibleLoanIds = new Set(loans.map(l => l.id));
 
-      // 4. Filtrar pagos y logs: Solo los vinculados a mis préstamos visibles o creados por mi
+      // 4. Filtrar pagos y logs: Todos los pagos vinculados a mis clientes/préstamos visibles
       payments = payments.filter(p => 
-        visibleLoanIds.has(p.loanId || (p as any).loan_id) || 
-        (p.collectorId || (p as any).collector_id) === user.id
+        visibleClientIds.has(p.clientId || (p as any).client_id) ||
+        visibleLoanIds.has(p.loanId || (p as any).loan_id)
       );
 
       collectionLogs = collectionLogs.filter(log => 
-        (log.clientId && visibleClientIds.has(log.clientId) && (log.recordedBy || (log as any).recorded_by) === user.id) ||
+        (log.clientId && visibleClientIds.has(log.clientId)) ||
         (log.type === CollectionLogType.DELETED_PAYMENT && (log.recordedBy || (log as any).recorded_by) === user.id)
       );
 
