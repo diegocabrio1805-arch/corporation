@@ -428,53 +428,44 @@ export const useAppSyncEngine = (
     });
 
     if (user.role === Role.COLLECTOR) {
-      // 1. Determinar el "Dueño Actual" de cada cliente (Prioridad: Préstamo Activo/Mora > Préstamo más reciente)
-      const clientOwnerMap = new Map<string, string>();
-      const clientLatestLoanDate = new Map<string, string>();
-      const clientHasActiveLoan = new Map<string, boolean>();
-      
-      // 0. El dueño base es quien creó al cliente
-      clients.forEach(c => {
-        const creatorId = c.addedBy || (c as any).added_by;
-        if (creatorId) clientOwnerMap.set(c.id, creatorId);
-      });
+      // 1. Identificar clientes con préstamos activos y quién es su dueño
+      const clientHasActiveLoanByOther = new Set<string>();
+      const clientsOwnedByMe = new Set<string>();
       
       const allLoansInState = Array.isArray(state.loans) ? state.loans : [];
       allLoansInState.forEach(l => {
         const cId = l.clientId || (l as any).client_id;
-        const collId = l.collectorId || (l as any).collector_id;
+        const collId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
         const status = l.status;
-        const createdAt = l.createdAt || (l as any).created_at || '';
-        
         const isActive = status === LoanStatus.ACTIVE || status === LoanStatus.DEFAULT;
         
         if (isActive) {
-          // Si hay préstamo activo, ese cobrador es el dueño actual
-          clientOwnerMap.set(cId, collId);
-          clientHasActiveLoan.set(cId, true);
-        } else if (!clientHasActiveLoan.get(cId)) {
-          // Si no hay préstamo activo (aún), el dueño es el del préstamo más reciente
-          const latestDate = clientLatestLoanDate.get(cId) || '';
-          if (createdAt >= latestDate) {
-            clientLatestLoanDate.set(cId, createdAt);
-            clientOwnerMap.set(cId, collId);
+          if (collId === user.id.toLowerCase()) {
+            clientsOwnedByMe.add(cId);
+          } else {
+            clientHasActiveLoanByOther.add(cId);
           }
         }
       });
 
-      // 2. Filtrar clientes basados en el dueño actual o si el cobrador lo creó
+      // 2. Filtrar clientes: Los que poseo activamente OR los que creé y nadie más posee activamente
       clients = clients.filter(c => {
-        const isOwner = clientOwnerMap.get(c.id) === user.id;
-        return isOwner;
+        if (clientsOwnedByMe.has(c.id)) return true;
+        
+        const isCreator = (c.addedBy || (c as any).added_by || '').toLowerCase() === user.id.toLowerCase();
+        // Si soy el creador, lo veo siempre y cuando no haya otro cobrador con un préstamo activo que me lo haya "quitado"
+        if (isCreator && !clientHasActiveLoanByOther.has(c.id)) return true;
+        
+        return false;
       });
 
       const visibleClientIds = new Set(clients.map(c => c.id));
 
-      // 3. Filtrar préstamos: Todos los préstamos de mis clientes visibles
+      // 3. Filtrar préstamos: Todos los préstamos de mis clientes visibles (Unifica saldos con Admin)
       loans = loans.filter(l => visibleClientIds.has(l.clientId || (l as any).client_id));
       const visibleLoanIds = new Set(loans.map(l => l.id));
 
-      // 4. Filtrar pagos y logs: Todos los pagos vinculados a mis clientes/préstamos visibles
+      // 4. Filtrar pagos y logs: Todos los registros vinculados a mis clientes/préstamos visibles
       payments = payments.filter(p => 
         visibleClientIds.has(p.clientId || (p as any).client_id) ||
         visibleLoanIds.has(p.loanId || (p as any).loan_id)
