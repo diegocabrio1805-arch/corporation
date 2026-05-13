@@ -428,40 +428,25 @@ export const useAppSyncEngine = (
     });
 
     if (user.role === Role.COLLECTOR) {
-      // 1. Identificar clientes con préstamos activos y quién es su dueño
-      const clientHasActiveLoanByOther = new Set<string>();
-      const clientsOwnedByMe = new Set<string>();
-      
+      // 1. Identificar IDs de clientes donde el cobrador tiene préstamos asignados (activos o pasados)
+      const involvedClientIds = new Set<string>();
       const allLoansInState = Array.isArray(state.loans) ? state.loans : [];
+      
       allLoansInState.forEach(l => {
-        const cId = l.clientId || (l as any).client_id;
         const collId = (l.collectorId || (l as any).collector_id || '').toLowerCase();
-        const status = l.status;
-        const isActive = status === LoanStatus.ACTIVE || status === LoanStatus.DEFAULT;
-        
-        if (isActive) {
-          if (collId === user.id.toLowerCase()) {
-            clientsOwnedByMe.add(cId);
-          } else {
-            clientHasActiveLoanByOther.add(cId);
-          }
+        if (collId === user.id.toLowerCase()) {
+          involvedClientIds.add(l.clientId || (l as any).client_id);
         }
       });
 
-      // 2. Filtrar clientes: Directamente asignados OR poseídos activamente OR creados por mí (si no hay otro dueño activo)
+      // 2. Filtrar clientes: Creador OR Dueño Directo OR Involucrado en Préstamos
       clients = clients.filter(c => {
-        // A. Asignación directa en el registro del cliente
-        const directOwner = (c.collectorId || (c as any).collector_id || '').toLowerCase();
-        if (directOwner === user.id.toLowerCase()) return true;
-
-        // B. Posesión vía préstamo activo/mora
-        if (clientsOwnedByMe.has(c.id)) return true;
+        const myId = user.id.toLowerCase();
+        const isCreator = (c.addedBy || (c as any).added_by || '').toLowerCase() === myId;
+        const isDirectOwner = (c.collectorId || (c as any).collector_id || '').toLowerCase() === myId;
+        const isInvolved = involvedClientIds.has(c.id);
         
-        // C. Creador original (fallback si no hay préstamos activos de terceros)
-        const isCreator = (c.addedBy || (c as any).added_by || '').toLowerCase() === user.id.toLowerCase();
-        if (isCreator && !clientHasActiveLoanByOther.has(c.id)) return true;
-        
-        return false;
+        return isCreator || isDirectOwner || isInvolved;
       });
 
       const visibleClientIds = new Set(clients.map(c => c.id));
