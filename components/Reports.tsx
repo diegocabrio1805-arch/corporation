@@ -40,7 +40,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    // --- ESTADOS PARA EVITAR PARPADEO DEL MAPA ---
    const [mapData, setMapData] = useState<CollectionLog[]>([]);
    const lastMapUpdate = useRef<number>(0);
-   const lastManualAction = useRef<number>(0); 
+   const lastManualAction = useRef<number>(0);
+   const markerRefs = useRef<Map<string, any>>(new Map()); // log.id → L.Marker
 
    // HELPER: Robust Collector Assignment Match
    const checkLoanAssignment = (loan: any, targetId: string) => {
@@ -313,6 +314,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       if (layerGroup.current) {
          layerGroup.current.clearLayers();
+         markerRefs.current.clear();
 
          if (mapData.length === 0) {
             setStats({ totalStops: 0, devilStops: 0, totalDistance: 0 });
@@ -395,7 +397,11 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                let emoji = '😡';
                let distanceNote = '';
 
-               if (isPayment && log.isVirtual) {
+               if (isRenewal) {
+                  bgColor = '#3b82f6'; // Blue (Liquidation)
+                  borderColor = '#1e40af';
+                  emoji = '😇';
+               } else if (isPayment && log.isVirtual) {
                   bgColor = '#38bdf8'; // Celeste (Transferencia)
                   borderColor = '#0369a1';
                   emoji = '😊';
@@ -403,10 +409,6 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   bgColor = '#10b981'; // Emerald (Efectivo)
                   borderColor = '#065f46';
                   emoji = '😊';
-               } else if (isRenewal) {
-                  bgColor = '#3b82f6'; // Blue (Liquidation)
-                  borderColor = '#1e40af';
-                  emoji = '😇';
                } else if (isNoPayment) {
                   // Verificar distancia entre el registro y la casa del cliente
                   const clientLat = client?.location?.lat;
@@ -506,7 +508,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   popupAnchor: [0, -30]
                });
 
-               L.marker([lat, lng], { icon: googleIcon })
+               const marker = L.marker([lat, lng], { icon: googleIcon })
                   .bindPopup(`
                     <div style="min-width: 170px; text-align: center;">
                         <h4 style="margin:0; font-weight:900; color:#1e293b; font-size:12px;">${client?.name}</h4>
@@ -517,6 +519,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                     </div>
                   `)
                   .addTo(layerGroup.current);
+               markerRefs.current.set(log.id, marker);
             }
 
             if (index === 0 && !openingLog) {
@@ -1194,6 +1197,23 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
    return (
       <div className="h-full flex flex-col space-y-4 animate-fadeIn pb-20">
+         <style>{`
+            @keyframes markerBounce {
+               0%   { margin-top: 0px;   filter: drop-shadow(0 6px 4px rgba(0,0,0,0.45)); }
+               18%  { margin-top: -42px; filter: drop-shadow(0 36px 14px rgba(0,0,0,0.12)); }
+               32%  { margin-top: 5px;   filter: drop-shadow(0 2px 2px rgba(0,0,0,0.55)); }
+               48%  { margin-top: -26px; filter: drop-shadow(0 24px 10px rgba(0,0,0,0.15)); }
+               62%  { margin-top: 3px;   filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5)); }
+               75%  { margin-top: -13px; filter: drop-shadow(0 14px 8px rgba(0,0,0,0.18)); }
+               86%  { margin-top: 0px;   filter: drop-shadow(0 6px 4px rgba(0,0,0,0.45)); }
+               93%  { margin-top: -5px;  filter: drop-shadow(0 8px 5px rgba(0,0,0,0.3)); }
+               100% { margin-top: 0px;   filter: drop-shadow(0 6px 4px rgba(0,0,0,0.45)); }
+            }
+            .marker-bounce {
+               animation: markerBounce 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.97) 3;
+               z-index: 9999 !important;
+            }
+         `}</style>
          {/* --- AI AUDIT MODAL --- */}
          {showAiModal && (
             <div className="fixed inset-0 z-50 flex items-start pt-10 md:pt-20 justify-center p-4 bg-slate-900/98 animate-fadeIn overflow-y-auto">
@@ -1536,9 +1556,27 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                            }
 
                            const label = isRenewal ? 'Liquidado' : isPayment ? (log.isVirtual ? 'Transferencia' : 'Cobrado') : 'No Pago';
+                           const hasMapMarker = !!(log.location && log.location.lat !== 0 && markerRefs.current.has(log.id));
+
+                           const handleRowClick = () => {
+                              const m = markerRefs.current.get(log.id);
+                              if (!m || !leafletMap.current) return;
+                              leafletMap.current.flyTo(m.getLatLng(), 18, { animate: true, duration: 0.8 });
+                              const el = m.getElement();
+                              if (el) {
+                                 el.classList.add('marker-bounce');
+                                 setTimeout(() => el.classList.remove('marker-bounce'), 2600);
+                              }
+                              setTimeout(() => m.openPopup(), 850);
+                           };
 
                            return (
-                              <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                              <tr
+                                 key={log.id}
+                                 onClick={hasMapMarker ? handleRowClick : undefined}
+                                 className={`transition-colors ${hasMapMarker ? 'hover:bg-blue-50/60 cursor-pointer' : 'hover:bg-slate-50/50'}`}
+                                 title={hasMapMarker ? '📍 Clic para ver en el mapa' : ''}
+                              >
                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
                                  <td className="px-6 py-4">
                                     <span className={`flex items-center gap-2 text-[10px] font-black uppercase ${colorClass}`}>
@@ -1585,3 +1623,4 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 };
 
 export default Reports;
+
