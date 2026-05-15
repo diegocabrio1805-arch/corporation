@@ -724,9 +724,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          else if (daysSinceVisit >= 8) gapStatus = 'ALERTA';
          else if (daysSinceVisit >= 4) gapStatus = 'ATENCIÓN';
 
-         // Último pago real del cliente
+         // Último pago real del préstamo ACTIVO
          const lastPaymentLog = allClientLogs
-            .filter(l => l.type === CollectionLogType.PAYMENT)
+            .filter(l => normalizeId(l.loanId) === normalizeId(activeLoan.id) && l.type === CollectionLogType.PAYMENT)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
          const lastPaymentDays = lastPaymentLog
             ? Math.floor((today.getTime() - new Date(lastPaymentLog.date).getTime()) / (1000 * 60 * 60 * 24))
