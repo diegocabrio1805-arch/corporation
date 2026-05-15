@@ -419,7 +419,6 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                      bgColor = '#ff6a00';
                      borderColor = '#cc5500';
                      emoji = '👀';
-                     distanceNote = 'Sin ubicación del cliente';
                   } else if (hasLogLocation) {
                      const dist = calculateDistance(lat, lng, clientLat, clientLng) * 1000; // en metros
                      if (dist <= 50) {
@@ -427,42 +426,59 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         bgColor = '#ef4444';
                         borderColor = '#991b1b';
                         emoji = '😡';
-                        distanceNote = `${Math.round(dist)}m de la casa`;
                      } else {
                         // Fuera de 50m → naranja oscuro (no fue a la casa)
                         bgColor = '#f97316';
                         borderColor = '#c2410c';
                         emoji = '😤';
-                        distanceNote = `${Math.round(dist)}m de la casa ⚠️`;
                      }
                   } else {
                      // Sin GPS en el log → naranja fosforescente
                      bgColor = '#ff6a00';
                      borderColor = '#cc5500';
                      emoji = '👀';
-                     distanceNote = 'Sin GPS en el registro';
                   }
                }
 
-               // Calcular distancia para PAGOS también
-               if (isPayment) {
-                  const clientLat = client?.location?.lat;
-                  const clientLng = client?.location?.lng;
-                  const hasClientLocation = clientLat && clientLng && (Math.abs(clientLat) > 0.1 || Math.abs(clientLng) > 0.1);
-                  const hasLogLocation = log.location && log.location.lat !== 0 && log.location.lng !== 0;
+               // ── Calcular distancias CASA y NEGOCIO para el popup (todos los tipos) ──
+               const hasLogLoc = log.location && log.location.lat !== 0 && log.location.lng !== 0;
 
-                  if (!hasClientLocation) {
-                     distanceNote = 'Sin ubicación del cliente';
-                  } else if (hasLogLocation) {
-                     const distM = calculateDistance(lat, lng, clientLat, clientLng) * 1000;
-                     if (distM >= 1000) {
-                        distanceNote = `${(distM / 1000).toFixed(1)} km de la casa`;
-                     } else {
-                        distanceNote = `${Math.round(distM)}m de la casa`;
-                     }
-                  } else {
-                     distanceNote = 'Sin GPS en el registro';
+               // Casa
+               const homeLat = client?.location?.lat;
+               const homeLng = client?.location?.lng;
+               const hasHomeLoc = homeLat && homeLng && (Math.abs(homeLat) > 0.1 || Math.abs(homeLng) > 0.1);
+
+               // Negocio (domicilioLocation)
+               const bizLat = client?.domicilioLocation?.lat;
+               const bizLng = client?.domicilioLocation?.lng;
+               const hasBizLoc = bizLat && bizLng && (Math.abs(bizLat) > 0.1 || Math.abs(bizLng) > 0.1);
+
+               const fmtDist = (meters: number) => meters >= 1000
+                  ? `${(meters / 1000).toFixed(1)}km`
+                  : `${Math.round(meters)}m`;
+
+               let homePart = 'S/UBI CASA';
+               let bizPart = 'S/UBI NEGOCIO';
+
+               if (!hasLogLoc) {
+                  homePart = 'SIN GPS';
+                  bizPart = 'SIN GPS';
+               } else {
+                  if (hasHomeLoc) {
+                     const d = calculateDistance(lat, lng, homeLat, homeLng) * 1000;
+                     homePart = `${fmtDist(d)} de la casa`;
                   }
+                  if (hasBizLoc) {
+                     const d = calculateDistance(lat, lng, bizLat, bizLng) * 1000;
+                     bizPart = `${fmtDist(d)} del negocio`;
+                  }
+               }
+
+               // Para NO PAGO sin ubicación del cliente
+               if (isNoPayment && !hasHomeLoc && !hasBizLoc) {
+                  distanceNote = 'Sin ubicación del cliente';
+               } else {
+                  distanceNote = `${homePart} / ${bizPart}`;
                }
 
                const markerHtml = `
@@ -492,12 +508,12 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
                L.marker([lat, lng], { icon: googleIcon })
                   .bindPopup(`
-                    <div style="min-width: 160px; text-align: center;">
+                    <div style="min-width: 170px; text-align: center;">
                         <h4 style="margin:0; font-weight:900; color:#1e293b; font-size:12px;">${client?.name}</h4>
                         <p style="margin:4px 0; font-size:14px; font-weight:bold; color:${bgColor}">${isRenewal ? 'LIQUIDACIÓN' : log.type}</p>
                         <p style="margin:0; font-size:10px; color:#64748b;">${timeStr}</p>
                         ${log.amount ? `<p style="margin-top:4px; font-weight:900; font-family:monospace;">${formatCurrency(log.amount, activeSettings)}</p>` : ''}
-                        ${distanceNote ? `<p style="margin-top:6px; font-size:10px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px;">📍 ${distanceNote}</p>` : ''}
+                        ${distanceNote ? `<p style="margin-top:6px; font-size:9px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px; line-height:1.6;">📍 ${distanceNote}</p>` : ''}
                     </div>
                   `)
                   .addTo(layerGroup.current);

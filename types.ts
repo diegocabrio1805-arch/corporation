@@ -111,6 +111,10 @@ export interface Client {
     lat: number;
     lng: number;
   };
+  businessLocation?: {
+    lat: number;
+    lng: number;
+  };
   creditLimit: number;
   allowCollectorLocationUpdate?: boolean;
   customNoPayMessage?: string;

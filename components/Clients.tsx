@@ -1160,25 +1160,26 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     }
   };
 
-  const handleCaptureLocation = async (type: 'home' | 'domicilio', forEdit: boolean = false) => {
+  const handleCaptureLocation = async (type: 'home' | 'domicilio' | 'business', forEdit: boolean = false) => {
     setIsCapturing(true);
     setCapturingType(type);
+    const fieldName = type === 'home' ? 'location' : type === 'business' ? 'businessLocation' : 'domicilioLocation';
     try {
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 });
       const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       if (forEdit && editClientFormData) {
-        setEditClientFormData(prev => prev ? { ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: newLoc } : null);
+        setEditClientFormData(prev => prev ? { ...prev, [fieldName]: newLoc } : null);
       } else {
-        setClientData(prev => ({ ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: newLoc }));
+        setClientData(prev => ({ ...prev, [fieldName]: newLoc }));
       }
     } catch (err: any) {
       try {
         const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
         const fbLoc = { lat: fb.coords.latitude, lng: fb.coords.longitude };
         if (forEdit && editClientFormData) {
-          setEditClientFormData(prev => prev ? { ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: fbLoc } : null);
+          setEditClientFormData(prev => prev ? { ...prev, [fieldName]: fbLoc } : null);
         } else {
-          setClientData(prev => ({ ...prev, [type === 'home' ? 'location' : 'domicilioLocation']: fbLoc }));
+          setClientData(prev => ({ ...prev, [fieldName]: fbLoc }));
         }
       } catch (fallbackErr: any) {
         alert("Error GPS: " + fallbackErr.message);
