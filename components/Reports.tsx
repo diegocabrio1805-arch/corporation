@@ -1196,7 +1196,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
    };
 
    return (
-      <div className="h-full flex flex-col space-y-4 animate-fadeIn pb-20">
+      <div className="min-h-screen flex flex-col space-y-6 animate-fadeIn pb-20 bg-slate-50 p-4 md:p-10">
          <style>{`
             @keyframes markerBounce {
                0%   { margin-top: 0px;   filter: drop-shadow(0 6px 4px rgba(0,0,0,0.45)); }
@@ -1212,6 +1212,21 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             .marker-bounce {
                animation: markerBounce 0.85s cubic-bezier(0.36, 0.07, 0.19, 0.97) 3;
                z-index: 9999 !important;
+            }
+            .scrollbar-premium::-webkit-scrollbar {
+               width: 8px;
+            }
+            .scrollbar-premium::-webkit-scrollbar-track {
+               background: #f1f5f9;
+               border-radius: 10px;
+            }
+            .scrollbar-premium::-webkit-scrollbar-thumb {
+               background: #cbd5e1;
+               border-radius: 10px;
+               border: 2px solid #f1f5f9;
+            }
+            .scrollbar-premium::-webkit-scrollbar-thumb:hover {
+               background: #94a3b8;
             }
          `}</style>
          {/* --- AI AUDIT MODAL --- */}
@@ -1488,7 +1503,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{routeData.length} Registros</span>
                </div>
 
-               <div className="overflow-x-auto">
+               <div className="overflow-auto max-h-[450px] scrollbar-premium">
                   <table className="w-full text-left">
                      <thead>
                         <tr className="bg-slate-50 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">
