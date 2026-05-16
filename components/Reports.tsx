@@ -511,6 +511,13 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                const marker = L.marker([lat, lng], { icon: googleIcon })
                   .bindPopup(`
                     <div style="min-width: 170px; text-align: center;">
+                        <p 
+                            onclick="var el = this; navigator.clipboard.writeText('${lat.toFixed(6)}, ${lng.toFixed(6)}').then(function(){ el.innerHTML = '✅ COPIADO'; el.style.backgroundColor = '#dcfce7'; el.style.color = '#166534'; setTimeout(function(){ el.innerHTML = '🛰️ ${lat.toFixed(6)}, ${lng.toFixed(6)}'; el.style.backgroundColor = '#f1f5f9'; el.style.color = '#475569'; }, 1500); })"
+                            title="Clic para copiar al portapapeles"
+                            style="cursor:pointer; margin:0 auto 6px auto; font-size:9px; font-family:monospace; color:#475569; font-weight:black; letter-spacing:-0.2px; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block; border:1px solid #e2e8f0; transition:all 0.2s;"
+                        >
+                            🛰️ ${lat.toFixed(6)}, ${lng.toFixed(6)}
+                        </p>
                         <h4 style="margin:0; font-weight:900; color:#1e293b; font-size:12px;">${client?.name}</h4>
                         <p style="margin:4px 0; font-size:14px; font-weight:bold; color:${bgColor}">${isRenewal ? 'LIQUIDACIÓN' : log.type}</p>
                         <p style="margin:0; font-size:10px; color:#64748b;">${timeStr}</p>
