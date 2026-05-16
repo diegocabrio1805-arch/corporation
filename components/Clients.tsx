@@ -2917,9 +2917,41 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-circle-check"></i>}
                           MARCAR GPS CASA
                         </button>
-                        {clientData.location && (
-                          <div className="px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[8px] font-black uppercase text-center animate-fadeIn">
-                            COORD: {clientData.location.lat.toFixed(6)}, {clientData.location.lng.toFixed(6)}
+                        {clientData.location ? (
+                          <div className="mt-2 space-y-1 animate-fadeIn">
+                            <div className="text-[7px] font-black text-emerald-600/70 uppercase tracking-widest text-center">Editar Ubicación</div>
+                            <div 
+                              onClick={() => {
+                                const input = window.prompt("Editar coordenadas CASA (lat, lng):", `${clientData.location?.lat}, ${clientData.location?.lng}`);
+                                if (input) {
+                                  const parts = input.split(',');
+                                  if (parts.length >= 2) {
+                                    setClientData({...clientData, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  }
+                                }
+                              }}
+                              className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-[10px] font-mono font-bold uppercase text-center cursor-pointer hover:bg-emerald-100 shadow-sm transition-all block"
+                            >
+                              {clientData.location.lat.toFixed(6)}, {clientData.location.lng.toFixed(6)} <i className="fa-solid fa-pen ml-1 opacity-50"></i>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 space-y-1">
+                            <div className="text-[7px] font-black text-emerald-600/70 uppercase tracking-widest text-center">Coordenadas Manuales</div>
+                            <div 
+                              onClick={() => {
+                                const input = window.prompt("Ingresar coordenadas CASA (lat, lng):");
+                                if (input) {
+                                  const parts = input.split(',');
+                                  if (parts.length >= 2) {
+                                    setClientData({...clientData, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  }
+                                }
+                              }}
+                              className="p-2 border border-dashed border-emerald-500/40 rounded-xl text-[10px] font-black text-emerald-600/90 uppercase text-center cursor-pointer hover:border-emerald-500/70 hover:text-emerald-700 hover:bg-emerald-600/10 transition-all block"
+                            >
+                              <i className="fa-solid fa-keyboard mr-1"></i> INGRESAR
+                            </div>
                           </div>
                         )}
                       </div>
@@ -2928,9 +2960,41 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>}
                           MARCAR GPS NEGOCIO
                         </button>
-                        {clientData.domicilioLocation && (
-                          <div className="px-3 py-2 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-[8px] font-black uppercase text-center animate-fadeIn">
-                            COORD: {clientData.domicilioLocation.lat.toFixed(6)}, {clientData.domicilioLocation.lng.toFixed(6)}
+                        {clientData.domicilioLocation ? (
+                          <div className="mt-2 space-y-1 animate-fadeIn">
+                            <div className="text-[7px] font-black text-blue-600/70 uppercase tracking-widest text-center">Editar Ubicación</div>
+                            <div 
+                              onClick={() => {
+                                const input = window.prompt("Editar coordenadas NEGOCIO (lat, lng):", `${clientData.domicilioLocation?.lat}, ${clientData.domicilioLocation?.lng}`);
+                                if (input) {
+                                  const parts = input.split(',');
+                                  if (parts.length >= 2) {
+                                    setClientData({...clientData, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  }
+                                }
+                              }}
+                              className="p-2 bg-blue-50 text-blue-800 border border-blue-200 rounded-xl text-[10px] font-mono font-bold uppercase text-center cursor-pointer hover:bg-blue-100 shadow-sm transition-all block"
+                            >
+                              {clientData.domicilioLocation.lat.toFixed(6)}, {clientData.domicilioLocation.lng.toFixed(6)} <i className="fa-solid fa-pen ml-1 opacity-50"></i>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 space-y-1">
+                            <div className="text-[7px] font-black text-blue-600/70 uppercase tracking-widest text-center">Coordenadas Manuales</div>
+                            <div 
+                              onClick={() => {
+                                const input = window.prompt("Ingresar coordenadas NEGOCIO (lat, lng):");
+                                if (input) {
+                                  const parts = input.split(',');
+                                  if (parts.length >= 2) {
+                                    setClientData({...clientData, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }});
+                                  }
+                                }
+                              }}
+                              className="p-2 border border-dashed border-blue-500/40 rounded-xl text-[10px] font-black text-blue-600/90 uppercase text-center cursor-pointer hover:border-blue-500/70 hover:text-blue-700 hover:bg-blue-600/10 transition-all block"
+                            >
+                              <i className="fa-solid fa-keyboard mr-1"></i> INGRESAR
+                            </div>
                           </div>
                         )}
                       </div>
@@ -3573,13 +3637,85 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 <button type="button" onClick={() => handleCaptureLocation('home', true)} className="w-full py-3 bg-emerald-600/20 text-emerald-400 rounded-xl font-black text-[8px] uppercase tracking-widest border border-emerald-600/30 flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all">
                                   {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-signal"></i>} Capturar Casa
                                 </button>
-                                {editClientFormData?.location && <div className="text-[7px] font-mono text-emerald-500 text-center">{editClientFormData.location.lat.toFixed(5)}, {editClientFormData.location.lng.toFixed(5)}</div>}
+                                {editClientFormData?.location ? (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-[7px] font-black text-emerald-500/70 uppercase tracking-widest text-center">Editar Ubicación</div>
+                                    <div 
+                                      onClick={() => {
+                                        const input = window.prompt("Editar coordenadas CASA (lat, lng):", `${editClientFormData.location?.lat}, ${editClientFormData.location?.lng}`);
+                                        if (input) {
+                                          const parts = input.split(',');
+                                          if (parts.length >= 2) {
+                                            setEditClientFormData(prev => prev ? {...prev, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          }
+                                        }
+                                      }}
+                                      className="p-2 bg-emerald-600/10 text-emerald-500 rounded-lg text-[10px] font-mono font-bold text-center cursor-pointer hover:bg-emerald-600/20 transition-all block border border-emerald-600/20"
+                                    >
+                                      {editClientFormData.location.lat.toFixed(5)}, {editClientFormData.location.lng.toFixed(5)} <i className="fa-solid fa-pen ml-1 opacity-60"></i>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-[7px] font-black text-emerald-500/70 uppercase tracking-widest text-center">Coordenadas Manuales</div>
+                                    <div 
+                                      onClick={() => {
+                                        const input = window.prompt("Ingresar coordenadas CASA (lat, lng):");
+                                        if (input) {
+                                          const parts = input.split(',');
+                                          if (parts.length >= 2) {
+                                            setEditClientFormData(prev => prev ? {...prev, location: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          }
+                                        }
+                                      }}
+                                      className="p-2 border border-dashed border-emerald-500/40 rounded-lg text-[10px] font-black text-emerald-500/80 uppercase text-center cursor-pointer hover:border-emerald-500/60 hover:text-emerald-500 hover:bg-emerald-600/10 transition-all block"
+                                    >
+                                      <i className="fa-solid fa-keyboard mr-1"></i> INGRESAR
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               <div className="space-y-2">
                                 <button type="button" onClick={() => handleCaptureLocation('domicilio', true)} className="w-full py-3 bg-blue-600/20 text-blue-400 rounded-xl font-black text-[8px] uppercase tracking-widest border border-blue-600/30 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all">
                                   {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>} Capturar Negocio
                                 </button>
-                                {editClientFormData?.domicilioLocation && <div className="text-[7px] font-mono text-blue-500 text-center">{editClientFormData.domicilioLocation.lat.toFixed(5)}, {editClientFormData.domicilioLocation.lng.toFixed(5)}</div>}
+                                {editClientFormData?.domicilioLocation ? (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-[7px] font-black text-blue-500/70 uppercase tracking-widest text-center">Editar Ubicación</div>
+                                    <div 
+                                      onClick={() => {
+                                        const input = window.prompt("Editar coordenadas NEGOCIO (lat, lng):", `${editClientFormData.domicilioLocation?.lat}, ${editClientFormData.domicilioLocation?.lng}`);
+                                        if (input) {
+                                          const parts = input.split(',');
+                                          if (parts.length >= 2) {
+                                            setEditClientFormData(prev => prev ? {...prev, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          }
+                                        }
+                                      }}
+                                      className="p-2 bg-blue-600/10 text-blue-500 rounded-lg text-[10px] font-mono font-bold text-center cursor-pointer hover:bg-blue-600/20 transition-all block border border-blue-600/20"
+                                    >
+                                      {editClientFormData.domicilioLocation.lat.toFixed(5)}, {editClientFormData.domicilioLocation.lng.toFixed(5)} <i className="fa-solid fa-pen ml-1 opacity-60"></i>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 space-y-1">
+                                    <div className="text-[7px] font-black text-blue-500/70 uppercase tracking-widest text-center">Coordenadas Manuales</div>
+                                    <div 
+                                      onClick={() => {
+                                        const input = window.prompt("Ingresar coordenadas NEGOCIO (lat, lng):");
+                                        if (input) {
+                                          const parts = input.split(',');
+                                          if (parts.length >= 2) {
+                                            setEditClientFormData(prev => prev ? {...prev, domicilioLocation: { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) }} : null);
+                                          }
+                                        }
+                                      }}
+                                      className="p-2 border border-dashed border-blue-500/40 rounded-lg text-[10px] font-black text-blue-500/80 uppercase text-center cursor-pointer hover:border-blue-500/60 hover:text-blue-500 hover:bg-blue-600/10 transition-all block"
+                                    >
+                                      <i className="fa-solid fa-keyboard mr-1"></i> INGRESAR
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 pt-2">
