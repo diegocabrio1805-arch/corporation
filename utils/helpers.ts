@@ -124,8 +124,9 @@ export const calculateTotalPaidFromLogs = (loanOrId: any, collectionLogs: any[])
     if (isDeleted) return false;
     if (!(logType === 'PAGO' || logType === CollectionLogType.PAYMENT)) return false;
 
-    // EXCLUDE INITIAL GRANTS MASKED AS PAYMENTS, BUT KEEP MIGRATION PAYMENTS
-    if (isOpening && logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) return false;
+    // EXCLUIR SIEMPRE los logs de apertura de crédito del cálculo de abonos
+    // Son registros contables internos (isOpening: true), NO pagos reales del cliente
+    if (isOpening) return false;
 
     // Coincidencia directa por loan_id (caso normal)
     if (logLoanId === lId) return true;
