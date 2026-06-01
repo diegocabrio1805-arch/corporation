@@ -1591,10 +1591,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div className="p-5 md:p-6 space-y-4 md:space-y-6">
-              <div className="grid grid-cols-4 gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200`}>
                 <button onClick={() => setMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualPayment && !isRenewalPayment && !isQrPayment ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Efectivo</button>
                 <button onClick={() => setMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualPayment ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Transf.</button>
-                <button onClick={() => setMethod('qr')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isQrPayment ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>QR</button>
+                {state.currentUser?.role === Role.ADMIN && (
+                  <button onClick={() => setMethod('qr')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isQrPayment ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>QR</button>
+                )}
                 <button onClick={() => setMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalPayment ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Renovar</button>
               </div>
 

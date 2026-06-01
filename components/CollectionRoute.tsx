@@ -887,10 +887,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
               </div>
               <h3 className="text-base font-black text-slate-800 mb-4 uppercase tracking-tighter">Registrar Abono</h3>
 
-              <div className="grid grid-cols-4 gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200">
+              <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200`}>
                 <button onClick={() => setMethodInRoute('cash')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Efectivo</button>
                 <button onClick={() => setMethodInRoute('virtual')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Transf.</button>
-                <button onClick={() => setMethodInRoute('qr')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>QR</button>
+                {state.currentUser?.role === Role.ADMIN && (
+                  <button onClick={() => setMethodInRoute('qr')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>QR</button>
+                )}
                 <button onClick={() => setMethodInRoute('renewal')} className={`py-3 rounded-lg text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-100'}`}>Renovar</button>
               </div>
 

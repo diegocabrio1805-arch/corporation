@@ -523,10 +523,12 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                   
                   {loan ? (
                                  {/* Selector de Método de Pago */}
-                      <div className="grid grid-cols-4 gap-1 mb-4 bg-slate-950 p-1 rounded-xl">
+                      <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-4 bg-slate-950 p-1 rounded-xl`}>
                         <button onClick={() => setMethodInRoute('cash', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>EFECTIVO</button>
                         <button onClick={() => setMethodInRoute('virtual', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>TRANSF.</button>
-                        <button onClick={() => setMethodInRoute('qr', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500'}`}>QR</button>
+                        {state.currentUser?.role === Role.ADMIN && (
+                          <button onClick={() => setMethodInRoute('qr', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500'}`}>QR</button>
+                        )}
                         <button onClick={() => setMethodInRoute('renewal', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-500'}`}>RENOVAR</button>
                       </div>
 
