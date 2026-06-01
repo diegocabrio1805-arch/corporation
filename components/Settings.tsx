@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppState, AppSettings, Language, CountryCode, Role } from '../types';
 import { getTranslation } from '../utils/translations';
+import { supabase } from '../utils/supabaseClient';
 
 interface SettingsProps {
   state: AppState;
@@ -50,6 +51,64 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
     shareValueBold: state.settings.shareValueBold ?? false,
     shareValueSize: state.settings.shareValueSize || 'normal'
   });
+
+  // --- BANCARD QR CREDENTIALS STATE ---
+  const [bancardShopId, setBancardShopId] = useState('');
+  const [bancardPublicKey, setBancardPublicKey] = useState('');
+  const [bancardPrivateKey, setBancardPrivateKey] = useState('');
+  const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [isLoadingBancard, setIsLoadingBancard] = useState(false);
+
+  useEffect(() => {
+    if (isPowerUser && state.currentUser?.id) {
+      const loadBancard = async () => {
+        setIsLoadingBancard(true);
+        try {
+          const { data, error } = await supabase
+            .from('credenciales_bancard')
+            .select('*')
+            .eq('gerente_id', state.currentUser?.id)
+            .maybeSingle();
+
+          if (data) {
+            setBancardShopId(data.shop_id || '');
+            setBancardPublicKey(data.public_key || '');
+            setBancardPrivateKey(data.private_key_encrypted || '');
+          }
+        } catch (err) {
+          console.error("Error cargando credenciales de Bancard:", err);
+        } finally {
+          setIsLoadingBancard(false);
+        }
+      };
+      loadBancard();
+    }
+  }, [isPowerUser, state.currentUser?.id]);
+
+  const handleSaveBancard = async () => {
+    if (!state.currentUser?.id) return;
+    setIsLoadingBancard(true);
+    try {
+      const { error } = await supabase
+        .from('credenciales_bancard')
+        .upsert({
+          gerente_id: state.currentUser.id,
+          shop_id: bancardShopId.trim(),
+          public_key: bancardPublicKey.trim(),
+          private_key_encrypted: bancardPrivateKey.trim()
+        }, { onConflict: 'gerente_id' });
+
+      if (error) {
+        alert("Error al guardar credenciales: " + error.message);
+      } else {
+        alert("✅ Credenciales de Bancard guardadas correctamente. El cobro QR ahora está activo.");
+      }
+    } catch (err: any) {
+      alert("Error al conectar con la base de datos: " + err.message);
+    } finally {
+      setIsLoadingBancard(false);
+    }
+  };
 
   const handleScanPrinters = async () => {
     setScanningPrinters(true);
@@ -459,6 +518,79 @@ const Settings: React.FC<SettingsProps> = ({ state, updateSettings, setActiveTab
               <i className="fa-solid fa-floppy-disk text-sm"></i>
               GUARDAR DATOS DE EMPRESA
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* INTEGRACIÓN DE BANCARD PARA QR INTEROPERABLE */}
+      {isPowerUser && (
+        <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all border-l-8 border-l-purple-600">
+          <div className="flex items-center gap-3 mb-6">
+            <i className="fa-solid fa-qrcode text-xl md:text-2xl text-purple-600"></i>
+            <div>
+              <h3 className="text-base md:text-lg font-black text-slate-800 uppercase">Integración de Bancard (Cobro QR)</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Configuración de Credenciales para Cobro Móvil</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Código de Comercio (Shop ID)</label>
+                <input
+                  type="text"
+                  value={bancardShopId}
+                  onChange={(e) => setBancardShopId(e.target.value)}
+                  placeholder="Ej: 348927"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 text-black font-bold"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Clave Pública (Public Key)</label>
+                <input
+                  type="text"
+                  value={bancardPublicKey}
+                  onChange={(e) => setBancardPublicKey(e.target.value)}
+                  placeholder="pk_bancard_..."
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 text-black font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Clave Privada (Private Key)</label>
+              <div className="relative">
+                <input
+                  type={showPrivateKey ? "text" : "password"}
+                  value={bancardPrivateKey}
+                  onChange={(e) => setBancardPrivateKey(e.target.value)}
+                  placeholder="sk_bancard_..."
+                  className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 font-mono text-black font-bold"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPrivateKey(!showPrivateKey)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <i className={`fa-solid ${showPrivateKey ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100">
+              <button
+                disabled={isLoadingBancard}
+                onClick={handleSaveBancard}
+                className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-purple-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                {isLoadingBancard ? (
+                  <i className="fa-solid fa-spinner animate-spin text-sm"></i>
+                ) : (
+                  <i className="fa-solid fa-floppy-disk text-sm"></i>
+                )}
+                {isLoadingBancard ? 'GUARDANDO...' : 'GUARDAR CREDENCIALES DE BANCARD'}
+              </button>
+            </div>
           </div>
         </div>
       )}

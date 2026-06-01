@@ -126,11 +126,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout, us
             </button>
 
             {item.id === 'settings' && isPowerUser && technicalSupportPhone && (
-              <div className="px-5 py-4 mt-2 bg-indigo-500/5 rounded-2xl border border-indigo-500/10 animate-fadeIn">
+              <div className="px-5 py-4 mt-2 bg-amber-500/5 rounded-2xl border border-amber-500/10 animate-fadeIn">
                 <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Soporte VIP</p>
-                <a href={`tel:${technicalSupportPhone}`} className="text-sm font-black text-indigo-400 flex items-center gap-3 hover:text-indigo-300 transition-colors">
-                  <div className="w-6 h-6 bg-indigo-500/20 rounded-lg flex items-center justify-center">
-                    <i className="fa-solid fa-phone-volume text-[10px]"></i>
+                <a 
+                  href={`https://wa.me/${technicalSupportPhone.replace(/[^\d]/g, '')}?text=${encodeURIComponent("¡Hola! Me comunico desde el panel del sistema Anexo Cobro.")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-black text-amber-400 flex items-center gap-3 hover:text-amber-300 transition-colors"
+                >
+                  <div className="w-6 h-6 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                    <i className="fa-brands fa-whatsapp text-xs"></i>
                   </div>
                   {technicalSupportPhone}
                 </a>

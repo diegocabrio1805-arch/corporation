@@ -4,6 +4,7 @@ import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, 
 import PullToRefresh from './PullToRefresh';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
+import { supabase } from '../utils/supabaseClient';
 
 interface MobileCollectorModeProps {
   state: AppState;
@@ -24,6 +25,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
   const [receipt, setReceipt] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
   const receiptCardRef = useRef<HTMLDivElement>(null);
+  const qrChannelRef = useRef<any>(null);
   const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null);
 
   // Pagination State
@@ -82,16 +84,49 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
     }
   };
 
+  const [isQrProcessing, setIsQrProcessing] = useState(false);
+  const [qrCodePayload, setQrCodePayload] = useState<string | null>(null);
+  const [isWaitingForQrPayment, setIsWaitingForQrPayment] = useState(false);
+  const [hasQrConfig, setHasQrConfig] = useState(false);
+
+  useEffect(() => {
+    const checkQrConfig = async () => {
+      if (!selectedClient || !state.currentUser) return;
+      const managerId = state.currentUser.role === Role.COLLECTOR 
+        ? state.currentUser.managedBy 
+        : state.currentUser.id;
+      if (!managerId) {
+        setHasQrConfig(false);
+        return;
+      }
+      try {
+        const { data } = await supabase
+          .from('credenciales_bancard')
+          .select('id')
+          .eq('gerente_id', managerId)
+          .maybeSingle();
+        setHasQrConfig(!!data);
+      } catch (err) {
+        setHasQrConfig(false);
+      }
+    };
+    checkQrConfig();
+  }, [selectedClient, state.currentUser]);
+
   const handleOpenPayment = (clientId: string, defaultAmount: number) => {
     setSelectedClient(clientId);
     setAmountInput(defaultAmount.toString());
     setIsVirtualProcessing(false);
     setIsRenewalProcessing(false);
+    setIsQrProcessing(false);
+    setQrCodePayload(null);
+    setIsWaitingForQrPayment(false);
   };
 
-  const setMethodInRoute = (method: 'cash' | 'virtual' | 'renewal', loan: any) => {
+  const setMethodInRoute = (method: 'cash' | 'virtual' | 'renewal' | 'qr', loan: any) => {
     setIsVirtualProcessing(method === 'virtual');
     setIsRenewalProcessing(method === 'renewal');
+    setIsQrProcessing(method === 'qr');
     const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
     if (method === 'renewal') {
       setAmountInput(Math.max(0, loan.totalAmount - totalPaid).toString());
@@ -101,12 +136,123 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
   };
 
   const resetUI = () => {
+    if ((window as any).qrPaymentTimerMobile) {
+      clearTimeout((window as any).qrPaymentTimerMobile);
+    }
+    if (qrChannelRef.current) {
+      supabase.removeChannel(qrChannelRef.current);
+      qrChannelRef.current = null;
+    }
     setReceipt(null);
     setSelectedClient(null);
     setIsProcessing(false);
     setIsVirtualProcessing(false);
     setIsRenewalProcessing(false);
+    setIsQrProcessing(false);
+    setQrCodePayload(null);
+    setIsWaitingForQrPayment(false);
     setAmountInput('0');
+  };
+  const handleGenerateQrMobile = async (clientId: string) => {
+    const loan = activeClientsMap[clientId];
+    if (!loan || !state.currentUser) return;
+
+    setIsProcessing(true);
+    setIsWaitingForQrPayment(true);
+    
+    try {
+      const amount = parseAmount(amountInput);
+      const uniqueRef = `bancard_ref_${generateUUID().slice(0,8)}`;
+
+      // 1. Insertar el pago en estado PENDING en la tabla pagos_qr de Supabase
+      const { data: pagoQrData, error } = await supabase
+        .from('pagos_qr')
+        .insert({
+          loan_id: loan.id,
+          collector_id: state.currentUser.id,
+          amount: amount,
+          status: 'PENDING',
+          bancard_process_id: uniqueRef
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // 2. Generar el código QR scannable de prueba
+      setTimeout(() => {
+        const mockPayload = `Bancard-QR|Monto:${amount}|Comercio:${state.settings.companyName || 'Anexo Cobro'}|Ref:${uniqueRef}`;
+        setQrCodePayload(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(mockPayload)}`);
+        setIsProcessing(false);
+      }, 1500);
+
+      // 3. Suscribirse en Supabase Realtime a cambios en este pago QR
+      if (qrChannelRef.current) {
+        supabase.removeChannel(qrChannelRef.current);
+      }
+
+      const channel = supabase
+        .channel(`pago_qr_mobile_${pagoQrData.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'pagos_qr',
+            filter: `id=eq.${pagoQrData.id}`
+          },
+          async (payload: any) => {
+            console.log("Cambio detectado en tiempo real en Mobile:", payload);
+            if (payload.new && payload.new.status === 'COMPLETED') {
+              // Limpiar la suscripción y el QR
+              if (qrChannelRef.current) {
+                supabase.removeChannel(qrChannelRef.current);
+                qrChannelRef.current = null;
+              }
+              setIsWaitingForQrPayment(false);
+              setQrCodePayload(null);
+              
+              // Registrar abono real
+              await handleAction(clientId, CollectionLogType.PAYMENT);
+            }
+          }
+        )
+        .subscribe();
+
+      qrChannelRef.current = channel;
+
+    } catch (err: any) {
+      console.error("[QR] Error al generar registro:", err);
+      alert("Error al inicializar el pago QR: " + err.message);
+      setIsProcessing(false);
+      setIsWaitingForQrPayment(false);
+    }
+  };
+
+  const handleCancelQrMobile = async (loan: any) => {
+    if (qrChannelRef.current) {
+      supabase.removeChannel(qrChannelRef.current);
+      qrChannelRef.current = null;
+    }
+
+    if (loan && state.currentUser) {
+      try {
+        await supabase
+          .from('pagos_qr')
+          .update({ status: 'CANCELLED' })
+          .eq('loan_id', loan.id)
+          .eq('status', 'PENDING');
+      } catch (err) {
+        console.warn("[QR] No se pudo cancelar el registro en DB:", err);
+      }
+    }
+
+    setIsWaitingForQrPayment(false);
+    setQrCodePayload(null);
+    setIsProcessing(false);
+    setMethodInRoute('cash', loan);
   };
 
   const handleAction = async (clientId: string, type: CollectionLogType) => {
@@ -376,25 +522,95 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                 <div className={`mt-4 pt-4 border-t border-slate-800 transition-all duration-300 ${isSelected ? 'block' : 'hidden'}`}>
                   
                   {loan ? (
-                    <>
-                      {/* Selector de Método de Pago */}
-                      <div className="grid grid-cols-3 gap-2 mb-4 bg-slate-950 p-1 rounded-xl">
-                        <button onClick={() => setMethodInRoute('cash', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing ? 'bg-slate-800 text-white shadow-md' : 'text-slate-50'}`}>EFECTIVO</button>
+                                 {/* Selector de Método de Pago */}
+                      <div className="grid grid-cols-4 gap-1 mb-4 bg-slate-950 p-1 rounded-xl">
+                        <button onClick={() => setMethodInRoute('cash', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>EFECTIVO</button>
                         <button onClick={() => setMethodInRoute('virtual', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>TRANSF.</button>
+                        <button onClick={() => setMethodInRoute('qr', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500'}`}>QR</button>
                         <button onClick={() => setMethodInRoute('renewal', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-500'}`}>RENOVAR</button>
                       </div>
 
-                      <div className="relative mb-3">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-slate-500">$</span>
-                        <input 
-                          type="text" inputMode="numeric" value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
-                          className="w-full bg-slate-950 border border-emerald-900 text-emerald-400 text-2xl font-black text-center py-4 rounded-xl outline-none"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                         <button disabled={isProcessing} onClick={() => handleAction(client.id, CollectionLogType.PAYMENT)} className="flex-1 bg-emerald-600 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.3)] active:scale-95 disabled:opacity-50">CONFIRMAR REGISTRO</button>
-                         <button onClick={() => resetUI()} className="w-14 bg-slate-800 text-slate-400 font-black rounded-xl text-center active:scale-95"><i className="fa-solid fa-xmark"></i></button>
-                      </div>
+                      {isWaitingForQrPayment ? (
+                        <div className="space-y-4 py-2 animate-scaleIn">
+                          {qrCodePayload ? (
+                            <div className="flex flex-col items-center justify-center">
+                              <div className="p-3 bg-white rounded-2xl border-2 border-purple-900/30 shadow-lg">
+                                <img src={qrCodePayload} alt="QR de Pago" className="w-40 h-40 mx-auto" />
+                              </div>
+                              <p className="text-[9px] font-black text-purple-400 uppercase mt-3 tracking-widest animate-pulse flex items-center justify-center gap-1.5">
+                                <i className="fa-solid fa-spinner animate-spin"></i> Esperando cobro...
+                              </p>
+                              <p className="text-[8px] text-slate-500 mt-0.5 uppercase font-bold tracking-widest">Monto: {formatCurrency(parseAmount(amountInput), state.settings)}</p>
+                            </div>
+                          ) : (
+                            <div className="py-6 flex flex-col items-center justify-center gap-2">
+                              <i className="fa-solid fa-circle-notch fa-spin text-3xl text-purple-500"></i>
+                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Generando QR...</p>
+                            </div>
+                          )}
+                          
+                          <div className="pt-2 border-t border-slate-800">
+                            <button
+                              onClick={() => handleCancelQrMobile(loan)}
+                              className="w-full py-3.5 bg-red-900/20 text-red-400 border border-red-900/40 rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <i className="fa-solid fa-ban"></i> Cancelar Espera
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {isQrProcessing && !hasQrConfig && (
+                            <div className="bg-purple-950/40 p-4 rounded-xl border border-purple-900/60 text-center mb-3 animate-fadeIn">
+                              <i className="fa-solid fa-triangle-exclamation text-purple-400 text-lg mb-1.5 block"></i>
+                              <p className="text-[9px] font-black text-purple-300 uppercase tracking-widest">Configuración Requerida</p>
+                              <p className="text-[7.5px] text-purple-400 mt-0.5 uppercase font-bold leading-normal">El Gerente debe configurar las credenciales de Bancard en Opciones para habilitar este cobro.</p>
+                            </div>
+                          )}
+
+                          {(!isQrProcessing || hasQrConfig) && (
+                            <div className="relative mb-3">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-slate-500">$</span>
+                              <input 
+                                type="text" inputMode="numeric" value={amountInput} onChange={(e) => setAmountInput(e.target.value)}
+                                className="w-full bg-slate-950 border border-emerald-900 text-emerald-400 text-2xl font-black text-center py-4 rounded-xl outline-none"
+                              />
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                             {(!isQrProcessing || hasQrConfig) ? (
+                               <button
+                                 disabled={isProcessing}
+                                 onClick={() => {
+                                   const finalAmount = parseAmount(amountInput);
+                                   const threshold = 500;
+                                   if (finalAmount > 0 && finalAmount < threshold) {
+                                     if (!confirm(`¡ATENCIÓN!\n\nHas ingresado un monto de ${formatCurrency(finalAmount, state.settings)}.\n\n¿Estás SEGURO de que este monto es correcto y no quisiste poner un número mayor?`)) {
+                                       return;
+                                     }
+                                   }
+
+                                   if (isQrProcessing) {
+                                     handleGenerateQrMobile(client.id);
+                                   } else {
+                                     handleAction(client.id, CollectionLogType.PAYMENT);
+                                   }
+                                 }}
+                                 className={`flex-1 ${isQrProcessing ? 'bg-purple-600 hover:bg-purple-700 shadow-[0_0_15px_rgba(147,51,234,0.3)]' : 'bg-emerald-600 hover:bg-emerald-700 shadow-[0_0_15px_rgba(16,185,129,0.3)]'} text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-widest active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2`}
+                               >
+                                 {isQrProcessing ? (
+                                   <>
+                                     <i className="fa-solid fa-qrcode"></i> Generar QR de Cobro
+                                   </>
+                                 ) : (
+                                   'CONFIRMAR REGISTRO'
+                                 )}
+                               </button>
+                             ) : null}
+                             <button onClick={() => resetUI()} className="w-14 bg-slate-800 text-slate-400 font-black rounded-xl text-center active:scale-95"><i className="fa-solid fa-xmark"></i></button>
+                          </div>
+                        </>
+                      )}        </div>
                     </>
                   ) : (
                     <div className="bg-slate-950 p-4 rounded-xl text-center mb-4">

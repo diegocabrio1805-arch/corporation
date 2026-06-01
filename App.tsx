@@ -157,7 +157,7 @@ const App: React.FC = () => {
       <AutoUpdater />
       <LocationEnforcer isRequired={!!state.currentUser.requiresLocation} onLocationEnabled={() => { }} />
       <div
-        className="flex flex-col md:flex-row min-h-full bg-slate-50 relative overflow-x-hidden"
+        className="flex flex-col md:flex-row min-h-full bg-slate-300 relative overflow-x-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

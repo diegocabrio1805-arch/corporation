@@ -203,15 +203,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onGenerateManager, onSync
           <button
             onClick={(e) => {
               e.preventDefault();
-              window.open('https://wa.me/595994560450', '_blank');
+              const message = encodeURIComponent("¡Hola! Me interesa solicitar la demo gratuita por 15 días del sistema Anexo Cobro.");
+              window.open(`https://wa.me/595994560450?text=${message}`, '_blank');
             }}
             type="button"
-            className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 font-black py-5 rounded-3xl border border-slate-200 transition-all active:scale-[0.98] tracking-widest text-[11px] flex items-center justify-center gap-4 group"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black py-5 rounded-3xl transition-all active:scale-[0.98] tracking-widest text-[10px] flex items-center justify-center gap-4 group shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 border border-blue-400/20"
           >
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-              <i className="fa-brands fa-whatsapp text-white text-lg"></i>
+            <div className="w-8 h-8 bg-white text-emerald-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+              <i className="fa-brands fa-whatsapp text-lg"></i>
             </div>
-            SOPORTE TÉCNICO OFICIAL
+            SOLICITAR DEMO GRATUITA POR 15 DÍAS
           </button>
         </div>
       </div>
