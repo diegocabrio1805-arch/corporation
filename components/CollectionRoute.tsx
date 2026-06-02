@@ -407,6 +407,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
 
   const handleAction = async (clientId: string, loanId: string, type: CollectionLogType, customAmount?: number, isVirtual: boolean = false, isRenewal: boolean = false) => {
     if (isProcessing) return;
+    const loan = (Array.isArray(state.loans) ? state.loans : []).find(l => l.id === loanId);
     if (!loan) return;
 
     setIsProcessing(true);

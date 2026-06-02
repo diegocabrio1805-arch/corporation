@@ -318,15 +318,24 @@ const App: React.FC = () => {
               />
             )}
             {activeTab === 'route' && (
-              <CollectionRoute 
-                state={filteredState} 
-                addCollectionAttempt={addCollectionAttempt} 
-                deleteCollectionLog={deleteCollectionLog} 
-                updateClient={updateClient} 
-                deleteClient={deleteRemoteClientAction} 
-                onForceSync={handleForceSync}
-                activeLocation={activeLocation}
-              />
+              !isPowerUser ? (
+                <MobileCollectorMode 
+                  state={filteredState} 
+                  addCollectionAttempt={addCollectionAttempt} 
+                  onForceSync={handleForceSync}
+                  activeLocation={activeLocation}
+                />
+              ) : (
+                <CollectionRoute 
+                  state={filteredState} 
+                  addCollectionAttempt={addCollectionAttempt} 
+                  deleteCollectionLog={deleteCollectionLog} 
+                  updateClient={updateClient} 
+                  deleteClient={deleteRemoteClientAction} 
+                  onForceSync={handleForceSync}
+                  activeLocation={activeLocation}
+                />
+              )
             )}
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
             {activeTab === 'expenses' && isPowerUser && (
