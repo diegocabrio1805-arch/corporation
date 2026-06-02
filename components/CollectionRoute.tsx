@@ -732,10 +732,19 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                     onChange={(e) => setSelectedCollectorFilter(e.target.value)}
                     className="bg-transparent border-none outline-none text-[9px] font-black text-black uppercase tracking-widest cursor-pointer w-full focus:ring-0"
                   >
-                    {selectedCollectorFilter === 'all' ? <option value="all">TODAS LAS RUTAS</option> : null}
-                    {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === Role.COLLECTOR && (u.id.toLowerCase() === currentUserId?.toLowerCase() || (u.managedBy || (u as any).managed_by)?.toLowerCase() === currentUserId?.toLowerCase())).map(u => (
-                      <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
-                    ))}
+                    <option value="all">TODAS LAS RUTAS</option>
+                    {(Array.isArray(state.users) ? state.users : [])
+                      .filter(u => 
+                        u.role === Role.COLLECTOR && (
+                          state.currentUser?.role === Role.ADMIN ||
+                          u.id.toLowerCase() === currentUserId?.toLowerCase() || 
+                          (u.managedBy || (u as any).managed_by)?.toLowerCase() === currentUserId?.toLowerCase()
+                        )
+                      )
+                      .map(u => (
+                        <option key={u.id} value={u.id}>{u.name.toUpperCase()}</option>
+                      ))
+                    }
                   </select>
                 </div>
               )}
