@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
+import { supabase } from '../utils/supabaseClient';
 import { User, Role } from '../types';
 
 interface UserCaptureProps {

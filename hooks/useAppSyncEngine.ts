@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppState, User, Role, CollectionLog, CollectionLogType, Loan, PaymentRecord, LoanStatus, PaymentStatus } from '../types';
 import { useSync } from './useSync';
 import { supabase } from '../utils/supabaseClient';
@@ -10,10 +10,11 @@ import { App as CapApp } from '@capacitor/app';
 export const useAppSyncEngine = (
   state: AppState,
   setState: React.Dispatch<React.SetStateAction<AppState>>,
-  resolvedSettings: any
+  resolvedSettings: any,
+  isInitializing: boolean
 ) => {
   // Función para guardar el estado inmediatamente en IndexedDB (Crítico para robustez offline)
-  const immediateSave = async (stateToSave: AppState) => {
+  const immediateSave = useCallback(async (stateToSave: AppState) => {
     try {
       await StorageService.setItem('prestamaster_v2', stateToSave);
       if (stateToSave.currentUser) {
@@ -22,7 +23,8 @@ export const useAppSyncEngine = (
     } catch (e) {
       console.error("🚨 [Critical] Error en guardado inmediato:", e);
     }
-  };
+  }, []);
+
   const mergeData = <T extends { id: string, updated_at?: string }>(
     local: T[],
     remote: T[],
@@ -106,7 +108,7 @@ export const useAppSyncEngine = (
     return result;
   };
 
-  const handleRealtimeData = (newData: Partial<AppState>, isFullSync?: boolean) => {
+  const handleRealtimeData = useCallback((newData: Partial<AppState>, isFullSync?: boolean) => {
     setState(prev => {
       const queueStr = localStorage.getItem('syncQueue');
       const queue = queueStr ? JSON.parse(queueStr) : [];
@@ -167,7 +169,7 @@ export const useAppSyncEngine = (
       immediateSave(updatedState);
       return updatedState;
     });
-  };
+  }, [setState, immediateSave]);
 
   const sync = useSync(handleRealtimeData);
 
@@ -180,7 +182,7 @@ export const useAppSyncEngine = (
     }
   };
 
-  const handleForceSync = async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
+  const handleForceSync = useCallback(async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
     if (!silent) sync.setSuccessMessage(message);
     if (fullSync) {
       await sync.forceFullSync();
@@ -191,9 +193,10 @@ export const useAppSyncEngine = (
         await sync.pullData(false);
       }
     }
-  };
+  }, [sync]);
 
   useEffect(() => {
+    if (isInitializing) return;
     const timer = setTimeout(() => {
       try {
         StorageService.setItem('prestamaster_v2', state);
@@ -206,9 +209,10 @@ export const useAppSyncEngine = (
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [state, isInitializing]);
 
   useEffect(() => {
+    if (isInitializing) return;
     const recover = async () => {
       if (state.currentUser) return;
       const { value } = await Preferences.get({ key: 'NATIVE_CURRENT_USER' });
@@ -269,9 +273,10 @@ export const useAppSyncEngine = (
     return () => {
       subscription?.unsubscribe?.();
     };
-  }, [state.currentUser]);
+  }, [state.currentUser?.id, isInitializing, handleForceSync]);
 
   useEffect(() => {
+    if (isInitializing) return;
     // NOTA: El delay es de 5s para evitar colisión con el fullSync que App.tsx
     // dispara a los 3s cuando no hay clientes en caché local.
     const timer = setTimeout(() => {
@@ -281,10 +286,11 @@ export const useAppSyncEngine = (
     return () => {
       clearTimeout(timer);
     };
-  }, []);
+  }, [isInitializing]);
 
 
   useEffect(() => {
+    if (isInitializing) return;
     let lastFocusSync = 0;
     const handleFocus = () => {
       const now = Date.now();
@@ -295,9 +301,10 @@ export const useAppSyncEngine = (
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [isInitializing]);
 
   useEffect(() => {
+    if (isInitializing) return;
     // Contador de ciclos para deep-sync periódico
     let syncCycleCount = 0;
 
@@ -348,7 +355,7 @@ export const useAppSyncEngine = (
       clearInterval(healthCheckInterval);
       window.removeEventListener('online', handleOnline);
     };
-  }, [sync.isSyncing, sync.isOnline, sync.queueLength]);
+  }, [sync.isSyncing, sync.isOnline, sync.queueLength, handleForceSync, isInitializing]);
 
   const getBranchId = (user: User | null): string => {
     if (!user) return 'none';
@@ -446,7 +453,7 @@ export const useAppSyncEngine = (
       clients = clients.filter(c => {
         const myId = user.id.toLowerCase();
         const isCreator = (c.addedBy || (c as any).added_by || '').toLowerCase() === myId;
-        const isDirectOwner = (c.collectorId || (c as any).collector_id || '').toLowerCase() === myId;
+        const isDirectOwner = ((c as any).collectorId || (c as any).collector_id || '').toLowerCase() === myId;
         const isInvolved = involvedClientIds.has(c.id);
         
         return isCreator || isDirectOwner || isInvolved;

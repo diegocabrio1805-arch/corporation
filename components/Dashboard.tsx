@@ -51,6 +51,54 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     });
   }, [state.users, state.currentUser]);
 
+  // 1.5. Precalcular sumas de abonos por préstamo de forma eficiente (O(L))
+  const logsByLoanId = useMemo(() => {
+    const map = new Map<string, number>();
+    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (const log of logs) {
+      if (log.deletedAt) continue;
+      const logType = String(log.type || '').toUpperCase();
+      if (logType !== 'PAGO' && logType !== CollectionLogType.PAYMENT) continue;
+      if (log.isOpening || (log as any).is_opening) continue;
+      const loanId = log.loanId || log.loan_id;
+      if (!loanId) continue;
+      const amt = typeof log.amount === 'number' ? log.amount : (parseFloat(String(log.amount).replace(/[^\d.-]/g, '')) || 0);
+      map.set(loanId, (map.get(loanId) || 0) + amt);
+    }
+    return map;
+  }, [state.collectionLogs]);
+
+  // 1.6. Precalcular logs de pago por préstamo para optimizar la verificación de créditos cancelados hoy
+  const paymentLogsByLoanId = useMemo(() => {
+    const map = new Map<string, any[]>();
+    const logs = Array.isArray(state.collectionLogs) ? state.collectionLogs : [];
+    for (const log of logs) {
+      if (log.deletedAt) continue;
+      if (log.type !== CollectionLogType.PAYMENT && String(log.type).toUpperCase() !== 'PAGO') continue;
+      if (log.isOpening || (log as any).is_opening) continue;
+      const loanId = log.loanId || log.loan_id;
+      if (!loanId) continue;
+      if (!map.has(loanId)) {
+        map.set(loanId, []);
+      }
+      map.get(loanId)!.push(log);
+    }
+    return map;
+  }, [state.collectionLogs]);
+
+  // 1.7. Precalcular los días de mora de todos los créditos activos/vencidos una sola vez
+  const loansOverdueMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const loans = Array.isArray(state.loans) ? state.loans : [];
+    for (const loan of loans) {
+      if (loan.status !== LoanStatus.ACTIVE && loan.status !== LoanStatus.DEFAULT) continue;
+      const paid = logsByLoanId.get(loan.id) || 0;
+      const overdue = getDaysOverdue(loan, state.settings, paid);
+      map.set(loan.id, overdue);
+    }
+    return map;
+  }, [state.loans, state.settings, logsByLoanId]);
+
   const collectorStats = useMemo(() => {
     if (!isAdmin) return [];
     const todayDateStr = getLocalDateStringForCountry(state.settings.country); 
@@ -94,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       const assignedActiveLoans = assignedLoans.filter(l => l.status === LoanStatus.ACTIVE);
 
       const overdueLoansCount = assignedActiveLoans.filter(loan => {
-        return getDaysOverdue(loan, state.settings) > 0;
+        return (loansOverdueMap.get(loan.id) || 0) > 0;
       }).length;
 
       const financialMoraRate = totalClientsCount > 0 ? (overdueLoansCount / totalClientsCount) * 100 : 0;
@@ -116,7 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         overdueCount: overdueLoansCount
       };
     });
-  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr]);
+  }, [visibleCollectors, state.collectionLogs, state.loans, state.clients, isAdmin, countryTodayStr, loansOverdueMap]);
 
 
   const totalPrincipal = (Array.isArray(state.loans) ? state.loans : []).reduce((acc, l) => acc + l.principal, 0);
@@ -137,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const totalOwedAmount = (Array.isArray(state.loans) ? state.loans : [])
     .filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT)
     .reduce((acc, l) => {
-      const totalPaid = calculateTotalPaidFromLogs(l, state.collectionLogs);
+      const totalPaid = logsByLoanId.get(l.id) || 0;
       const remaining = Math.max(0, l.totalAmount - totalPaid);
       return acc + remaining;
     }, 0);
@@ -147,17 +195,16 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     .filter(l => {
       if (l.status === LoanStatus.ACTIVE || l.status === LoanStatus.DEFAULT) return true;
       if (l.status === LoanStatus.PAID) {
-        const logsForLoan = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-          .filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt);
+        const logsForLoan = paymentLogsByLoanId.get(l.id) || [];
         if (logsForLoan.length > 0) {
-          const lastLog = logsForLoan.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          const lastLog = logsForLoan.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
           const logDateStr = getLocalDateStringForCountry(state.settings.country, new Date(lastLog.date));
           if (logDateStr === countryTodayStr) return true;
         }
       }
       return false;
     })
-    .reduce((acc, l) => acc + calculateTotalPaidFromLogs(l, state.collectionLogs), 0);
+    .reduce((acc, l) => acc + (logsByLoanId.get(l.id) || 0), 0);
 
   const totalPages = Math.ceil(collectorStats.length / ITEMS_PER_PAGE);
   const paginatedCollectors = useMemo(() => {
@@ -325,18 +372,15 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         const loan = relevantLoans.find(l => (l.clientId || (l as any).client_id) === c.id);
 
         // Find VERY last payment (lifetime) or return null
-        const clientLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
-          .filter(l => (l.clientId || (l as any).client_id) === c.id && l.type === CollectionLogType.PAYMENT)
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        const lastPayment = clientLogs.length > 0 ? clientLogs[0] : null;
+        const clientLogs = loan ? (paymentLogsByLoanId.get(loan.id) || []) : [];
+        const lastPayment = clientLogs.length > 0 ? clientLogs.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
 
         // Calculate overdue days
-        const daysOverdue = loan ? getDaysOverdue(loan, state.settings) : 0;
+        const daysOverdue = loan ? (loansOverdueMap.get(loan.id) || 0) : 0;
 
         // Calculate current balance (Sanitized)
         const totalAmt = loan ? (Number(loan.totalAmount) || 0) : 0;
-        const paidAmt = loan ? calculateTotalPaidFromLogs(loan, state.collectionLogs) : 0;
+        const paidAmt = loan ? (logsByLoanId.get(loan.id) || 0) : 0;
         const balance = totalAmt - paidAmt;
 
         return {

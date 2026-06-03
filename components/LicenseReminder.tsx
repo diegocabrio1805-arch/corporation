@@ -16,8 +16,8 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
         // COMPROBAR CONDICIÓN DE SNOOZE (POSPONER 3 HORAS)
         const snoozedUntil = localStorage.getItem('license_reminder_snooze');
         if (snoozedUntil && Date.now() < parseInt(snoozedUntil, 10)) {
-            setShowModal(false);
-            setExpiringItems([]);
+            setShowModal(prev => prev === false ? prev : false);
+            setExpiringItems(prev => prev.length === 0 ? prev : []);
             return;
         }
 
@@ -45,13 +45,20 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
         }
 
         if (items.length > 0) {
-            setExpiringItems(items);
-            setShowModal(true);
+            setExpiringItems(prev => {
+                const isIdentical = prev.length === items.length && prev.every((item, idx) => 
+                    item.name === items[idx].name && 
+                    item.days === items[idx].days && 
+                    item.date === items[idx].date
+                );
+                return isIdentical ? prev : items;
+            });
+            setShowModal(prev => prev === true ? prev : true);
         } else {
-            setExpiringItems([]);
-            setShowModal(false);
+            setExpiringItems(prev => prev.length === 0 ? prev : []);
+            setShowModal(prev => prev === false ? prev : false);
         }
-    }, [currentUser, users]);
+    }, [currentUser?.id, users]);
 
     const getDaysRemaining = (dateStr: string) => {
         const expiry = new Date(dateStr);

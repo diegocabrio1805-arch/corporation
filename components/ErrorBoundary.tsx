@@ -9,7 +9,7 @@ interface State {
     error: Error | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundary extends React.Component<Props, State> {
     public state: State = {
         hasError: false,
         error: null
@@ -41,7 +41,7 @@ class ErrorBoundary extends Component<Props, State> {
                         </details>
                         <button
                             onClick={() => {
-                                this.setState({ hasError: false });
+                                (this as any).setState({ hasError: false });
                                 window.location.reload();
                             }}
                             className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-colors"
@@ -53,7 +53,7 @@ class ErrorBoundary extends Component<Props, State> {
             );
         }
 
-        return this.props.children;
+        return (this as any).props.children;
     }
 }
 

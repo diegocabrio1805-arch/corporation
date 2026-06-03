@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem } from '../types';
 import { StorageService } from '../utils/localforageStorage';
@@ -11,10 +11,10 @@ const isValidUuid = (id: string | undefined | null) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || (id.length > 20 && id.includes('-'));
 };
 
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 30000): Promise<T> => {
+const withTimeout = (promise: any, timeoutMs: number = 30000): Promise<any> => {
     return Promise.race([
-        promise,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_ERROR')), timeoutMs))
+        Promise.resolve(promise),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_ERROR')), timeoutMs))
     ]);
 };
 
@@ -226,69 +226,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         };
     }, []);
 
-    const addToQueue = (operation: string, data: any) => {
-        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
 
-        if (operation === 'UPDATE_SETTINGS') {
-            queue = queue.filter((item: any) => item.operation !== 'UPDATE_SETTINGS' || item.data.branchId !== data.branchId);
-        }
 
-        // DEDUPLICACIÓN ROBUSTA: Si ya hay un item en la cola con el mismo ID de registro, no duplicar
-        if (data && data.id) {
-            const isDuplicate = queue.some((item: any) => 
-                item.operation === operation && 
-                item.data.id === data.id
-            );
-            if (isDuplicate) {
-                console.log(`[Sync] Registro duplicado omitido en cola: ${operation} - ${data.id}`);
-                return;
-            }
-        }
-
-        if (operation === 'ADD_LOG') {
-            const isDuplicate = queue.some((item: any) =>
-                item.operation === 'ADD_LOG' &&
-                item.data.loanId === data.loanId &&
-                item.data.amount === data.amount &&
-                item.data.type === data.type &&
-                (Date.now() - item.timestamp < 3000) // Ventana ampliada a 3s
-            );
-            if (isDuplicate) return;
-        }
-
-        const _id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-        queue.push({ _id, operation, data, timestamp: Date.now(), retryCount: 0 });
-        localStorage.setItem('syncQueue', JSON.stringify(queue));
-        setQueueLength(queue.length);
-
-        // Instant sync trigger
-        processQueue();
-    };
-
-    const addToQueueBulk = (items: { operation: string, data: any }[]) => {
-        if (items.length === 0) return;
-        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
-        
-        const now = Date.now();
-        const newItems = items.map(item => ({
-            _id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-            operation: item.operation,
-            data: item.data,
-            timestamp: now,
-            retryCount: 0
-        }));
-
-        queue = [...queue, ...newItems];
-        localStorage.setItem('syncQueue', JSON.stringify(queue));
-        setQueueLength(queue.length);
-
-        // Do not trigger processQueue automatically here, let the caller decide when to trigger
-    };
-
-    const forceSync = () => processQueue(true);
-    const forceFullSync = () => processQueue(true, true);
-
-    const pullData = async (fullSync = false): Promise<Partial<AppState> | null> => {
+    const pullData = useCallback(async (fullSync = false): Promise<Partial<AppState> | null> => {
         // LOCK: Prevenir múltiples descargas paralelas que saturan el equipo
         // Un fullSync SIEMPRE tiene prioridad y rompe el lock.
         if (isProcessingRef.current && !fullSync) {
@@ -497,17 +437,17 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             setIsSyncing(false);
             if (fullSync) setIsFullSyncing(false);
         }
-    };
+    }, [onDataUpdated]);
 
-    const fetchClientPhotos = async (clientId: string): Promise<Partial<Client> | null> => {
+    const fetchClientPhotos = useCallback(async (clientId: string): Promise<Partial<Client> | null> => {
         try {
             const { data, error } = await supabase.from('clients').select('profile_pic, house_pic, business_pic, document_pic').eq('id', clientId).single();
             if (error) throw error;
             return { profilePic: data.profile_pic, housePic: data.house_pic, businessPic: data.business_pic, documentPic: data.document_pic };
         } catch (err) { return null; }
-    };
+    }, []);
 
-    const processQueue = async (force = false, fullSync = false, skipPull = false) => {
+    const processQueue = useCallback(async (force = false, fullSync = false, skipPull = false) => {
         if (isProcessingRef.current) {
             pendingRunRef.current = true;
             pendingParamsRef.current = {
@@ -600,7 +540,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
                 })},
                 'ADD_LOG': { items: [], table: 'collection_logs', isDelete: false, mapper: (d) => ({
-                    id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branchId,
+                    id: d.id, loan_id: d.loanId, client_id: d.clientId, branch_id: d.branch_id,
                     recorded_by: d.recordedBy, amount: d.amount !== undefined && d.amount !== null ? d.amount : 0, type: d.type, date: d.date,
                     location: d.location, notes: d.notes, is_virtual: d.isVirtual || false,
                     is_renewal: d.isRenewal || false, is_opening: d.isOpening || false,
@@ -807,24 +747,86 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 setIsSyncing(false);
             }
         }
-    };
+    }, [pullData]);
 
-    const pushClient = async (client: Client): Promise<boolean> => { addToQueue('ADD_CLIENT', client); return true; };
-    const pushLoan = async (loan: Loan): Promise<boolean> => { addToQueue('ADD_LOAN', loan); return true; };
-    const pushPayment = async (payment: PaymentRecord): Promise<boolean> => { addToQueue('ADD_PAYMENT', payment); return true; };
-    const pushLog = async (log: CollectionLog): Promise<boolean> => { addToQueue('ADD_LOG', log); return true; };
-    const pushUser = async (user: User): Promise<boolean> => { addToQueue('ADD_PROFILE', user); return true; };
-    const pushRenewal = async (newLoan: Loan, previousLoanIds: string[]): Promise<boolean> => {
+    const addToQueue = useCallback((operation: string, data: any) => {
+        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+
+        if (operation === 'UPDATE_SETTINGS') {
+            queue = queue.filter((item: any) => item.operation !== 'UPDATE_SETTINGS' || item.data.branchId !== data.branchId);
+        }
+
+        // DEDUPLICACIÓN ROBUSTA: Si ya hay un item en la cola con el mismo ID de registro, no duplicar
+        if (data && data.id) {
+            const isDuplicate = queue.some((item: any) => 
+                item.operation === operation && 
+                item.data.id === data.id
+            );
+            if (isDuplicate) {
+                console.log(`[Sync] Registro duplicado omitido en cola: ${operation} - ${data.id}`);
+                return;
+            }
+        }
+
+        if (operation === 'ADD_LOG') {
+            const isDuplicate = queue.some((item: any) =>
+                item.operation === 'ADD_LOG' &&
+                item.data.loanId === data.loanId &&
+                item.data.amount === data.amount &&
+                item.data.type === data.type &&
+                (Date.now() - item.timestamp < 3000) // Ventana ampliada a 3s
+            );
+            if (isDuplicate) return;
+        }
+
+        const _id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+        queue.push({ _id, operation, data, timestamp: Date.now(), retryCount: 0 });
+        localStorage.setItem('syncQueue', JSON.stringify(queue));
+        setQueueLength(queue.length);
+
+        // Instant sync trigger
+        processQueue();
+    }, [processQueue]);
+
+    const addToQueueBulk = useCallback((items: { operation: string, data: any }[]) => {
+        if (items.length === 0) return;
+        let queue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+        
+        const now = Date.now();
+        const newItems = items.map(item => ({
+            _id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 10) + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+            operation: item.operation,
+            data: item.data,
+            timestamp: now,
+            retryCount: 0
+        }));
+
+        queue = [...queue, ...newItems];
+        localStorage.setItem('syncQueue', JSON.stringify(queue));
+        setQueueLength(queue.length);
+
+        // Do not trigger processQueue automatically here, let the caller decide when to trigger
+    }, []);
+
+    const forceSync = useCallback(() => processQueue(true), [processQueue]);
+    const forceFullSync = useCallback(() => processQueue(true, true), [processQueue]);
+
+    const pushClient = useCallback(async (client: Client): Promise<boolean> => { addToQueue('ADD_CLIENT', client); return true; }, [addToQueue]);
+    const pushLoan = useCallback(async (loan: Loan): Promise<boolean> => { addToQueue('ADD_LOAN', loan); return true; }, [addToQueue]);
+    const pushPayment = useCallback(async (payment: PaymentRecord): Promise<boolean> => { addToQueue('ADD_PAYMENT', payment); return true; }, [addToQueue]);
+    const pushLog = useCallback(async (log: CollectionLog): Promise<boolean> => { addToQueue('ADD_LOG', log); return true; }, [addToQueue]);
+    const pushUser = useCallback(async (user: User): Promise<boolean> => { addToQueue('ADD_PROFILE', user); return true; }, [addToQueue]);
+    const pushRenewal = useCallback(async (newLoan: Loan, previousLoanIds: string[]): Promise<boolean> => {
         addToQueue('RENEW_LOAN', { newLoan, previousLoanIds });
         return true;
-    };
+    }, [addToQueue]);
 
-    const pushSettings = async (branchId: string, settings: AppSettings): Promise<boolean> => {
+    const pushSettings = useCallback(async (branchId: string, settings: AppSettings): Promise<boolean> => {
         addToQueue('UPDATE_SETTINGS', { branchId, settings });
         return true;
-    };
+    }, [addToQueue]);
 
-    const pushBulk = async (clients: Client[], loans: Loan[], payments: PaymentRecord[], logs: CollectionLog[]): Promise<boolean> => {
+    const pushBulk = useCallback(async (clients: Client[], loans: Loan[], payments: PaymentRecord[], logs: CollectionLog[]): Promise<boolean> => {
         const items = [
             ...clients.map(c => ({ operation: 'ADD_CLIENT', data: c })),
             ...loans.map(l => ({ operation: 'ADD_LOAN', data: l })),
@@ -833,13 +835,13 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
         ];
         addToQueueBulk(items);
         return true;
-    };
+    }, [addToQueueBulk]);
 
-    const deleteRemoteLog = async (logId: string) => addToQueue('DELETE_LOG', { id: logId });
-    const deleteRemotePayment = async (paymentId: string) => addToQueue('DELETE_PAYMENT', { id: paymentId });
-    const deleteRemoteLoan = async (loanId: string) => addToQueue('DELETE_LOAN', { id: loanId });
-    const deleteRemoteClient = async (clientId: string) => addToQueue('DELETE_CLIENT', { id: clientId });
-    const clearQueue = () => { localStorage.removeItem('syncQueue'); setSyncError(null); setIsSyncing(false); };
+    const deleteRemoteLog = useCallback(async (logId: string) => addToQueue('DELETE_LOG', { id: logId }), [addToQueue]);
+    const deleteRemotePayment = useCallback(async (paymentId: string) => addToQueue('DELETE_PAYMENT', { id: paymentId }), [addToQueue]);
+    const deleteRemoteLoan = useCallback(async (loanId: string) => addToQueue('DELETE_LOAN', { id: loanId }), [addToQueue]);
+    const deleteRemoteClient = useCallback(async (clientId: string) => addToQueue('DELETE_CLIENT', { id: clientId }), [addToQueue]);
+    const clearQueue = useCallback(() => { localStorage.removeItem('syncQueue'); setSyncError(null); setIsSyncing(false); }, []);
 
     return {
         isSyncing, isFullSyncing, syncError, showSuccess, successMessage, setSuccessMessage, isOnline,

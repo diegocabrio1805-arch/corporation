@@ -6,7 +6,9 @@ import { generateNoPaymentAIReminder } from '../services/geminiService';
 import { supabase } from '../utils/supabaseClient';
 import { Geolocation } from '@capacitor/geolocation';
 import PullToRefresh from './PullToRefresh';
+import { getFastLocation } from '../utils/gpsHelper';
 import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 import html2canvas from 'html2canvas';
 
 interface CollectionRouteProps {
@@ -61,7 +63,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       }
     };
     checkQrConfig();
-  }, [selectedClient, state.currentUser]);
+  }, [selectedClient, state.currentUser?.id]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -415,17 +417,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
       const amountToApply = customAmount || parseAmount(amountInput);
       const logId = generateUUID();
 
-      let currentLocation = { lat: 0, lng: 0 };
-      try {
-        const position = await Geolocation.getCurrentPosition({ 
-          enableHighAccuracy: true, 
-          timeout: 5000, 
-          maximumAge: 60000 
-        });
-        currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-      } catch (geoErr) {
-        console.warn("[GPS] No se pudo capturar ubicación para el registro:", geoErr);
-      }
+      let currentLocation = await getFastLocation(activeLocation);
 
       const log: CollectionLog = {
         id: logId,

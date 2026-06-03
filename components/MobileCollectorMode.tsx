@@ -5,6 +5,7 @@ import PullToRefresh from './PullToRefresh';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../utils/supabaseClient';
+import { getFastLocation } from '../utils/gpsHelper';
 
 interface MobileCollectorModeProps {
   state: AppState;
@@ -111,7 +112,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
       }
     };
     checkQrConfig();
-  }, [selectedClient, state.currentUser]);
+  }, [selectedClient, state.currentUser?.id]);
 
   const handleOpenPayment = (clientId: string, defaultAmount: number) => {
     setSelectedClient(clientId);
@@ -272,15 +273,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
         }
       }
 
-      let currentLocation = { lat: 0, lng: 0 };
-      if (activeLocation && (Date.now() - activeLocation.timestamp < 45000)) {
-         currentLocation = { lat: activeLocation.lat, lng: activeLocation.lng };
-      } else {
-         try {
-            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 });
-            currentLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-         } catch { /* ignore fallback */ }
-      }
+      let currentLocation = await getFastLocation(activeLocation);
 
       const loans = (Array.isArray(state.loans) ? state.loans : []);
       const activeLoans = loans.filter(l => 

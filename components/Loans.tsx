@@ -10,6 +10,7 @@ import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { supabase } from '../utils/supabaseClient';
+import { getFastLocation } from '../utils/gpsHelper';
 
 interface LoansProps {
   state: AppState;
@@ -20,9 +21,10 @@ interface LoansProps {
   updateClient?: (client: Client) => void;
   onForceSync?: (silent?: boolean) => Promise<void>;
   setActiveTab: (tab: string) => void;
+  activeLocation?: { lat: number, lng: number, timestamp: number } | null;
 }
 
-const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync, setActiveTab }) => {
+const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollectionLog, updateClient, onForceSync, setActiveTab, activeLocation }) => {
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const qrChannelRef = useRef<any>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -546,23 +548,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         return;
       }
 
-      // Intentar obtener ubicación real con timeout extendido
-      try {
-        console.log("Obteniendo ubicación GPS obligatoria...");
-        const pos = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 2000,
-          maximumAge: 120000
-        });
-        currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch (geoErr) {
-        try {
-          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 1500, maximumAge: 300000 });
-          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
-        } catch (fbErr) {
-          console.warn("Falla en captura GPS:", fbErr);
-        }
-      }
+      // Intentar obtener ubicación real de forma rápida y no bloqueante
+      currentLocation = await getFastLocation(activeLocation);
 
       // GPS fallback: solo advertir, NO bloquear el pago
       if (currentLocation.lat === 0 && currentLocation.lng === 0) {

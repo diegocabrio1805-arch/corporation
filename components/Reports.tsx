@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { AppState, Role, CollectionLog, LoanStatus, CollectionLogType, AppSettings, PaymentStatus } from '../types';
-import { formatCurrency, formatRawNumber, getDaysOverdue, getLocalDateStringForCountry, formatLocalDate, formatLocalTime } from '../utils/helpers';
+import { formatCurrency, formatRawNumber, getDaysOverdue, getLocalDateStringForCountry, formatLocalDate, formatLocalTime, calculateTotalPaidFromLogs } from '../utils/helpers';
 
 import { getTranslation } from '../utils/translations';
 import { jsPDF } from 'jspdf';

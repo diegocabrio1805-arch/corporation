@@ -167,6 +167,8 @@ export const calculateMonthlyStats = (
   year: number,
   collectorId?: string
 ) => {
+  const loansMap = new Map((Array.isArray(loans) ? loans : []).map(l => [l.id, l]));
+
   const activeLoans = (Array.isArray(loans) ? loans : []).filter(l => {
     const status = getProp(l, 'status', 'status');
     return status === LoanStatus.ACTIVE || status === 'Activo';
@@ -201,7 +203,7 @@ export const calculateMonthlyStats = (
     const logDate = safeParseDate(log.date);
     if (!logDate) return false;
 
-    const loan = (Array.isArray(loans) ? loans : []).find(l => l.id === log.loanId);
+    const loan = loansMap.get(log.loanId);
     const cId = getProp(loan, 'collectorId', 'collector_id');
     const isCollector = collectorId ? cId === collectorId : true;
     const logType = getProp(log, 'type', 'type');

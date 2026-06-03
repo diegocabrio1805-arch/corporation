@@ -46,7 +46,7 @@ const App: React.FC = () => {
   const { state, setState, isInitializing, resolvedSettings } = useAppInitialization();
 
   // 2. Initialize Sync Engine
-  const sync = useAppSyncEngine(state, setState, resolvedSettings);
+  const sync = useAppSyncEngine(state, setState, resolvedSettings, isInitializing);
   const { isSyncing, isFullSyncing, isOnline, queueLength, filteredState, handleForceSync, handleDeepReset, clearQueue } = sync;
 
   // 3. Initialize GPS Warmer (Global Background Tracking)
@@ -68,6 +68,7 @@ const App: React.FC = () => {
 
   // SESSION VALIDATION EFFECT: Prevenir que el dashboard cargue sin sesión de Supabase real
   useEffect(() => {
+    if (isInitializing) return;
     const validateSession = async () => {
       if (state.currentUser && navigator.onLine) {
         const { data: { session } } = await supabase.auth.getSession();
@@ -78,20 +79,25 @@ const App: React.FC = () => {
       }
     };
     validateSession();
-  }, [state.currentUser, handleLogout]);
+  }, [state.currentUser?.id, handleLogout, isInitializing]);
+
+  const hasAttemptedInitialSyncRef = useRef(false);
 
   // GLOBAL EXPOSURE: For legacy handleSync alias support
   useEffect(() => {
+    if (isInitializing) return;
     (window as any)._triggerForceSync = () => handleForceSync(true);
     
     // AUTO-SYNC ON EMPTY DATA: Si el usuario entra y no hay datos, forzar una descarga inicial
-    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing && navigator.onLine) {
+    if (state.currentUser && state.clients.length === 0 && !isSyncing && !isFullSyncing && navigator.onLine && !hasAttemptedInitialSyncRef.current) {
+      hasAttemptedInitialSyncRef.current = true;
       console.log("[App] No data found. Triggering initial full sync...");
-      setTimeout(() => {
+      const timer = setTimeout(() => {
           handleForceSync(false, "¡Descargando Datos!", true);
       }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, [handleForceSync, state.currentUser, state.clients.length]);
+  }, [handleForceSync, state.currentUser?.id, state.clients.length, isSyncing, isFullSyncing, isInitializing]);
 
   // Removed aggressive Bluetooth initialization here to prevent Samsung A13 Android permissions crash
 
@@ -304,6 +310,7 @@ const App: React.FC = () => {
                 renewLoan={renewLoan}
                 setState={setState}
                 pushLoan={sync.pushLoan}
+                activeLocation={activeLocation}
               />
             )}
             {activeTab === 'loans' && (
@@ -315,6 +322,7 @@ const App: React.FC = () => {
                 deleteCollectionLog={deleteCollectionLog} 
                 onForceSync={handleForceSync} 
                 setActiveTab={setActiveTab}
+                activeLocation={activeLocation}
               />
             )}
             {activeTab === 'route' && (

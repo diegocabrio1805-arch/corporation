@@ -11,6 +11,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { jsPDF } from 'jspdf';
 import { saveAndOpenPDF, saveAndOpenBase64PDF } from '../utils/pdfHelper';
+import { getFastLocation } from '../utils/gpsHelper';
 import { exportClientsToExcel, processExcelImport, downloadExcelTemplate } from '../utils/excelHelper';
 import { RefreshCcw, Upload, Download, Info } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
@@ -72,6 +73,7 @@ interface ClientsProps {
   renewLoan?: (newLoan: Loan, previousLoanIds: string[]) => Promise<void>;
   setState?: React.Dispatch<React.SetStateAction<AppState>>;
   pushLoan?: (loan: Loan) => Promise<boolean>;
+  activeLocation?: { lat: number, lng: number, timestamp: number } | null;
 }
 
 const compressImage = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -221,7 +223,7 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
   );
 };
 
-const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan }) => {
+const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClient, updateLoan, deleteCollectionLog, updateCollectionLog, updateCollectionLogNotes, addCollectionAttempt, globalState, onForceSync, deleteLoan, recalculateLoanStatus, setActiveTab, fetchClientPhotos, deleteClient, addBulkData, renewLoan, activeLocation }) => {
   const receiptCardRef = useRef<HTMLDivElement>(null);
   const [isSharing, setIsSharing] = useState(false);
   const countryTodayStr = getLocalDateStringForCountry(state.settings.country);
@@ -1165,26 +1167,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
     setCapturingType(type);
     const fieldName = type === 'home' ? 'location' : type === 'business' ? 'businessLocation' : 'domicilioLocation';
     try {
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 });
-      const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const newLoc = await getFastLocation(activeLocation);
+      if (newLoc.lat === 0 && newLoc.lng === 0) {
+        throw new Error("No se pudo obtener la ubicación GPS.");
+      }
       if (forEdit && editClientFormData) {
         setEditClientFormData(prev => prev ? { ...prev, [fieldName]: newLoc } : null);
       } else {
         setClientData(prev => ({ ...prev, [fieldName]: newLoc }));
       }
     } catch (err: any) {
-      try {
-        const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
-        const fbLoc = { lat: fb.coords.latitude, lng: fb.coords.longitude };
-        if (forEdit && editClientFormData) {
-          setEditClientFormData(prev => prev ? { ...prev, [fieldName]: fbLoc } : null);
-        } else {
-          setClientData(prev => ({ ...prev, [fieldName]: fbLoc }));
-        }
-      } catch (fallbackErr: any) {
-        alert("Error GPS: " + fallbackErr.message);
-      }
-      alert("Error GPS: " + err.message);
+      alert("Error GPS: " + (err.message || err));
     } finally {
       setIsCapturing(false);
       setCapturingType(null);
@@ -1303,17 +1296,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const logId = generateUUID();
       let currentLocation = { lat: 0, lng: 0 };
-      try {
-        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 });
-        currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      } catch (geoErr) {
-        try {
-          const fb = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 });
-          currentLocation = { lat: fb.coords.latitude, lng: fb.coords.longitude };
-        } catch (fallbackErr) {
-          console.warn("Could not get real GPS from dossier:", fallbackErr);
-        }
-      }
+      currentLocation = await getFastLocation(activeLocation);
 
       const log: CollectionLog = {
         id: logId,

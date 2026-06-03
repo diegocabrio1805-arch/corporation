@@ -10,9 +10,6 @@
       "DOM.Iterable"
     ],
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -29,6 +26,8 @@
   "exclude": [
     "android",
     "scripts",
-    "**/*.js"
+    "**/*.js",
+    "OLD_BACKUP",
+    "temp_dash.tsx"
   ]
 }
