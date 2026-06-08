@@ -4,177 +4,233 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Política de Privacidad – Anexo Cobro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #0f172a;
+      --secondary: #1e293b;
+      --accent: #10b981;
+      --text: #334155;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #f8fafc;
-      color: #1e293b;
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
       line-height: 1.7;
+      padding: 2rem 1rem;
     }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      padding: 3rem 2.5rem;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+    }
+
     header {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: white;
-      padding: 2.5rem 2rem;
       text-align: center;
+      margin-bottom: 3rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 2rem;
     }
-    header h1 { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; }
-    header p { color: #10b981; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.5rem; }
-    .container { max-width: 800px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-    .card {
-      background: white;
-      border-radius: 1rem;
-      padding: 2rem;
+
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 20px;
       margin-bottom: 1.5rem;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      box-shadow: 0 8px 16px rgba(15, 23, 42, 0.1);
     }
-    h2 {
+
+    .logo-icon {
+      font-size: 2.5rem;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      color: var(--primary);
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #64748b;
       font-size: 1rem;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #0f172a;
+      font-weight: 400;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      color: var(--primary);
+      margin-top: 2.5rem;
       margin-bottom: 1rem;
+      font-weight: 600;
+      border-left: 4px solid var(--accent);
+      padding-left: 0.75rem;
+    }
+
+    p {
+      margin-bottom: 1.25rem;
+      color: var(--text);
+    }
+
+    ul {
+      margin-bottom: 1.5rem;
+      padding-left: 1.5rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    .highlight-box {
+      background-color: #f1f5f9;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      border-left: 4px solid var(--primary);
+    }
+
+    .highlight-title {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
-    h2::before {
-      content: '';
-      display: inline-block;
-      width: 4px;
-      height: 1.1em;
-      background: #10b981;
-      border-radius: 2px;
-    }
-    p, li { font-size: 0.9rem; color: #475569; margin-bottom: 0.6rem; }
-    ul { padding-left: 1.2rem; }
-    li { margin-bottom: 0.4rem; }
-    .badge {
-      display: inline-block;
-      background: #ecfdf5;
-      color: #065f46;
-      font-size: 0.7rem;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 0.2rem 0.6rem;
-      border-radius: 999px;
-      border: 1px solid #a7f3d0;
-      margin-top: 0.25rem;
-    }
-    .date-tag {
-      font-size: 0.75rem;
-      color: #94a3b8;
-      font-weight: 600;
-      text-align: center;
-      margin-top: 2rem;
-    }
+
     footer {
-      background: #0f172a;
-      color: #64748b;
       text-align: center;
-      padding: 1.5rem;
-      font-size: 0.75rem;
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem 0.5rem;
+      }
+      .container {
+        padding: 2rem 1.25rem;
+        border-radius: 16px;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
     }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Política de Privacidad</h1>
-  <p>Anexo Cobro — Aplicación de Gestión de Cobros</p>
-</header>
+  <div class="container">
+    <header>
+      <div class="logo-container">
+        <span class="logo-icon">AC</span>
+      </div>
+      <h1>Anexo Cobro</h1>
+      <p class="subtitle">Política de Privacidad y Tratamiento de Datos Personales</p>
+      <p class="subtitle" style="font-size: 0.85rem; margin-top: 0.25rem;">Última actualización: 1 de Junio de 2026</p>
+    </header>
 
-<div class="container">
-
-  <div class="card">
-    <h2>Información General</h2>
+    <h2>1. Introducción</h2>
     <p>
-      Esta Política de Privacidad describe cómo <strong>Anexo Cobro</strong> recopila, utiliza y protege la información personal de sus usuarios. Al utilizar esta aplicación, usted acepta las prácticas descritas en este documento.
+      Bienvenido a <strong>Anexo Cobro</strong>. Su privacidad y la seguridad de sus datos son de máxima importancia para nosotros. Esta Política de Privacidad describe cómo recopilamos, utilizamos, almacenamos y protegemos la información personal y los datos del dispositivo de los usuarios que utilizan nuestra aplicación móvil y nuestra plataforma web asociada, diseñada para optimizar los flujos de cobro en campo en la República del Paraguay.
     </p>
     <p>
-      <strong>Responsable del tratamiento:</strong> El administrador o empresa propietaria de la instancia de Anexo Cobro que usted utiliza.<br/>
-      <strong>Último cambio:</strong> Junio 2025.
+      Al descargar, instalar o utilizar <strong>Anexo Cobro</strong>, usted acepta las prácticas descritas en esta política.
     </p>
-  </div>
 
-  <div class="card">
-    <h2>Información que Recopilamos</h2>
-    <p>La aplicación puede recopilar los siguientes tipos de información:</p>
-    <ul>
-      <li><strong>Datos de clientes:</strong> Nombres, documentos de identidad, teléfonos, direcciones y fotografías de perfil ingresados por el operador.</li>
-      <li><strong>Datos de préstamos y cobros:</strong> Montos, fechas, estado de pagos y saldos.</li>
-      <li><strong>Ubicación geográfica:</strong> Para registrar la geolocalización en el momento de realizar un cobro o visita (requiere permiso del usuario).</li>
-      <li><strong>Datos del dispositivo:</strong> Información técnica básica para el funcionamiento correcto de la aplicación.</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>Uso de la Ubicación (GPS)</h2>
-    <span class="badge">Permiso Sensible</span>
-    <p style="margin-top:0.75rem;">
-      Anexo Cobro solicita acceso a la <strong>ubicación del dispositivo</strong> con los siguientes fines exclusivos:
-    </p>
-    <ul>
-      <li>Registrar la coordenada geográfica en el momento exacto en que se registra un cobro o visita a un cliente.</li>
-      <li>Permitir el rastreo de ruta del cobrador durante su jornada laboral activa (solo cuando la función está habilitada por el administrador).</li>
-    </ul>
+    <h2>2. Datos de Ubicación y Rastreo en Segundo Plano (GPS)</h2>
     <p>
-      Los datos de ubicación <strong>nunca se comparten con terceros</strong> y solo se almacenan en la base de datos privada de la empresa operadora.
+      Nuestra aplicación requiere acceso a los datos de geolocalización precisa del dispositivo, incluso cuando la aplicación está cerrada o no se encuentra en uso activo (rastreo en segundo plano).
     </p>
-  </div>
+    <div class="highlight-box">
+      <div class="highlight-title">📌 Justificación Obligatoria del Uso de Ubicación:</div>
+      <p>
+        <strong>Anexo Cobro</strong> recopila y procesa datos de geolocalización en segundo plano con el único propósito de permitir que los directores de cobranzas y administradores de la empresa visualicen el trayecto en tiempo real de los cobradores asignados a la ruta comercial. Esto garantiza la validez geográfica de las transacciones financieras (abonos) realizadas en campo, previene fraudes, ayuda a optimizar las rutas de visitas y proporciona seguridad física a los operarios en ruta. <strong>Los datos de ubicación en segundo plano nunca se comparten con terceros ni se utilizan con fines publicitarios.</strong>
+      </p>
+    </div>
 
-  <div class="card">
-    <h2>Uso del Bluetooth</h2>
-    <span class="badge">Permiso Sensible</span>
-    <p style="margin-top:0.75rem;">
-      El permiso de Bluetooth se utiliza exclusivamente para:
+    <h2>3. Conectividad Bluetooth y Permisos del Dispositivo</h2>
+    <p>
+      Para operar correctamente en el punto de cobro, la aplicación solicita los siguientes permisos de hardware adicionales:
     </p>
     <ul>
-      <li>Conectar e imprimir recibos de cobro en impresoras térmicas portátiles Bluetooth vinculadas al dispositivo del cobrador.</li>
+      <li>
+        <strong>Acceso a Bluetooth y Dispositivos Cercanos:</strong> Utilizado exclusivamente para emparejarse y enviar comandos de impresión de tickets o comprobantes de abonos a mini-impresoras térmicas portátiles Bluetooth utilizadas por los cobradores en campo.
+      </li>
+      <li>
+        <strong>Almacenamiento del Dispositivo:</strong> Requerido para almacenar temporalmente los recibos y PDF generados localmente, así como para posibilitar el modo de cobro fuera de línea (offline) guardando datos de forma segura e interna.
+      </li>
     </ul>
-    <p>No se escanean, rastrean ni almacenan datos de otros dispositivos Bluetooth cercanos.</p>
-  </div>
 
-  <div class="card">
-    <h2>Almacenamiento y Seguridad</h2>
-    <p>Toda la información sensible se almacena en una base de datos segura (<strong>Supabase / PostgreSQL</strong>) con cifrado en tránsito (HTTPS/TLS). Los datos de credenciales de pago (Bancard) se gestionan con acceso restringido por roles dentro de la aplicación.</p>
-    <p>Solo el personal autorizado por el administrador de la cuenta puede acceder a la información registrada.</p>
-  </div>
-
-  <div class="card">
-    <h2>Compartición de Datos</h2>
-    <p>Anexo Cobro <strong>no vende, alquila ni comparte</strong> información personal con terceros con fines comerciales. Los datos pueden compartirse únicamente en los siguientes casos:</p>
+    <h2>4. Información Recopilada Directamente</h2>
+    <p>
+      Recopilamos información para garantizar el correcto funcionamiento del sistema y la rendición de cuentas, la cual incluye:
+    </p>
     <ul>
-      <li>Por obligación legal ante una autoridad competente.</li>
-      <li>Con proveedores de infraestructura técnica (ej. Supabase) bajo acuerdos de confidencialidad.</li>
+      <li><strong>Información de Cuenta:</strong> Nombre de usuario, contraseña (encriptada), correo electrónico y rol asignado (Administrador, Gerente o Cobrador).</li>
+      <li><strong>Información de Cobros y Clientes:</strong> Datos de los créditos, abonos cobrados (monto, método de pago, fecha, hora), firmas de clientes (si aplica) y coordenadas del lugar del cobro.</li>
+      <li><strong>Información del Dispositivo:</strong> Identificadores únicos del dispositivo móvil, modelo de hardware y versión del sistema operativo para soporte y depuración.</li>
     </ul>
+
+    <h2>5. Compartición y Divulgación de Datos</h2>
+    <p>
+      No vendemos, alquilamos ni comercializamos los datos recopilados bajo ninguna circunstancia. Los datos recopilados por <strong>Anexo Cobro</strong> son de propiedad exclusiva de la empresa/cliente que contrata el servicio del sistema de cobros y se almacenan de manera privada y encriptada en nuestros servidores seguros.
+    </p>
+
+    <h2>6. Seguridad de los Datos</h2>
+    <p>
+      Implementamos medidas de seguridad técnicas y organizativas líderes en la industria para salvaguardar la información contra accesos no autorizados, pérdidas, alteraciones o divulgaciones. Toda transmisión de datos entre el dispositivo móvil y el servidor se realiza mediante canales seguros con encriptación SSL/TLS (HTTPS).
+    </p>
+
+    <h2>7. Control y Eliminación de Datos</h2>
+    <p>
+      Los usuarios administradores pueden solicitar la rectificación o eliminación total de sus cuentas y los datos históricos recopilados a través de los canales oficiales de soporte técnico proporcionados por su empresa o escribiendo directamente a nuestro correo de contacto de desarrollo.
+    </p>
+
+    <h2>8. Cambios en esta Política de Privacidad</h2>
+    <p>
+      Nos reservamos el derecho de actualizar esta Política de Privacidad periódicamente. Le notificaremos cualquier cambio relevante publicando la nueva política dentro de la aplicación móvil y actualizando la fecha de entrada en vigor en la parte superior.
+    </p>
+
+    <h2>9. Contacto y Soporte</h2>
+    <p>
+      Si tiene alguna pregunta, inquietud o sugerencia respecto a esta Política de Privacidad o el tratamiento de sus datos, no dude en contactarnos:
+    </p>
+    <p style="margin-left: 1.5rem;">
+      📧 Correo electrónico: <strong>diegocabrio1805@gmail.com</strong><br/>
+      📍 Asunción, República del Paraguay.
+    </p>
+
+    <footer>
+      <p>&copy; 2026 Anexo Cobro. Todos los derechos reservados.</p>
+    </footer>
   </div>
-
-  <div class="card">
-    <h2>Derechos del Usuario</h2>
-    <p>Usted tiene derecho a:</p>
-    <ul>
-      <li>Solicitar acceso a sus datos personales almacenados.</li>
-      <li>Solicitar la corrección de datos incorrectos.</li>
-      <li>Solicitar la eliminación de sus datos.</li>
-    </ul>
-    <p>Para ejercer estos derechos, contacte al administrador de la aplicación en su empresa.</p>
-  </div>
-
-  <div class="card">
-    <h2>Contacto</h2>
-    <p>Si tiene preguntas o inquietudes sobre esta política, puede comunicarse a través del soporte técnico habilitado dentro de la aplicación.</p>
-  </div>
-
-  <p class="date-tag">Versión 1.0 — Junio 2025 — Anexo Cobro</p>
-</div>
-
-<footer>
-  &copy; 2025 Anexo Cobro. Todos los derechos reservados.
-</footer>
 
 </body>
 </html>
