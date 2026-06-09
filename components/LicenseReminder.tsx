@@ -33,7 +33,7 @@ const LicenseReminder: React.FC<LicenseReminderProps> = ({ currentUser, users })
 
         // 2. Check Collectors (Only if Manager)
         if (currentUser.role === Role.MANAGER) {
-            const myCollectors = users.filter(u => u.role === Role.COLLECTOR && u.managedBy === currentUser.id);
+            const myCollectors = users.filter(u => u.role === Role.COLLECTOR && u.managedBy === currentUser.id && u.name?.toUpperCase() !== 'FABIAN PEDROZO');
             myCollectors.forEach(col => {
                 if (col.expiryDate) {
                     const days = getDaysRemaining(col.expiryDate);
