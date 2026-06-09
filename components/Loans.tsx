@@ -602,13 +602,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           // Pre-populate with settings explicitly, fallback to null/empty to allow generateReceiptText to use settings
           companyNameManual: state.settings.companyName || null,
           companyAliasManual: state.settings.companyAlias || null,
-          contactLabelManual: "TEL. PUBLICO",
+          contactLabelManual: null,
           contactPhoneManual: state.settings.contactPhone || null,
-          companyIdentifierLabelManual: "ID EMPRESA",
+          companyIdentifierLabelManual: null,
           companyIdentifierManual: state.settings.companyIdentifier || null,
           shareLabelManual: state.settings.shareLabel || null,
           shareValueManual: state.settings.shareValue || null,
-          supportLabelManual: "NUMERO CO",
+          supportLabelManual: null,
           supportPhoneManual: state.settings.technicalSupportPhone || null,
           fullDateTimeManual: new Date().toLocaleString()
         };
@@ -641,7 +641,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               .replace('{saldo}', formatCurrency(currentBalance, state.settings))
               .replace('{atraso}', overdueDays.toString());
         } else {
-          msg = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(currentBalance, state.settings)} y cuentas con ${overdueDays} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+          msg = ((t as any).loans?.card?.noPaymentMsg || `Hola {cliente}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de {saldo} y cuentas con {atraso} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`)
+              .replace('{cliente}', client.name)
+              .replace('{saldo}', formatCurrency(currentBalance, state.settings))
+              .replace('{atraso}', overdueDays.toString());
         }
         
         setTimeout(() => {
@@ -718,13 +721,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       companyNameManual: settingsToUse.companyName || null,
       companyAliasManual: settingsToUse.companyAlias || null,
-      contactLabelManual: "TEL. PUBLICO",
+      contactLabelManual: null,
       contactPhoneManual: settingsToUse.contactPhone || null,
-      companyIdentifierLabelManual: "ID EMPRESA",
+      companyIdentifierLabelManual: null,
       companyIdentifierManual: settingsToUse.companyIdentifier || null,
       shareLabelManual: settingsToUse.shareLabel || null,
       shareValueManual: settingsToUse.shareValue || null,
-      supportLabelManual: "NUMERO CO",
+      supportLabelManual: null,
       supportPhoneManual: settingsToUse.technicalSupportPhone || null,
       fullDateTimeManual: new Date(lastPaymentLog.date).toLocaleString()
     };
@@ -807,13 +810,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
 
       companyNameManual: settingsToUse.companyName || null,
       companyAliasManual: settingsToUse.companyAlias || null,
-      contactLabelManual: "TEL. PUBLICO",
+      contactLabelManual: null,
       contactPhoneManual: settingsToUse.contactPhone || null,
-      companyIdentifierLabelManual: "ID EMPRESA",
+      companyIdentifierLabelManual: null,
       companyIdentifierManual: settingsToUse.companyIdentifier || null,
       shareLabelManual: settingsToUse.shareLabel || null,
       shareValueManual: settingsToUse.shareValue || null,
-      supportLabelManual: "NUMERO CO",
+      supportLabelManual: null,
       supportPhoneManual: settingsToUse.technicalSupportPhone || null,
       fullDateTimeManual: new Date(lastPaymentLog.date).toLocaleString()
     };
@@ -989,28 +992,28 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-hand-holding-dollar"></i>
-          GESTIÓN
+          {(t as any).loans.tabs.management}
         </button>
         <button
           onClick={() => setViewMode('renovaciones')}
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'renovaciones' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-rotate"></i>
-          RENOVADOS
+          {(t as any).loans.tabs.renewals}
         </button>
         <button
           onClick={() => setViewMode('vencidos')}
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'vencidos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-calendar-xmark"></i>
-          VENCIDOS
+          {(t as any).loans.tabs.overdue}
         </button>
         <button
           onClick={() => setViewMode('ocultos')}
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'ocultos' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-eye-slash"></i>
-          OCULTOS
+          {(t as any).loans.tabs.hidden}
         </button>
       </div>
 
@@ -1018,10 +1021,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         <div className="w-full md:w-auto text-center md:text-left">
           <h2 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter flex items-center justify-center md:justify-start gap-3">
             <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-money-bill-wave text-blue-600' : viewMode === 'renovaciones' ? 'fa-rotate text-emerald-600' : viewMode === 'vencidos' ? 'fa-triangle-exclamation text-red-600' : 'fa-eye-slash text-slate-900'}`}></i>
-            {viewMode === 'gestion' ? t.loans.title : viewMode === 'renovaciones' ? 'Renovaciones' : viewMode === 'vencidos' ? 'Cartera Vencida' : 'Clientes Ocultos'}
+            {viewMode === 'gestion' ? (t as any).loans.title : viewMode === 'renovaciones' ? (t as any).loans.headers.renewalsTitle : viewMode === 'vencidos' ? (t as any).loans.headers.overdueTitle : (t as any).loans.headers.hiddenTitle}
           </h2>
           <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-            {viewMode === 'gestion' ? t.loans.subtitle : viewMode === 'renovaciones' ? 'Créditos renovados activos' : viewMode === 'vencidos' ? 'Créditos con pagos atrasados' : 'Base de datos de clientes archivados'}
+            {viewMode === 'gestion' ? (t as any).loans.subtitle : viewMode === 'renovaciones' ? (t as any).loans.headers.renewalsSub : viewMode === 'vencidos' ? (t as any).loans.headers.overdueSub : (t as any).loans.headers.hiddenSub}
           </p>
         </div>
 
@@ -1032,7 +1035,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               className="w-full sm:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <i className="fa-solid fa-print"></i>
-              IMPRIMIR
+              {(t as any).loans.actions.print}
             </button>
           )}
           <div className="relative w-full md:w-80">
@@ -1052,11 +1055,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       {viewMode === 'gestion' && (
         <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
           {([
-            { key: 'all',              label: 'Todos',          icon: 'fa-layer-group',    active: 'bg-slate-900 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50' },
-            { key: 'Diaria',           label: 'Diarios',        icon: 'fa-sun',            active: 'bg-amber-500 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
-            { key: Frequency.WEEKLY,    label: 'Semanal',        icon: 'fa-calendar-week',  active: 'bg-violet-600 text-white shadow-lg',  idle: 'text-slate-400 hover:bg-violet-50 hover:text-violet-600' },
-            { key: Frequency.BIWEEKLY,  label: 'Quincenal',      icon: 'fa-calendar-days',  active: 'bg-blue-600 text-white shadow-lg',    idle: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600' },
-            { key: Frequency.MONTHLY,   label: 'Mensual',        icon: 'fa-calendar',       active: 'bg-slate-600 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' },
+            { key: 'all',              label: (t as any).loans.filters.all,          icon: 'fa-layer-group',    active: 'bg-slate-900 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50' },
+            { key: 'Diaria',           label: (t as any).loans.filters.daily,        icon: 'fa-sun',            active: 'bg-amber-500 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
+            { key: Frequency.WEEKLY,    label: (t as any).loans.filters.weekly,        icon: 'fa-calendar-week',  active: 'bg-violet-600 text-white shadow-lg',  idle: 'text-slate-400 hover:bg-violet-50 hover:text-violet-600' },
+            { key: Frequency.BIWEEKLY,  label: (t as any).loans.filters.biweekly,      icon: 'fa-calendar-days',  active: 'bg-blue-600 text-white shadow-lg',    idle: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600' },
+            { key: Frequency.MONTHLY,   label: (t as any).loans.filters.monthly,        icon: 'fa-calendar',       active: 'bg-slate-600 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' },
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -1084,7 +1087,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <div className="col-span-full py-16 md:py-20 bg-white rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 text-center px-4">
                 <i className="fa-solid fa-folder-open text-4xl md:text-5xl mb-4 opacity-10"></i>
                 <p className="text-[10px] md:text-xs font-black uppercase tracking-widest">
-                  {viewMode === 'renovaciones' ? 'Sin renovaciones activas encontradas' : 'Sin cobros pendientes encontrados'}
+                  {viewMode === 'renovaciones' ? (t as any).loans.emptyStates.noRenewals : (t as any).loans.emptyStates.noPending}
                 </p>
               </div>
             ) : (
@@ -1116,7 +1119,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         </div>
                         <div className="text-right flex flex-col items-end gap-1">
                           <span className={`px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-lg text-[7px] md:text-[8px] font-black uppercase border ${daysOverdue > 0 ? 'bg-red-900/30 text-red-400 border-red-900/50 animate-pulse' : 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50'}`}>
-                            {daysOverdue > 0 ? `${daysOverdue} d mora` : 'Al Día'}
+                            {daysOverdue > 0 ? `${daysOverdue} ${(t as any).loans.card.daysOverdue}` : (t as any).loans.card.upToDate}
                           </span>
                           <button 
                             onClick={() => handleDirectWhatsApp(client?.phone || '')}
@@ -1137,51 +1140,51 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           
                           {/* SECCIÓN GPS ESTILO EXPEDIENTE */}
                           <div className="flex items-center gap-2 mt-1 py-1 flex-wrap">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">Mapa GPS:</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">{(t as any).loans.card.gpsMap}</span>
                             <button 
                               onClick={() => handleOpenMap(client?.domicilioLocation)}
                               className="px-3 py-1 bg-slate-800 text-emerald-400 rounded-full text-[8px] font-black uppercase flex items-center gap-1 hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-slate-700"
                             >
-                              <i className="fa-solid fa-house-chimney"></i> Casa
+                              <i className="fa-solid fa-house-chimney"></i> {(t as any).loans.card.home}
                             </button>
                             <button 
                               onClick={() => handleOpenMap(client?.location)}
                               className="px-3 py-1 bg-slate-800 text-blue-400 rounded-full text-[8px] font-black uppercase flex items-center gap-1 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-slate-700"
                             >
-                              <i className="fa-solid fa-briefcase"></i> Negocio
+                              <i className="fa-solid fa-briefcase"></i> {(t as any).loans.card.business}
                             </button>
                             {balance > 0.01 && (() => {
-                              const DIAS = ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
+                              const DIAS = (t as any).loans.card.daysOfWeek || ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
                               const startDate = new Date(loan.createdAt.split('T')[0] + 'T00:00:00');
                               const diaSemana = DIAS[startDate.getDay()];
                               if (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) {
                                 return (
                                   <span className="text-amber-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-sun text-xs"></i> DIARIO · LUN A SÁB
+                                    <i className="fa-solid fa-sun text-xs"></i> {(t as any).loans.card.freqDaily || 'DIARIO · LUN A SÁB'}
                                   </span>
                                 );
                               } else if (loan.frequency === Frequency.DAILY_MF) {
                                 return (
                                   <span className="text-emerald-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar-day text-xs"></i> DIARIO · LUN A VIE
+                                    <i className="fa-solid fa-calendar-day text-xs"></i> {(t as any).loans.card.freqDailyMF || 'DIARIO · LUN A VIE'}
                                   </span>
                                 );
                               } else if (loan.frequency === Frequency.WEEKLY) {
                                 return (
                                   <span className="text-violet-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar-week text-xs"></i> SEMANAL · {diaSemana}
+                                    <i className="fa-solid fa-calendar-week text-xs"></i> {((t as any).loans.card.freqWeekly || 'SEMANAL · ')} {diaSemana}
                                   </span>
                                 );
                               } else if (loan.frequency === Frequency.BIWEEKLY) {
                                 return (
                                   <span className="text-blue-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar-days text-xs"></i> QUINCENAL
+                                    <i className="fa-solid fa-calendar-days text-xs"></i> {(t as any).loans.card.freqBiweekly || 'QUINCENAL'}
                                   </span>
                                 );
                               } else {
                                 return (
                                   <span className="text-slate-300 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar text-xs"></i> MENSUAL
+                                    <i className="fa-solid fa-calendar text-xs"></i> {(t as any).loans.card.freqMonthly || 'MENSUAL'}
                                   </span>
                                 );
                               }
@@ -1194,31 +1197,31 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <>
                           <div className="bg-slate-950 p-3 md:p-4 rounded-xl md:rounded-2xl space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
                             <div className="flex justify-between items-center opacity-60">
-                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Monto habilitado</p>
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{(t as any).loans.card.approvedAmount}</p>
                               <p className="text-[10px] md:text-xs font-black text-slate-400 font-mono">{formatCurrency((loan as any)._consolidatedPrincipal || loan.principal, state.settings)}</p>
                             </div>
                             
                             {loan.interestRate > 0 && (
                               <div className="flex justify-between items-center border-b border-slate-800/50 pb-2">
-                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">Monto Total</p>
+                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{(t as any).loans.card.totalAmount}</p>
                                 <p className="text-[10px] md:text-xs font-black text-slate-300 font-mono">{formatCurrency((loan as any)._consolidatedTotalAmount || loan.totalAmount, state.settings)}</p>
                               </div>
                             )}
 
                             <div className="flex justify-between items-center pt-1">
-                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Cuota</p>
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">{(t as any).loans.card.installment}</p>
                               <p className="text-sm md:text-lg font-black text-blue-400 font-mono">{formatCurrency((loan as any)._consolidatedInstallmentValue || loan.installmentValue, state.settings)}</p>
                             </div>
                             <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-slate-800">
-                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">Saldo</p>
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">{(t as any).loans.card.balance}</p>
                               <p className="text-xs md:text-sm font-black text-red-400 font-mono">{formatCurrency(balance, state.settings)}</p>
                             </div>
                           </div>
 
                           <div className="space-y-1">
                             <div className="flex justify-between text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              <span>Avance</span>
-                              <span className="text-white font-mono">{installmentsPaid} / {loan.totalInstallments} <span className="opacity-40 ml-1">CUOTAS</span></span>
+                              <span>{(t as any).loans.card.progress}</span>
+                              <span className="text-white font-mono">{installmentsPaid} / {loan.totalInstallments} <span className="opacity-40 ml-1">{(t as any).loans.card.installments}</span></span>
                             </div>
                             <div className="w-full h-1.5 md:h-2 bg-slate-800 rounded-full overflow-hidden shadow-inner">
                               <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${progress}%` }}></div>
@@ -1352,21 +1355,21 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <button
                           onClick={() => handleReprintLastReceipt(loan.id)}
                           className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-slate-600"
-                          title="Imprimir Último"
+                          title={(t as any).loans.card.printLast || "Imprimir Último"}
                         >
                           <i className="fa-solid fa-print text-sm"></i>
                         </button>
                         <button
                           onClick={() => handleShareLastReceiptAsPhoto(loan.id)}
                           className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-emerald-900/40 text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-emerald-800"
-                          title="Foto WhatsApp"
+                          title={(t as any).loans.card.photoWhatsApp || "Foto WhatsApp"}
                         >
                           <i className="fa-solid fa-camera text-sm"></i>
                         </button>
                         <button
                           onClick={() => toggleHistory(loan.id)}
                           className={`w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl transition-all flex items-center justify-center shadow-sm active:scale-95 border ${expandedHistory[loan.id] ? 'bg-blue-600 text-white border-blue-500' : 'bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white border-blue-800'}`}
-                          title="Historial de Pagos"
+                          title={(t as any).loans.card.paymentHistory || "Historial de Pagos"}
                         >
                           <i className="fa-solid fa-history text-sm"></i>
                         </button>
@@ -1374,7 +1377,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           <button
                             onClick={() => { if (confirm('¿BORRAR ÚLTIMO PAGO? Se revertirá el saldo.')) deleteCollectionLog?.(lastPayLog.id); }}
                             className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-red-800"
-                            title="Borrar Último"
+                            title={(t as any).loans.card.deleteLast || "Borrar Último"}
                           >
                             <i className="fa-solid fa-trash-can text-sm"></i>
                           </button>
@@ -1387,13 +1390,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                               onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
                               className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
                             >
-                              No Pago
+                              {(t as any).loans.card.noPaymentBtn || 'No Pago'}
                             </button>
                             <button
                               onClick={() => handleOpenPayment(loan)}
                               className="flex-1 py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95"
                             >
-                              Pagar
+                              {(t as any).loans.card.payBtn || 'Pagar'}
                             </button>
                           </>
                         )}
@@ -1413,17 +1416,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 disabled={currentPage === 1}
                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >
-                Anterior
+                {(t as any).loans.pagination.prev}
               </button>
               <span className="text-[10px] font-black text-slate-400">
-                Página {currentPage} de {totalPages}
+                {(t as any).loans.pagination.page} {currentPage} {(t as any).loans.pagination.of} {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >
-                Siguiente
+                {(t as any).loans.pagination.next}
               </button>
             </div>
           )}
@@ -1719,7 +1722,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 2 (Ej: TEL. PUBLICO)</label>
                       <input
                         type="text"
-                        value={editingReceipt.contactLabelManual ?? "TEL. PUBLICO"}
+                        value={editingReceipt.contactLabelManual ?? ((t as any).receipt?.publicPhone || "TEL. PUBLICO")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, contactLabelManual: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1740,7 +1743,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 3 (Ej: ID EMPRESA)</label>
                       <input
                         type="text"
-                        value={editingReceipt.companyIdentifierLabelManual ?? "ID EMPRESA"}
+                        value={editingReceipt.companyIdentifierLabelManual ?? ((t as any).receipt?.companyId || "ID EMPRESA")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, companyIdentifierLabelManual: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1782,7 +1785,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Etiqueta 5 (Ej: NUMERO CO)</label>
                       <input
                         type="text"
-                        value={editingReceipt.supportLabelManual ?? "NUMERO CO"}
+                        value={editingReceipt.supportLabelManual ?? ((t as any).receipt?.publicPhone || "NUMERO CO")}
                         onChange={(e) => setEditingReceipt({ ...editingReceipt, supportLabelManual: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-[10px] font-black text-blue-700 outline-none focus:ring-2 focus:ring-blue-500"
                       />
@@ -1947,7 +1950,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <button onClick={resetUI} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
                 <i className="fa-solid fa-arrow-left text-lg"></i>
               </button>
-              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Vista de Comprobante</span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{((t as any).receipt?.viewTitle) || 'VISTA DE COMPROBANTE'}</span>
               <button onClick={resetUI} className="text-slate-400 hover:text-red-500 transition-all active:scale-90">
                 <i className="fa-solid fa-xmark text-xl"></i>
               </button>
@@ -1957,14 +1960,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
                 <i className="fa-solid fa-check-double"></i>
               </div>
-              <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">¡Gestión Exitosa!</h3>
+              <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
               <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                 {receipt}
               </div>
               <div className="flex flex-col gap-2">
-                <button onClick={resetUI} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                  Finalizar y Salir
-                </button>
+                <button onClick={resetUI} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
                 <button
                   onClick={async () => {
                     const { printText } = await import('../services/bluetoothPrinterService');
@@ -1972,7 +1973,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   }}
                   className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                 >
-                  <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                  <i className="fa-solid fa-print mr-2"></i> {((t as any).receipt?.reprint) || 'Re-Imprimir Ticket'}
                 </button>
                 <button
                   disabled={isSharing}
@@ -1980,7 +1981,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                 >
                   {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
-                  {isSharing ? 'GENERANDO PDF...' : 'Enviar por WhatsApp (PDF)'}
+                  {isSharing ? ((t as any).receipt?.generatingPdf || 'GENERANDO PDF...') : ((t as any).receipt?.sendWhatsapp || 'Enviar por WhatsApp (PDF)')}
                 </button>
                 <button
                   disabled={isSharing}
@@ -1988,7 +1989,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                 >
                   {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
-                  {isSharing ? 'GENERANDO FOTO...' : 'ENVIAR FOTO DE RECIBO'}
+                  {isSharing ? ((t as any).receipt?.generatingPhoto || 'GENERANDO FOTO...') : ((t as any).receipt?.sendPhoto || 'ENVIAR FOTO DE RECIBO')}
                 </button>
               </div>
             </div>

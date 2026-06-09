@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppState, Client, CollectionLogType, LoanStatus, Role } from '../types';
 import { formatCurrency, parseAmount, calculateTotalPaidFromLogs, generateUUID, getDaysOverdue, generateReceiptText, convertReceiptForWhatsApp } from '../utils/helpers';
 import PullToRefresh from './PullToRefresh';
+import { getTranslation } from '../utils/translations';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../utils/supabaseClient';
@@ -15,6 +16,7 @@ interface MobileCollectorModeProps {
 }
 
 const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCollectionAttempt, onForceSync, activeLocation }) => {
+  const t = getTranslation((state.settings as any).language || 'es') as any;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState('');
@@ -720,16 +722,14 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                 <div className="w-16 h-16 bg-emerald-900/30 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-emerald-900/50">
                   <i className="fa-solid fa-check-double"></i>
                 </div>
-                <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tighter">¡Gestión Exitosa!</h3>
+                <h3 className="text-xl font-black text-white mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
                 <div className="bg-slate-950 p-4 shrink-0 rounded-xl font-mono text-[9px] text-left mb-6 max-h-48 overflow-y-auto border border-slate-800 text-slate-300 font-black whitespace-pre-wrap leading-relaxed shadow-inner">
                   {receipt}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button onClick={resetUI} className="w-full py-4 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                    Finalizar y Salir
-                  </button>
+                  <button onClick={resetUI} className="w-full py-4 bg-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
                   <button onClick={async () => { const { printText } = await import('../services/bluetoothPrinterService'); printText(receipt || '').catch(e => alert("Error: " + e)); }} className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all">
-                    <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                    <i className="fa-solid fa-print mr-2"></i> {((t as any).receipt?.reprint) || 'Re-Imprimir Ticket'}
                   </button>
                   <button disabled={isSharing} onClick={handleShareReceiptPDF} className={`w-full py-4 bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}>
                     {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>} ENVIAR POR WHATSAPP (PDF)

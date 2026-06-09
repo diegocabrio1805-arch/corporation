@@ -32,8 +32,10 @@ export const useAppActions = (
 
   const handleLogout = async () => {
     setState((prev: AppState) => ({ ...prev, currentUser: null }));
-    if (navigator.onLine) await supabase.auth.signOut();
-    await Preferences.remove({ key: 'NATIVE_CURRENT_USER' });
+    try { await Preferences.remove({ key: 'NATIVE_CURRENT_USER' }); } catch(e){}
+    if (navigator.onLine) {
+      try { await supabase.auth.signOut(); } catch(e){}
+    }
   };
 
   const addUser = async (user: User) => {

@@ -459,26 +459,26 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   ? `${(meters / 1000).toFixed(1)}km`
                   : `${Math.round(meters)}m`;
 
-               let homePart = 'S/UBI CASA';
-               let bizPart = 'S/UBI NEGOCIO';
+               let homePart = ((t as any).reports.map?.popups?.noHomeLoc || 'S/UBI CASA');
+               let bizPart = ((t as any).reports.map?.popups?.noBizLoc || 'S/UBI NEGOCIO');
 
                if (!hasLogLoc) {
-                  homePart = 'SIN GPS';
-                  bizPart = 'SIN GPS';
+                  homePart = ((t as any).reports.map?.noGps || 'SIN GPS');
+                  bizPart = ((t as any).reports.map?.noGps || 'SIN GPS');
                } else {
                   if (hasHomeLoc) {
                      const d = calculateDistance(lat, lng, homeLat, homeLng) * 1000;
-                     homePart = `${fmtDist(d)} de la casa`;
+                     homePart = `${fmtDist(d)} ${((t as any).reports.map?.popups?.fromHome || 'de la casa')}`;
                   }
                   if (hasBizLoc) {
                      const d = calculateDistance(lat, lng, bizLat, bizLng) * 1000;
-                     bizPart = `${fmtDist(d)} del negocio`;
+                     bizPart = `${fmtDist(d)} ${((t as any).reports.map?.popups?.fromBiz || 'del negocio')}`;
                   }
                }
 
                // Para NO PAGO sin ubicación del cliente
                if (isNoPayment && !hasHomeLoc && !hasBizLoc) {
-                  distanceNote = 'Sin ubicación del cliente';
+                  distanceNote = ((t as any).reports.map?.popups?.noClientLoc || 'Sin ubicación del cliente');
                } else {
                   distanceNote = `${homePart} / ${bizPart}`;
                }
@@ -512,14 +512,14 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   .bindPopup(`
                     <div style="min-width: 170px; text-align: center;">
                         <p 
-                            onclick="var el = this; navigator.clipboard.writeText('${lat.toFixed(6)}, ${lng.toFixed(6)}').then(function(){ el.innerHTML = '✅ COPIADO'; el.style.backgroundColor = '#dcfce7'; el.style.color = '#166534'; setTimeout(function(){ el.innerHTML = '🛰️ ${lat.toFixed(6)}, ${lng.toFixed(6)}'; el.style.backgroundColor = '#f1f5f9'; el.style.color = '#475569'; }, 1500); })"
-                            title="Clic para copiar al portapapeles"
+                            onclick="var el = this; navigator.clipboard.writeText('${lat.toFixed(6)}, ${lng.toFixed(6)}').then(function(){ el.innerHTML = '${((t as any).reports.map?.popups?.copied || '✅ COPIADO')}'; el.style.backgroundColor = '#dcfce7'; el.style.color = '#166534'; setTimeout(function(){ el.innerHTML = '🛰️ ${lat.toFixed(6)}, ${lng.toFixed(6)}'; el.style.backgroundColor = '#f1f5f9'; el.style.color = '#475569'; }, 1500); })"
+                            title="${((t as any).reports.map?.popups?.copyHint || 'Clic para copiar al portapapeles')}"
                             style="cursor:pointer; margin:0 auto 6px auto; font-size:9px; font-family:monospace; color:#475569; font-weight:black; letter-spacing:-0.2px; background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-block; border:1px solid #e2e8f0; transition:all 0.2s;"
                         >
                             🛰️ ${lat.toFixed(6)}, ${lng.toFixed(6)}
                         </p>
                         <h4 style="margin:0; font-weight:900; color:#1e293b; font-size:12px;">${client?.name}</h4>
-                        <p style="margin:4px 0; font-size:14px; font-weight:bold; color:${bgColor}">${isRenewal ? 'LIQUIDACIÓN' : log.type}</p>
+                        <p style="margin:4px 0; font-size:14px; font-weight:bold; color:${bgColor}">${isRenewal ? ((t as any).reports.map?.popups?.liquidation || 'LIQUIDACIÓN') : (log.type === CollectionLogType.PAYMENT ? ((t as any).reports.map?.popups?.payment || 'PAGO') : ((t as any).reports.map?.popups?.noPayment || 'NO PAGO'))}</p>
                         <p style="margin:0; font-size:10px; color:#64748b;">${timeStr}</p>
                         ${log.amount ? `<p style="margin-top:4px; font-weight:900; font-family:monospace;">${formatCurrency(log.amount, activeSettings)}</p>` : ''}
                         ${distanceNote ? `<p style="margin-top:6px; font-size:9px; font-weight:bold; color:${bgColor}; border-top:1px solid #e2e8f0; padding-top:5px; line-height:1.6;">📍 ${distanceNote}</p>` : ''}
@@ -1361,7 +1361,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                <div className="flex flex-wrap gap-4 w-full md:w-auto">
                   <div className="flex gap-2">
                      <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
-                        <span className="text-[9px] font-black text-slate-400">DESDE</span>
+                        <span className="text-[9px] font-black text-slate-400">{(t as any).reports.dateFilters?.from || 'DESDE'}</span>
                         <input
                            type="date"
                            value={selectedDate}
@@ -1371,7 +1371,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         />
                      </div>
                      <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 flex items-center gap-2">
-                        <span className="text-[9px] font-black text-slate-400">HASTA</span>
+                        <span className="text-[9px] font-black text-slate-400">{(t as any).reports.dateFilters?.to || 'HASTA'}</span>
                         <input
                            type="date"
                            value={endDate}
@@ -1389,7 +1389,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                         onChange={(e) => setSelectedCollector(e.target.value)}
                         className="bg-transparent border-none outline-none text-xs font-black text-slate-700 uppercase cursor-pointer"
                      >
-                        <option value="all">Todos</option>
+                        <option value="all">{(t as any).reports.filters?.all || 'Todos'}</option>
                         {(Array.isArray(collectors) ? collectors : []).map(c => (
                            <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -1403,25 +1403,25 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   onClick={() => setSelectedFilter('all')}
                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'all' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                >
-                  🚀 Todos
+                  🚀 {(t as any).reports.filters?.all || 'Todos'}
                </button>
                <button
                   onClick={() => setSelectedFilter('payment')}
                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'payment' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
                >
-                  😊 Pagos
+                  😊 {(t as any).reports.filters?.payments || 'Pagos'}
                </button>
                <button
                   onClick={() => setSelectedFilter('nopayment')}
                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'nopayment' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}
                >
-                  😡 No Pago
+                  😡 {(t as any).reports.filters?.noPayment || 'No Pago'}
                </button>
                <button
                   onClick={() => setSelectedFilter('liquidation')}
                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedFilter === 'liquidation' ? 'bg-blue-600 text-white shadow-lg' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
                >
-                  😇 Renovar
+                  😇 {(t as any).reports.filters?.renew || 'Renovar'}
                </button>
 
 
@@ -1444,7 +1444,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                      className="ml-auto px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl shadow-lg shadow-blue-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 border border-blue-500"
                   >
                      <i className="fa-brands fa-google"></i>
-                     Google Localizador
+                     {(t as any).reports.buttons?.googleTracker || 'Google Localizador'}
                   </a>
                )}
 
@@ -1454,7 +1454,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                   className={`${!(state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER) ? 'ml-auto' : ''} px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl shadow-lg shadow-slate-500/30 uppercase tracking-widest text-[10px] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border-2 border-slate-600`}
                >
                   <i className="fa-solid fa-clipboard-check"></i>
-                  Auditor
+                  {(t as any).reports.buttons?.auditor || 'Auditor'}
                </button>
             </div>
          </div>
@@ -1466,7 +1466,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             </div>
             <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center relative overflow-hidden">
                <div className={`absolute inset-0 opacity-10 ${(stats as any).noGpsCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></div>
-               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 relative z-10">SIN GPS</p>
+               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 relative z-10">{(t as any).reports.map?.noGps || 'SIN GPS'}</p>
                <div className="relative z-10 flex items-center justify-center gap-2">
                   <span className="text-2xl">{(stats as any).noGpsCount > 0 ? '⚠️' : '📍'}</span>
                   <p className={`text-xl font-black ${(stats as any).noGpsCount > 0 ? 'text-amber-600' : 'text-green-600'}`}>{(stats as any).noGpsCount || 0}</p>
@@ -1479,7 +1479,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm text-center">
                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.reports.status}</p>
                <p className={`text-xl font-black ${stats.totalStops > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {stats.totalStops > 0 ? 'Activa' : '---'}
+                  {stats.totalStops > 0 ? ((t as any).reports.map?.active || 'Activa') : ((t as any).reports.map?.inactive || '---')}
                </p>
             </div>
          </div>
@@ -1498,7 +1498,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             {!isLiveTracking && routeData.length === 0 && (
                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/98 z-20 text-white">
                   <i className="fa-solid fa-map-location-dot text-6xl text-slate-700 mb-4"></i>
-                  <h3 className="text-xl font-black uppercase tracking-tight">Sin Recorrido</h3>
+                  <h3 className="text-xl font-black uppercase tracking-tight">{(t as any).reports.map?.noRoute || 'Sin Recorrido'}</h3>
                </div>
             )}
          </div>
@@ -1506,20 +1506,20 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          {routeData.length > 0 && (
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
                <div className="p-5 border-b border-slate-50 flex items-center justify-between">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Historial Detallado de Ruta</h3>
-                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{routeData.length} Registros</span>
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(t as any).reports.historyTable?.title || 'Historial Detallado de Ruta'}</h3>
+                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">{routeData.length} {(t as any).reports.historyTable?.records || 'Registros'}</span>
                </div>
 
                <div className="overflow-auto max-h-[450px] scrollbar-premium">
                   <table className="w-full text-left">
                      <thead className="sticky top-0 z-20">
                         <tr className="bg-slate-50 text-[8px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200 shadow-sm">
-                           <th className="px-6 py-4">#</th>
-                           <th className="px-6 py-4">Hora</th>
-                           <th className="px-6 py-4">Estado</th>
-                           <th className="px-6 py-4">Cliente</th>
-                           <th className="px-6 py-4">Monto</th>
-                           <th className="px-6 py-4 text-center">GPS</th>
+                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.number || '#'}</th>
+                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.time || 'Hora'}</th>
+                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.status || 'Estado'}</th>
+                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.client || 'Cliente'}</th>
+                           <th className="px-6 py-4">{(t as any).reports.historyTable?.headers?.amount || 'Monto'}</th>
+                           <th className="px-6 py-4 text-center">{(t as any).reports.historyTable?.headers?.gps || 'GPS'}</th>
                         </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-50">
@@ -1578,7 +1578,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                               }
                            }
 
-                           const label = isRenewal ? 'Liquidado' : isPayment ? (log.isVirtual ? 'Transferencia' : 'Cobrado') : 'No Pago';
+                           const label = isRenewal ? ((t as any).reports.historyTable?.statuses?.renewed || 'Liquidado') : isPayment ? (log.isVirtual ? ((t as any).reports.historyTable?.statuses?.transfer || 'Transferencia') : ((t as any).reports.historyTable?.statuses?.collected || 'Cobrado')) : ((t as any).reports.historyTable?.statuses?.noPayment || 'No Pago');
                            const hasMapMarker = !!(log.location && log.location.lat !== 0 && markerRefs.current.has(log.id));
 
                            const handleRowClick = () => {
@@ -1598,7 +1598,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  key={log.id}
                                  onClick={hasMapMarker ? handleRowClick : undefined}
                                  className={`transition-colors ${hasMapMarker ? 'hover:bg-blue-50/60 cursor-pointer' : 'hover:bg-slate-50/50'}`}
-                                 title={hasMapMarker ? '📍 Clic para ver en el mapa' : ''}
+                                 title={hasMapMarker ? ((t as any).reports.historyTable?.clickToView || '📍 Clic para ver en el mapa') : ''}
                               >
                                  <td className="px-6 py-4 text-[11px] font-black text-slate-400 font-mono">{idx + 1}</td>
                                  <td className="px-6 py-4 text-[10px] font-black text-slate-400 font-mono tracking-tighter">{time}</td>
@@ -1610,7 +1610,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                  </td>
                                  <td className="px-6 py-4">
                                     <p className="text-[11px] font-black text-slate-800 uppercase tracking-tighter truncate max-w-[150px]">
-                                       {client ? (client.name + (client.deletedAt ? ' (ELIMINADO)' : '')) : '---'}
+                                       {client ? (client.name + (client.deletedAt ? ` ${(t as any).reports.historyTable?.deleted || '(ELIMINADO)'}` : '')) : '---'}
                                     </p>
                                     <p className="text-[7px] font-black text-slate-400 uppercase truncate max-w-[150px]">{client?.address}</p>
                                  </td>
@@ -1630,7 +1630,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
                                     ) : (
                                        <span className="text-[9px] font-black text-red-500 uppercase flex flex-col items-center">
                                           <i className="fa-solid fa-circle-exclamation text-xs mb-1"></i>
-                                          Sin GPS
+                                          {(t as any).reports.historyTable?.noGps || 'Sin GPS'}
                                        </span>
                                     )}
                                  </td>

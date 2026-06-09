@@ -72,7 +72,7 @@ const App: React.FC = () => {
     const validateSession = async () => {
       if (state.currentUser && navigator.onLine) {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session && state.currentUser.id !== 'b3716a78-fb4f-4918-8c0b-92004e3d63ec') {
+        if (!session) {
           console.warn("[App] Session mismatch detected. Forcing login.");
           handleLogout();
         }

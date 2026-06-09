@@ -1000,7 +1000,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                 <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-slate-600 transition-all active:scale-90">
                   <i className="fa-solid fa-arrow-left text-lg"></i>
                 </button>
-                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Vista de Comprobante</span>
+                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{((t as any).receipt?.viewTitle) || 'VISTA DE COMPROBANTE'}</span>
                 <button onClick={() => setReceipt(null)} className="text-slate-400 hover:text-red-500 transition-all active:scale-90">
                   <i className="fa-solid fa-xmark text-xl"></i>
                 </button>
@@ -1010,14 +1010,12 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-3xl shadow-xl border border-green-200">
                   <i className="fa-solid fa-check-double"></i>
                 </div>
-                <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">¡Gestión Exitosa!</h3>
+                <h3 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tighter">{((t as any).receipt?.successMsg) || '¡Gestión Exitosa!'}</h3>
                 <div className="bg-slate-50 p-4 md:p-6 rounded-xl md:rounded-2xl font-mono text-[9px] md:text-[10px] text-left mb-8 max-h-60 overflow-y-auto border border-slate-200 text-black font-black shadow-inner whitespace-pre-wrap leading-relaxed">
                   {receipt}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">
-                    Finalizar y Salir
-                  </button>
+                  <button onClick={() => setReceipt(null)} className="w-full py-4 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-2xl active:scale-95 transition-all">{((t as any).receipt?.finish) || 'Finalizar y Salir'}</button>
                   <button
                     onClick={async () => {
                       const { printText } = await import('../services/bluetoothPrinterService');
@@ -1025,7 +1023,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                     }}
                     className="w-full py-4 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
                   >
-                    <i className="fa-solid fa-print mr-2"></i> Re-Imprimir Ticket
+                    <i className="fa-solid fa-print mr-2"></i> {((t as any).receipt?.reprint) || 'Re-Imprimir Ticket'}
                   </button>
                   <button
                     disabled={isSharing}
@@ -1033,7 +1031,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                     className={`w-full py-4 bg-emerald-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                   >
                     {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-brands fa-whatsapp"></i>}
-                    {isSharing ? 'GENERANDO PDF...' : 'Enviar por WhatsApp (PDF)'}
+                    {isSharing ? ((t as any).receipt?.generatingPdf || 'GENERANDO PDF...') : ((t as any).receipt?.sendWhatsapp || 'Enviar por WhatsApp (PDF)')}
                   </button>
                   <button
                     disabled={isSharing}
@@ -1041,7 +1039,7 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
                     className={`w-full py-4 bg-emerald-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 ${isSharing ? 'opacity-50' : ''}`}
                   >
                     {isSharing ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-camera"></i>}
-                    {isSharing ? 'GENERANDO FOTO...' : 'ENVIAR FOTO DE RECIBO'}
+                    {isSharing ? ((t as any).receipt?.generatingPhoto || 'GENERANDO FOTO...') : ((t as any).receipt?.sendPhoto || 'ENVIAR FOTO DE RECIBO')}
                   </button>
                 </div>
               </div>

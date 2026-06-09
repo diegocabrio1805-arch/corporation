@@ -789,9 +789,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         <div>
           <h2 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tighter uppercase">
             <i className="fa-solid fa-file-invoice-dollar text-blue-600"></i>
-            Libro de Comisiones
+            {(t as any).commissionBook.title}
           </h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuración de incentivos por cumplimiento</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).commissionBook.subtitle}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -801,13 +801,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 onClick={() => setShowBracketModal(true)}
                 className="flex-1 md:flex-none px-4 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                <i className="fa-solid fa-gears text-black"></i> EDITAR REGLAS MORA
+                <i className="fa-solid fa-gears text-black"></i> {(t as any).commissionBook.editRules}
               </button>
               <button
                 onClick={() => setShowGlobalSummary(true)}
                 className="flex-1 md:flex-none px-4 py-3 bg-slate-900 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
               >
-                <i className="fa-solid fa-users-gear text-black"></i> RESUMEN RUTAS
+                <i className="fa-solid fa-users-gear text-black"></i> {(t as any).commissionBook.routeSummary}
               </button>
             </>
           )}
@@ -823,7 +823,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="relative z-10 flex flex-col gap-6">
             <h3 className="text-white text-[10px] font-black uppercase tracking-tighter flex items-center gap-2 border-b border-white/10 pb-2">
               <i className="fa-solid fa-chart-line text-emerald-400"></i>
-              Histórico de Mora Semanal: <span className="text-emerald-400 line-clamp-1">{selectedHistoricalRoutes.includes('all') ? 'CONSOLIDADO' : state.users.filter(u => selectedHistoricalRoutes.includes(u.id)).map(u => u.name.toUpperCase()).join(', ')}</span>
+              {(t as any).commissionBook.weeklyHistory}: <span className="text-emerald-400 line-clamp-1">{selectedHistoricalRoutes.includes('all') ? (t as any).commissionBook.consolidated : state.users.filter(u => selectedHistoricalRoutes.includes(u.id)).map(u => u.name.toUpperCase()).join(', ')}</span>
             </h3>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {(Array.isArray(currentViewStats.days) ? currentViewStats.days : []).map((stat, idx) => (
@@ -841,13 +841,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="bg-white p-3 rounded-[1.5rem] border border-slate-100 shadow-sm flex-1 flex flex-col justify-between items-center text-center relative group min-h-[140px]">
             {/* TOP: REAL MORA STATISTIC */}
             <div className="w-full border-b border-slate-100 pb-2 mb-2">
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Mora Real Registrada</p>
+              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).commissionBook.realMora}</p>
               <p className={`text-4xl font-black ${currentViewStats.averageDelinquency > 20 ? 'text-red-500' : 'text-emerald-500'}`}>{Math.round(currentViewStats.averageDelinquency)}%</p>
             </div>
 
             {/* BOTTOM: EDITABLE DISCOUNT */}
             <div className="flex-1 flex flex-col justify-center w-full">
-              <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">Descuento a Aplicar</p>
+              <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).commissionBook.discount}</p>
               <div className="flex items-center gap-1 justify-center">
                 <input
                   type="number"
@@ -867,7 +867,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           </div>
           <div className="bg-blue-600 p-3 rounded-[1.5rem] shadow-xl flex-1 flex flex-col justify-center items-center text-center text-white relative group min-h-[140px]">
             <div className="flex-1 flex flex-col justify-center w-full">
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2">Incentivo Extra</p>
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2">{(t as any).commissionBook.extraIncentive}</p>
 
               <div className="flex items-center gap-1 justify-center">
                 <input
@@ -882,7 +882,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <span className="text-3xl font-black text-white/80">%</span>
               </div>
 
-              <p className="text-[7px] font-bold text-blue-300 uppercase mt-4">SE SUMARÁ AL PAGO</p>
+              <p className="text-[7px] font-bold text-blue-300 uppercase mt-4">{(t as any).commissionBook.addToPayment}</p>
             </div>
           </div>
         </div>
@@ -893,7 +893,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           {/* Factor 1: Recaudo */}
           <div className="flex-1 text-center md:text-left space-y-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">1. Recaudo Bruto</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.formulas.grossCollection}</p>
             <p className="text-xl font-black text-slate-800 font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p>
           </div>
 
@@ -901,7 +901,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Factor 2: Comision % */}
           <div className="flex-1 text-center space-y-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">2. Comisión Base</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.formulas.baseCommission}</p>
             <div className="flex items-center justify-center gap-2">
               <input type="number" value={localCommissionPercent === 0 ? '' : localCommissionPercent} placeholder="0" onChange={(e) => {
                 const val = e.target.value === '' ? 0 : Number(e.target.value);
@@ -916,7 +916,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Resultado Intermedio */}
           <div className="flex-1 text-center space-y-1 bg-slate-50 p-3 rounded-2xl">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Subtotal (100%)</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.formulas.subtotal}</p>
             <p className="text-lg font-black text-blue-600 font-mono">{formatCurrency(baseCommissionValue, state.settings)}</p>
           </div>
 
@@ -924,7 +924,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Factor 3: Resta Mora */}
           <div className="flex-1 text-center space-y-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">3. Descuento Mora</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.formulas.moraDiscount}</p>
             <p className="text-xl font-black text-red-500">-{Math.round(effectiveMora * 100)}%</p>
           </div>
 
@@ -932,7 +932,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Factor 4: Suma Incentivo */}
           <div className="flex-1 text-center space-y-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">4. Incentivo</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.formulas.incentive}</p>
             <p className="text-xl font-black text-emerald-500">+{Math.round(effectiveIncentive * 100)}%</p>
           </div>
 
@@ -940,7 +940,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* PAGO FINAL */}
           <div className="flex-1 text-center md:text-right space-y-1 bg-emerald-600 text-white p-5 rounded-[2rem] shadow-xl shadow-emerald-600/20">
-            <p className="text-[8px] font-black text-emerald-200 uppercase tracking-widest">Liquidación Final</p>
+            <p className="text-[8px] font-black text-emerald-200 uppercase tracking-widest">{(t as any).commissionBook.formulas.finalLiquidation}</p>
             <p className="text-2xl font-black font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p>
           </div>
         </div>
@@ -956,7 +956,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <>
               {/* Valor Recaudo */}
               <div className="flex-1 text-center space-y-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Recaudo Filtrado</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.filteredCollection}</p>
             <p className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p>
           </div>
 
@@ -964,7 +964,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Sencillo Editable */}
           <div className="flex-1 text-center space-y-2">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Sencillo / Base</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.baseSalary}</p>
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl font-black text-slate-400">$</span>
               <input 
@@ -981,7 +981,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Gasto Editable */}
           <div className="flex-1 text-center space-y-2">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Gasto (Obs y Monto)</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.expense}</p>
             <div className="flex flex-col items-center gap-1">
               <input 
                 type="text" 
@@ -1009,7 +1009,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
           {/* Total a Rendir */}
           <div className="flex-1 text-center md:text-right space-y-1 bg-slate-900 text-white p-5 rounded-[2rem] shadow-xl">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total a Rendir</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).commissionBook.summary.totalToYield}</p>
             <p className="text-3xl font-black text-blue-400 font-mono">{formatCurrency(totalCollectedInRange + sencilloAmount - expenseAmount, state.settings)}</p>
           </div>
 
@@ -1019,7 +1019,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
       {/* FILTROS DE HISTORIAL EXCEL */}
       <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-4 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8">
         <button onClick={() => setShowExcelModal(true)} className="w-full sm:w-auto px-6 py-4 bg-slate-900 text-white rounded-3xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all">
-          <i className="fa-solid fa-table-list text-emerald-400"></i> VER HISTORIAL DETALLADO EXCEL
+          <i className="fa-solid fa-table-list text-emerald-400"></i> {(t as any).commissionBook.buttons.viewHistoryExcel}
         </button>
 
         <div className="flex items-center gap-2 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 w-full sm:w-auto relative">
@@ -1029,7 +1029,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <div className="flex items-center justify-between text-[10px] font-black text-slate-700 uppercase tracking-widest min-w-[180px]">
               <span className="truncate max-w-[150px]">
                 {selectedHistoricalRoutes.includes('all') 
-                  ? 'CONSOLIDADO SUCURSAL' 
+                  ? (t as any).commissionBook.buttons.consolidatedBranch 
                   : state.users.filter(u => selectedHistoricalRoutes.includes(u.id)).map(u => u.name).join(', ')}
               </span>
               <i className={`fa-solid fa-chevron-down ml-2 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}></i>
@@ -1150,7 +1150,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             <div className="p-4 md:p-6 bg-slate-900 text-white flex flex-col gap-4 shrink-0">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-black uppercase tracking-tighter">Auditoría Histórica de Abonos</h3>
+                  <h3 className="text-lg font-black uppercase tracking-tighter">{(t as any).commissionBook?.auditModal?.title || 'Auditoría Histórica de Abonos'}</h3>
                 </div>
                 <button onClick={() => setShowExcelModal(false)} className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
               </div>
@@ -1162,7 +1162,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
                   {['all', 'cash', 'virtual', 'renewal', 'nopay'].map(f => (
                     <button key={f} onClick={() => setPaymentTypeFilter(f as any)} className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase whitespace-nowrap ${paymentTypeFilter === f ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                      {f === 'all' ? 'Todo' : f === 'cash' ? 'Efectivo' : f === 'virtual' ? 'Transf.' : f === 'renewal' ? 'Liquid.' : 'No Pago'}
+                      {f === 'all' ? ((t as any).commissionBook?.auditModal?.filters?.all || 'Todo') : f === 'cash' ? ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo') : f === 'virtual' ? ((t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.') : f === 'renewal' ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.') : ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago')}
                     </button>
                   ))}
                 </div>
@@ -1173,13 +1173,13 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead className="sticky top-0 bg-slate-100 z-10">
                   <tr className="text-[9px] font-black text-slate-500 uppercase border-b border-slate-200">
-                    <th className="px-5 py-4">Fecha</th>
-                    <th className="px-5 py-4">Cliente</th>
-                    <th className="px-5 py-4 text-center">Medio</th>
-                    <th className="px-5 py-4 text-right">Monto</th>
-                    <th className="px-5 py-4 text-right text-blue-600">Comisión Base</th>
-                    <th className="px-5 py-4 text-center">Gestor</th>
-                    <th className="px-5 py-4 text-center no-print">Acciones</th>
+                    <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.date || 'Fecha'}</th>
+                    <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.client || 'Cliente'}</th>
+                    <th className="px-5 py-4 text-center">{(t as any).commissionBook?.auditModal?.table?.method || 'Medio'}</th>
+                    <th className="px-5 py-4 text-right">{(t as any).commissionBook?.auditModal?.table?.amount || 'Monto'}</th>
+                    <th className="px-5 py-4 text-right text-blue-600">{(t as any).commissionBook?.auditModal?.table?.baseCommission || 'Comisión Base'}</th>
+                    <th className="px-5 py-4 text-center">{(t as any).commissionBook?.auditModal?.table?.manager || 'Gestor'}</th>
+                    <th className="px-5 py-4 text-center no-print">{(t as any).commissionBook?.auditModal?.table?.actions || 'Acciones'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1192,7 +1192,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         <td className="px-5 py-3 uppercase font-black text-black">{log._clientName}</td>
                         <td className="px-5 py-3 text-center">
                           <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isNoPay ? 'bg-red-600 text-white' : log.isRenewal ? 'bg-amber-100 text-amber-700' : log.isVirtual ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                            {isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo'}
+                            {isNoPay ? ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago') : log.isRenewal ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.') : log.isVirtual ? ((t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.') : ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo')}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right font-mono font-black text-black">{isNoPay ? '-' : formatRawNumber(log.amount || 0, state.settings)}</td>
@@ -1221,9 +1221,9 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
             <div className="p-6 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex flex-wrap gap-6 text-center md:text-left">
-                <div><p className="text-[8px] font-black text-slate-500 uppercase">Recaudo Bruto</p><p className="text-xl font-black font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p></div>
-                <div className="border-x border-white/10 px-6"><p className="text-[8px] font-black text-slate-500 uppercase">Eficiencia Ruta</p><p className="text-xl font-black text-emerald-400">{Math.round(effectiveIncentive * 100)}%</p></div>
-                <div><p className="text-[8px] font-black text-slate-500 uppercase">Total a Renovar</p><p className="text-2xl font-black text-blue-400 font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p></div>
+                <div><p className="text-[8px] font-black text-slate-500 uppercase">{(t as any).commissionBook?.auditModal?.metrics?.grossCollection || 'Recaudo Bruto'}</p><p className="text-xl font-black font-mono">{formatCurrency(totalCollectedInRange, state.settings)}</p></div>
+                <div className="border-x border-white/10 px-6"><p className="text-[8px] font-black text-slate-500 uppercase">{(t as any).commissionBook?.auditModal?.metrics?.routeEfficiency || 'Eficiencia Ruta'}</p><p className="text-xl font-black text-emerald-400">{Math.round(effectiveIncentive * 100)}%</p></div>
+                <div><p className="text-[8px] font-black text-slate-500 uppercase">{(t as any).commissionBook?.auditModal?.metrics?.totalToRenew || 'Total a Renovar'}</p><p className="text-2xl font-black text-blue-400 font-mono">{formatCurrency(finalCommissionValue, state.settings)}</p></div>
               </div>
               <div className="flex gap-2 w-full md:w-auto">
                 {/* Print button removed per feature request */}
@@ -1232,7 +1232,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   disabled={isGeneratingExcel}
                   className={`px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 w-full md:w-auto ${isGeneratingExcel ? 'opacity-50 cursor-wait' : ''}`}
                 >
-                  {isGeneratingExcel ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-excel text-lg"></i>} EXPORTAR EXCEL
+                  {isGeneratingExcel ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-file-excel text-lg"></i>} {(t as any).commissionBook?.auditModal?.exportExcelBtn || 'EXPORTAR EXCEL'}
                 </button>
               </div>
             </div>
@@ -1334,7 +1334,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         <div className="fixed inset-0 bg-slate-900/98 flex items-start pt-10 md:pt-20 justify-center z-[200] p-4 overflow-y-auto">
           <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-scaleIn">
             <div className="p-6 md:p-8 bg-slate-900 text-white flex justify-between items-center">
-              <h3 className="text-xl font-black uppercase tracking-tighter">Comparativa de Desempeño</h3>
+              <h3 className="text-xl font-black uppercase tracking-tighter">{(t as any).commissionBook?.comparison?.title || 'Comparativa de Desempeño'}</h3>
               <button onClick={() => setShowGlobalSummary(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center"><i className="fa-solid fa-xmark"></i></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-slate-800">
@@ -1344,15 +1344,15 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center font-black text-xl text-white">{user.name.charAt(0)}</div>
                     <div>
                       <h4 className="font-black text-white uppercase text-sm truncate">{user.name}</h4>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase">Corte hoy: {formatCurrency(stats.recaudoHoy, state.settings)}</p>
+                      <p className="text-[8px] font-bold text-slate-400 uppercase">{(t as any).commissionBook?.comparison?.cutToday || 'Corte hoy:'} {formatCurrency(stats.recaudoHoy, state.settings)}</p>
                     </div>
                   </div>
                   <div className="flex justify-between items-center bg-slate-800 p-3 rounded-xl border border-slate-700">
-                    <span className="text-[9px] font-black text-slate-400 uppercase">Mora: <span className={stats.averageDelinquency > 20 ? 'text-red-400' : 'text-emerald-400'}>{Math.round(stats.averageDelinquency)}%</span></span>
-                    <span className="text-[9px] font-black text-blue-400 uppercase">PAGO: {Math.round(stats.performanceFactor * 100)}%</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase">{(t as any).commissionBook?.comparison?.mora || 'Mora:'} <span className={stats.averageDelinquency > 20 ? 'text-red-400' : 'text-emerald-400'}>{Math.round(stats.averageDelinquency)}%</span></span>
+                    <span className="text-[9px] font-black text-blue-400 uppercase">{(t as any).commissionBook?.comparison?.payment || 'PAGO:'} {Math.round(stats.performanceFactor * 100)}%</span>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all">HISTORIAL DE COBROS DETALLADO</button>
+                    <button onClick={() => { setShowCollectorHistoryId(user.id); }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase hover:bg-blue-500 active:scale-95 transition-all">{(t as any).commissionBook?.comparison?.historyBtn || 'HISTORIAL DE COBROS DETALLADO'}</button>
                   </div>
                 </div>
               ))}
@@ -1366,10 +1366,10 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
           <div className="bg-white w-full max-w-6xl md:rounded-[2.5rem] shadow-2xl flex flex-col border border-white/20">
             <div className="p-4 md:p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-lg font-black uppercase tracking-tighter">Historial de Cobros</h3>
+                <h3 className="text-lg font-black uppercase tracking-tighter">{(t as any).commissionBook?.historyModal?.title || 'Historial de Cobros'}</h3>
                 <div className="flex flex-col md:flex-row gap-3 mt-2">
                    <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-slate-500 uppercase mb-1">Gestor Seleccionado</span>
+                      <span className="text-[7px] font-black text-slate-500 uppercase mb-1">{(t as any).commissionBook?.historyModal?.selectedManager || 'Gestor Seleccionado'}</span>
                       <p className="text-[10px] text-blue-400 font-bold uppercase">{state.users.find(u => u.id === showCollectorHistoryId)?.name || '---'}</p>
                    </div>
                    <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-2xl border border-slate-700 shadow-inner">
@@ -1385,7 +1385,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         }}
                       >
                          <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">Desde</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">{(t as any).commissionBook?.historyModal?.from || 'Desde'}</span>
                             <input 
                               type="date" 
                               value={historyStartDate} 
@@ -1411,7 +1411,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         }}
                       >
                          <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">Hasta</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">{(t as any).commissionBook?.historyModal?.to || 'Hasta'}</span>
                             <input 
                               type="date" 
                               value={historyEndDate} 
@@ -1428,14 +1428,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               <div className="flex items-center gap-4">
                 <div className="flex gap-2">
                   <button onClick={handleExportHistoryExcel} disabled={isGeneratingExcel} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-[9px] uppercase transition-colors flex items-center justify-center gap-2">
-                    {isGeneratingExcel ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-excel"></i>} EXCEL
+                    {isGeneratingExcel ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-excel"></i>} {(t as any).commissionBook?.historyModal?.exportExcel || 'EXCEL'}
                   </button>
                   <button onClick={handleExportHistoryPDF} disabled={isGeneratingImage} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-[9px] uppercase transition-colors flex items-center justify-center gap-2">
-                    {isGeneratingImage ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>} PDF
+                    {isGeneratingImage ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>} {(t as any).commissionBook?.historyModal?.exportPdf || 'PDF'}
                   </button>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Comisión %</span>
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).commissionBook?.historyModal?.commissionPercent || 'Comisión %'}</span>
                   <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
                     <input 
                       type="number" 
@@ -1452,25 +1452,25 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
             <div className="flex-1 overflow-auto bg-white custom-scrollbar">
               <div ref={historyPrintRef} className="p-6">
-              <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-money-bill-wave"></i> Recaudo de Cuotas</h4>
+              <h4 className="text-sm font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2"><i className="fa-solid fa-money-bill-wave"></i> {(t as any).commissionBook?.historyModal?.collection?.title || 'Recaudo de Cuotas'}</h4>
               {filteredHistory.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl mb-8">
-                  No hay cobros registrados en el rango seleccionado para este gestor.
+                  {(t as any).commissionBook?.historyModal?.collection?.empty || 'No hay cobros registrados en el rango seleccionado para este gestor.'}
                 </div>
               ) : (
                 <div className="mb-10">
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead className="bg-slate-100 rounded-t-xl">
                     <tr className="text-[10px] font-black text-slate-600 uppercase">
-                      <th className="px-4 py-4 rounded-tl-xl">Semana Del</th>
-                      <th className="px-4 py-4 text-right">Lunes</th>
-                      <th className="px-4 py-4 text-right">Martes</th>
-                      <th className="px-4 py-4 text-right">Miércoles</th>
-                      <th className="px-4 py-4 text-right">Jueves</th>
-                      <th className="px-4 py-4 text-right">Viernes</th>
-                      <th className="px-4 py-4 text-right">Sábado</th>
-                      <th className="px-4 py-4 text-right text-blue-700 bg-blue-50">Total Semanal</th>
-                      <th className="px-4 py-4 text-right text-emerald-700 bg-emerald-50 rounded-tr-xl">Comisión {historyCommissionPercent}%</th>
+                      <th className="px-4 py-4 rounded-tl-xl">{(t as any).commissionBook?.historyModal?.collection?.weekOf || 'Semana Del'}</th>
+                      <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.monday || 'Lunes'}</th>
+                      <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.tuesday || 'Martes'}</th>
+                      <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.wednesday || 'Miércoles'}</th>
+                      <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.thursday || 'Jueves'}</th>
+                      <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.friday || 'Viernes'}</th>
+                      <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.saturday || 'Sábado'}</th>
+                      <th className="px-4 py-4 text-right text-blue-700 bg-blue-50">{(t as any).commissionBook?.historyModal?.collection?.weeklyTotal || 'Total Semanal'}</th>
+                      <th className="px-4 py-4 text-right text-emerald-700 bg-emerald-50 rounded-tr-xl">{(t as any).commissionBook?.historyModal?.collection?.commissionTitle || 'Comisión'} {historyCommissionPercent}%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1492,7 +1492,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </tbody>
                   <tfoot className="bg-blue-100/50">
                     <tr>
-                      <td colSpan={7} className="px-4 py-4 text-right font-black text-blue-800 uppercase text-[10px] tracking-widest">TOTAL RECAUDADO (RANGO):</td>
+                      <td colSpan={7} className="px-4 py-4 text-right font-black text-blue-800 uppercase text-[10px] tracking-widest">{(t as any).commissionBook?.historyModal?.collection?.totalRange || 'TOTAL RECAUDADO (RANGO):'}</td>
                       <td className="px-4 py-4 text-right font-black font-mono text-blue-700 text-sm bg-blue-100">{formatCurrency(totalsFilteredHistory.recaudo, state.settings)}</td>
                       <td className="px-4 py-4 text-right font-black font-mono text-emerald-700 text-sm bg-emerald-100">{formatCurrency(totalsFilteredHistory.comision, state.settings)}</td>
                     </tr>
@@ -1509,21 +1509,21 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       <i className={`fa-solid ${totalsFilteredHistory.balance > 0 ? 'fa-arrow-trend-up' : totalsFilteredHistory.balance < 0 ? 'fa-arrow-trend-down' : 'fa-minus'}`}></i>
                     </div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Balance de Ruta (Rango)</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">{(t as any).commissionBook?.historyModal?.balance?.title || 'Balance de Ruta (Rango)'}</p>
                       <h4 className="text-xl font-black tracking-tight">
-                        {totalsFilteredHistory.balance > 0 ? '🟢 SUPERÁVIT (Mayor Recaudación)' : totalsFilteredHistory.balance < 0 ? '🔴 DÉFICIT (Mayor Colocación)' : '⚪ BALANCE NEUTRO'}
+                        {totalsFilteredHistory.balance > 0 ? `🟢 ${(t as any).commissionBook?.historyModal?.balance?.surplus || 'SUPERÁVIT (Mayor Recaudación)'}` : totalsFilteredHistory.balance < 0 ? `🔴 ${(t as any).commissionBook?.historyModal?.balance?.deficit || 'DÉFICIT (Mayor Colocación)'}` : `⚪ ${(t as any).commissionBook?.historyModal?.balance?.neutral || 'BALANCE NEUTRO'}`}
                       </h4>
                       <p className="text-xs font-bold opacity-80 mt-1">
                         {totalsFilteredHistory.balance > 0 
-                          ? 'El gestor ingresó más dinero del que entregó en créditos.' 
+                          ? ((t as any).commissionBook?.historyModal?.balance?.surplusDesc || 'El gestor ingresó más dinero del que entregó en créditos.')
                           : totalsFilteredHistory.balance < 0 
-                            ? 'El gestor entregó más dinero en créditos del que logró cobrar.' 
-                            : 'El dinero que entró fue exactamente el mismo que salió.'}
+                            ? ((t as any).commissionBook?.historyModal?.balance?.deficitDesc || 'El gestor entregó más dinero en créditos del que logró cobrar.')
+                            : ((t as any).commissionBook?.historyModal?.balance?.neutralDesc || 'El dinero que entró fue exactamente el mismo que salió.')}
                       </p>
                     </div>
                   </div>
                   <div className="text-right mt-4 md:mt-0 bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Diferencia Neta</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">{(t as any).commissionBook?.historyModal?.balance?.netDifference || 'Diferencia Neta'}</p>
                     <p className="text-3xl font-black font-mono">
                       {totalsFilteredHistory.balance > 0 ? '+' : totalsFilteredHistory.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(totalsFilteredHistory.balance), state.settings)}
                     </p>
@@ -1531,23 +1531,23 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                 </div>
               )}
 
-              <h4 className="text-sm font-black text-orange-600 uppercase tracking-widest mt-6 mb-4 flex items-center gap-2 pt-4 border-t border-slate-100"><i className="fa-solid fa-hand-holding-dollar"></i> Colocación (Capital Prestado)</h4>
+              <h4 className="text-sm font-black text-orange-600 uppercase tracking-widest mt-6 mb-4 flex items-center gap-2 pt-4 border-t border-slate-100"><i className="fa-solid fa-hand-holding-dollar"></i> {(t as any).commissionBook?.historyModal?.placement?.title || 'Colocación (Capital Prestado)'}</h4>
               {filteredColocacionHistory.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 font-bold uppercase text-sm border-2 border-dashed border-slate-100 rounded-2xl">
-                  No hay créditos entregados en el rango seleccionado para este gestor.
+                  {(t as any).commissionBook?.historyModal?.placement?.empty || 'No hay créditos entregados en el rango seleccionado para este gestor.'}
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead className="bg-slate-100 rounded-t-xl">
                     <tr className="text-[10px] font-black text-slate-600 uppercase">
-                      <th className="px-4 py-4 rounded-tl-xl">Semana Del</th>
-                      <th className="px-4 py-4 text-center">Lunes</th>
-                      <th className="px-4 py-4 text-center">Martes</th>
-                      <th className="px-4 py-4 text-center">Miércoles</th>
-                      <th className="px-4 py-4 text-center">Jueves</th>
-                      <th className="px-4 py-4 text-center">Viernes</th>
-                      <th className="px-4 py-4 text-center">Sábado</th>
-                      <th className="px-4 py-4 text-right text-orange-700 bg-orange-50 rounded-tr-xl">Total Colocado</th>
+                      <th className="px-4 py-4 rounded-tl-xl">{(t as any).commissionBook?.historyModal?.collection?.weekOf || 'Semana Del'}</th>
+                      <th className="px-4 py-4 text-center">{(t as any).commissionBook?.historyModal?.collection?.monday || 'Lunes'}</th>
+                      <th className="px-4 py-4 text-center">{(t as any).commissionBook?.historyModal?.collection?.tuesday || 'Martes'}</th>
+                      <th className="px-4 py-4 text-center">{(t as any).commissionBook?.historyModal?.collection?.wednesday || 'Miércoles'}</th>
+                      <th className="px-4 py-4 text-center">{(t as any).commissionBook?.historyModal?.collection?.thursday || 'Jueves'}</th>
+                      <th className="px-4 py-4 text-center">{(t as any).commissionBook?.historyModal?.collection?.friday || 'Viernes'}</th>
+                      <th className="px-4 py-4 text-center">{(t as any).commissionBook?.historyModal?.collection?.saturday || 'Sábado'}</th>
+                      <th className="px-4 py-4 text-right text-orange-700 bg-orange-50 rounded-tr-xl">{(t as any).commissionBook?.historyModal?.placement?.totalPlaced || 'Total Colocado'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1589,8 +1589,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         <td className="px-4 py-4 text-right font-mono text-orange-700 bg-orange-50/30 w-40">
                           <span className="text-sm font-black block leading-none">{formatCurrency(week.TotalNuevos + week.TotalRenovados, state.settings)}</span>
                           <div className="flex flex-col gap-0.5 mt-2 text-[8px] font-bold uppercase tracking-wider text-orange-800/60">
-                             {week.TotalNuevos > 0 && <span>+ Nuevos: {formatCurrency(week.TotalNuevos, state.settings)}</span>}
-                             {week.TotalRenovados > 0 && <span>+ Renov.: {formatCurrency(week.TotalRenovados, state.settings)}</span>}
+                             {week.TotalNuevos > 0 && <span>+ {(t as any).commissionBook?.historyModal?.placement?.new || 'Nuevos'}: {formatCurrency(week.TotalNuevos, state.settings)}</span>}
+                             {week.TotalRenovados > 0 && <span>+ {(t as any).commissionBook?.historyModal?.placement?.renov || 'Renov.'}: {formatCurrency(week.TotalRenovados, state.settings)}</span>}
                           </div>
                         </td>
                       </tr>
@@ -1598,7 +1598,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   </tbody>
                   <tfoot className="bg-orange-100/50">
                     <tr>
-                      <td colSpan={7} className="px-4 py-4 text-right font-black text-orange-800 uppercase text-[10px] tracking-widest">TOTAL COLOCADO (RANGO):</td>
+                      <td colSpan={7} className="px-4 py-4 text-right font-black text-orange-800 uppercase text-[10px] tracking-widest">{(t as any).commissionBook?.historyModal?.placement?.totalRange || 'TOTAL COLOCADO (RANGO):'}</td>
                       <td className="px-4 py-4 text-right font-black font-mono text-orange-700 text-sm bg-orange-100">{formatCurrency(totalsFilteredHistory.colocacion, state.settings)}</td>
                     </tr>
                   </tfoot>
@@ -1607,7 +1607,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
             </div>
           </div>
             <div className="p-4 bg-slate-50 border-t border-slate-200 text-center md:rounded-b-[2.5rem]">
-              <p className="text-[10px] text-slate-500 font-bold uppercase"><i className="fa-solid fa-info-circle mr-1"></i> El total semanal suma exclusivamente los cobros realizados de Lunes a Sábado.</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase"><i className="fa-solid fa-info-circle mr-1"></i> {(t as any).commissionBook?.historyModal?.placement?.info || 'El total semanal suma exclusivamente los cobros realizados de Lunes a Sábado.'}</p>
             </div>
           </div>
         </div>

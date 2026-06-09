@@ -503,10 +503,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   };
 
   const chartData = [
-    { name: 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
-    { name: 'Ingresos', value: totalProfit, color: '#10b981' },
-    { name: 'Gastos', value: totalExpenses, color: '#f43f5e' },
-    { name: 'Utilidad', value: netUtility, color: '#3b82f6' },
+    { name: (t as any).charts?.capital || 'Capital Inv.', value: totalPrincipal, color: '#6366f1' },
+    { name: (t as any).charts?.income || 'Ingresos', value: totalProfit, color: '#10b981' },
+    { name: (t as any).charts?.expenses || 'Gastos', value: totalExpenses, color: '#f43f5e' },
+    { name: (t as any).charts?.utility || 'Utilidad', value: netUtility, color: '#3b82f6' },
   ];
 
   return (
@@ -518,7 +518,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
              <i className="fa-solid fa-chart-pie text-xl text-white"></i>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">Resumen <span className="text-emerald-500">Operativo</span></h2>
+            <h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight leading-none">{t.title ? t.title.split(' ')[0] : 'Resumen'} <span className="text-emerald-500">{t.title ? t.title.split(' ').slice(1).join(' ') : 'Operativo'}</span></h2>
             <div className="flex items-center gap-2 mt-1.5">
               <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-bold tracking-wider uppercase">Sistema Core v{CURRENT_VERSION_ID}</span>
               <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold tracking-wider uppercase flex items-center gap-1.5">
@@ -531,7 +531,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         <div className="flex items-center gap-3 bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-xl border border-white/5">
           <i className="fa-solid fa-calendar-day text-emerald-400 text-sm"></i>
           <span className="text-xs font-bold uppercase tracking-widest opacity-90">
-            {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' })}
+            {formatLocalDate(new Date(), state.settings.country, { day: '2-digit', month: 'long', year: 'numeric' }, state.settings.language)}
           </span>
         </div>
       </div>
@@ -539,12 +539,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       {/* MÉTRICAS PRINCIPALES (KPIs) - High-End Floating Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
         {[
-          { label: 'Total Recaudado', value: formatCurrency(totalCollectedAllTime, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-          { label: 'Cobrado (Activos)', value: formatCurrency(totalPaidActiveLoans, state.settings), icon: 'fa-money-bill-wave', color: 'text-violet-500', bg: 'bg-violet-500/10' },
-          { label: 'Saldo Clientes', value: formatCurrency(totalOwedAmount, state.settings), icon: 'fa-sack-dollar', color: 'text-rose-500', bg: 'bg-rose-500/10' },
-          { label: 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-          { label: 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-          { label: 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { label: (t as any).totalCollected || 'Total Recaudado', value: formatCurrency(totalCollectedAllTime, state.settings), icon: 'fa-vault', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { label: (t as any).collectedActive || 'Cobrado (Activos)', value: formatCurrency(totalPaidActiveLoans, state.settings), icon: 'fa-money-bill-wave', color: 'text-violet-500', bg: 'bg-violet-500/10' },
+          { label: (t as any).clientBalance || 'Saldo Clientes', value: formatCurrency(totalOwedAmount, state.settings), icon: 'fa-sack-dollar', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+          { label: (t as any).projectedIncome || 'Ingresos Proyectados', value: formatCurrency(totalProfit, state.settings), icon: 'fa-arrow-trend-up', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+          { label: (t as any).registeredCapital || 'Capital Registrado', value: formatCurrency(totalExpenses, state.settings), icon: 'fa-money-bill-transfer', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+          { label: (t as any).collectedToday || 'Recaudo de Hoy', value: formatCurrency(collectedToday, state.settings), icon: 'fa-hand-holding-dollar', color: 'text-amber-500', bg: 'bg-amber-500/10' },
         ].map((stat, i) => (
           <div key={i} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden active:scale-[0.98]">
             <div className={`absolute -right-4 -top-4 w-28 h-28 ${stat.bg} rounded-full blur-[40px] opacity-0 group-hover:opacity-100 transition-opacity`}></div>
@@ -570,10 +570,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <i className="fa-solid fa-list-check text-lg"></i>
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Auditoría de Rutas</h3>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">{(t as any).routeAudit || 'Auditoría de Rutas'}</h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Monitoreo de Flujo de Efectivo
+                  {(t as any).cashFlowMonitor || 'Monitoreo de Flujo de Efectivo'}
                 </p>
               </div>
             </div>
@@ -605,12 +605,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <table className="w-full text-left border-collapse table-fixed">
                 <thead>
                   <tr className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-20">
-                    <th className="px-6 py-4 border-r border-white/5 w-1/4">Cobrador / Ruta</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">Recaudo de Hoy</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">Meta Mensual</th>
-                    <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">Efectividad</th>
-                    <th className="px-6 py-4 border-r border-white/5 w-[20%]">Progreso de Visitas</th>
-                    <th className="px-6 py-4 text-center w-[13%]">Estado</th>
+                    <th className="px-6 py-4 border-r border-white/5 w-1/4">{(t as any).collectorRoute || 'Cobrador / Ruta'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).collectedToday || 'Recaudo de Hoy'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[15%]">{(t as any).monthlyGoal || 'Meta Mensual'}</th>
+                    <th className="px-4 py-4 border-r border-white/5 text-center w-[12%]">{(t as any).effectiveness || 'Efectividad'}</th>
+                    <th className="px-6 py-4 border-r border-white/5 w-[20%]">{(t as any).visitProgress || 'Progreso de Visitas'}</th>
+                    <th className="px-6 py-4 text-center w-[13%]">{(t as any).status || 'Estado'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
@@ -645,7 +645,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                       <td className="px-6 py-3 border-r border-slate-50">
                         <div className="space-y-1.5">
                           <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-500">
-                             <span>Rendimiento</span>
+                             <span>{(t as any).performance || 'Rendimiento'}</span>
                              <span>{stat.visitados} / {stat.clientes}</span>
                           </div>
                           <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 shadow-inner">
@@ -659,11 +659,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                       <td className="px-6 py-3 text-center">
                         {stat.isCompleted ? (
                           <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-check"></i> Listo
+                            <i className="fa-solid fa-check"></i> {(t as any).ready || 'Listo'}
                           </span>
                         ) : (
                           <span className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
-                            <i className="fa-solid fa-clock opacity-50"></i> PEND.
+                            <i className="fa-solid fa-clock opacity-50"></i> {(t as any).pending || 'PEND.'}
                           </span>
                         )}
                       </td>
@@ -686,8 +686,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <i className="fa-solid fa-chart-line text-lg"></i>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">Tendencia Operativa</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Métricas de Capital</p>
+                <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">{(t as any).operationalTrend || 'Tendencia Operativa'}</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalMetrics || 'Métricas de Capital'}</p>
               </div>
             </div>
           </div>
@@ -724,7 +724,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                   itemStyle={{ color: '#fff', padding: '2px 0' }}
                   formatter={(value: number) => formatCurrency(value, state.settings)}
                 />
-                <Bar dataKey="value" radius={[12, 12, 0, 0]} barSize={40}>
+                <Bar dataKey="value" name={(t as any).charts?.value || 'Value'} radius={[12, 12, 0, 0]} barSize={40}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -741,21 +741,21 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               <i className="fa-solid fa-file-pdf text-2xl"></i>
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">Generador PDF</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Informes Auditables</p>
+              <h3 className="text-lg font-bold text-slate-900 uppercase tracking-tight leading-none">{(t as any).pdfGenerator?.title || 'Generador PDF'}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">{(t as any).pdfGenerator?.subtitle || 'Informes Auditables'}</p>
             </div>
           </div>
 
           <div className="space-y-4 flex-1 flex flex-col justify-between">
             <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Auditor de Campo</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.fieldAuditor || 'Auditor de Campo'}</label>
                 <select
                   className="w-full h-10 px-3 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 appearance-none shadow-sm"
                   value={auditCollector}
                   onChange={(e) => setAuditCollector(e.target.value)}
                 >
-                  <option value="all">TODOS LOS COBRADORES</option>
+                  <option value="all">{(t as any).pdfGenerator?.allCollectors || 'TODOS LOS COBRADORES'}</option>
                   {(Array.isArray(state.users) ? state.users : [])
                     .filter(u => {
                       if (u.role !== Role.COLLECTOR) return false;
@@ -769,7 +769,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Rango de Fecha</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{(t as any).pdfGenerator?.dateRange || 'Rango de Fecha'}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
@@ -792,14 +792,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
               className="w-full py-3 premium-gradient text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 flex items-center justify-center gap-2 mt-4"
             >
               <i className="fa-solid fa-file-export text-sm"></i>
-              AUDITORÍA GENERAL
+              {(t as any).pdfGenerator?.generalAuditBtn || 'AUDITORÍA GENERAL'}
             </button>
             <button
               onClick={handleGenerateDeletedPaymentsPDF}
               className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-rose-500/20 transition-all flex items-center justify-center gap-2 mt-2"
             >
               <i className="fa-solid fa-trash-can-arrow-up text-sm"></i>
-              Auditoría Eliminados
+              {(t as any).pdfGenerator?.deletedAuditBtn || 'Auditoría Eliminados'}
             </button>
           </div>
         </div>
@@ -814,17 +814,17 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 <i className="fa-solid fa-trash-can-arrow-up text-lg"></i>
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">Historial de Eliminados</h3>
+                <h3 className="text-base font-bold text-slate-900 uppercase tracking-widest leading-none">{(t as any).deletedHistory?.title || 'Historial de Eliminados'}</h3>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                  Auditoría Visual de Pagos Borrados
+                  {(t as any).deletedHistory?.subtitle || 'Auditoría Visual de Pagos Borrados'}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm w-full xl:w-auto overflow-x-auto">
               <div className="flex items-center gap-2 shrink-0">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Desde:</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.from || 'Desde:'}</label>
                 <input
                   type="date"
                   className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
@@ -833,7 +833,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                 />
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Hasta:</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">{(t as any).deletedHistory?.to || 'Hasta:'}</label>
                 <input
                   type="date"
                   className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
@@ -870,12 +870,12 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-white border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  <th className="p-4 pl-6 whitespace-nowrap">Fecha y Hora</th>
-                  <th className="p-4 whitespace-nowrap">Tipo</th>
-                  <th className="p-4 whitespace-nowrap">Cliente Afectado</th>
-                  <th className="p-4 whitespace-nowrap">Cobrador Original</th>
-                  <th className="p-4 whitespace-nowrap">Eliminado Por</th>
-                  <th className="p-4 pr-6 text-right whitespace-nowrap">Monto Anulado</th>
+                  <th className="p-4 pl-6 whitespace-nowrap">{(t as any).deletedHistory?.table?.date || 'Fecha y Hora'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.type || 'Tipo'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.client || 'Cliente Afectado'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.originalCollector || 'Cobrador Original'}</th>
+                  <th className="p-4 whitespace-nowrap">{(t as any).deletedHistory?.table?.deletedBy || 'Eliminado Por'}</th>
+                  <th className="p-4 pr-6 text-right whitespace-nowrap">{(t as any).deletedHistory?.table?.amount || 'Monto Anulado'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -884,7 +884,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     <td colSpan={5} className="p-8 text-center text-slate-400 font-medium text-sm">
                       <div className="flex flex-col items-center justify-center gap-3">
                         <i className="fa-solid fa-file-circle-check text-4xl text-slate-200"></i>
-                        <p>No se encontraron pagos eliminados en este rango de fechas.</p>
+                        <p>{(t as any).deletedHistory?.empty || 'No se encontraron pagos eliminados en este rango de fechas.'}</p>
                       </div>
                     </td>
                   </tr>

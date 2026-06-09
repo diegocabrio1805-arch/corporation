@@ -110,23 +110,23 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     doc.setTextColor(255);
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('REPORTE DE RENDIMIENTO EXCEL', 105, 20, { align: 'center' });
+    doc.text(((t as any).performanceDashboard?.pdf?.title || 'REPORTE DE RENDIMIENTO EXCEL'), 105, 20, { align: 'center' });
     doc.setFontSize(10);
-    doc.text(`COBRADOR: ${collector.name.toUpperCase()}  |  PERIODO: ${dateStr.toUpperCase()}`, 105, 30, { align: 'center' });
+    doc.text(`${((t as any).performanceDashboard?.pdf?.collector || 'COBRADOR:')} ${collector.name.toUpperCase()}  |  ${((t as any).performanceDashboard?.pdf?.period || 'PERIODO:')} ${dateStr.toUpperCase()}`, 105, 30, { align: 'center' });
 
     doc.setTextColor(30);
     let currentY = 50;
 
     // Resumen General (Excel Style Table)
     doc.setFontSize(12);
-    doc.text('RESUMEN DE GESTIÓN MÓVIL', 20, currentY);
+    doc.text(((t as any).performanceDashboard?.pdf?.summaryTitle || 'RESUMEN DE GESTIÓN MÓVIL'), 20, currentY);
     currentY += 8;
 
     const rowH = 10;
     const colW = 60;
-    drawCell('RECAUDADO', 20, currentY, colW, rowH, true);
-    drawCell('NO RECAUDADO', 20 + colW, currentY, colW, rowH, true);
-    drawCell('EFECTIVIDAD', 20 + (colW * 2), currentY, colW, rowH, true);
+    drawCell(((t as any).performanceDashboard?.pdf?.collected || 'RECAUDADO'), 20, currentY, colW, rowH, true);
+    drawCell(((t as any).performanceDashboard?.pdf?.notCollected || 'NO RECAUDADO'), 20 + colW, currentY, colW, rowH, true);
+    drawCell(((t as any).performanceDashboard?.pdf?.effectiveness || 'EFECTIVIDAD'), 20 + (colW * 2), currentY, colW, rowH, true);
     currentY += rowH;
 
     const effectiveness = stats.collectedThisMonth > 0 ? Math.round((stats.collectedThisMonth / (stats.collectedThisMonth + stats.moneyNotCollected)) * 100) : 0;
@@ -137,11 +137,15 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     currentY += 25;
 
     // Tabla 1: Gestiones del Mes
-    doc.text('DETALLE DE REGISTROS (VISITAS CON PAGO/GESTIÓN)', 20, currentY);
+    doc.text(((t as any).performanceDashboard?.pdf?.detailsTitle || 'DETALLE DE REGISTROS (VISITAS CON PAGO/GESTIÓN)'), 20, currentY);
     currentY += 8;
 
     const logsCols = [40, 90, 40]; // Fecha, Cliente, Monto
-    const headers = ['FECHA', 'CLIENTE', 'MONTO'];
+    const headers = [
+      ((t as any).performanceDashboard?.pdf?.date || 'FECHA'), 
+      ((t as any).performanceDashboard?.pdf?.client || 'CLIENTE'), 
+      ((t as any).performanceDashboard?.pdf?.amount || 'MONTO')
+    ];
     let startX = 20;
     headers.forEach((h, i) => drawCell(h, startX + logsCols.slice(0, i).reduce((a, b) => a + b, 0), currentY, logsCols[i], rowH, true));
     currentY += rowH;
@@ -163,13 +167,13 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
     // Tabla 2: Clientes NO Visitados (CRÍTICO)
     if (currentY > 250) { doc.addPage(); currentY = 20; }
     doc.setTextColor(220, 38, 38);
-    doc.text('⚠️ SECCIÓN CRÍTICA: CLIENTES SIN GESTIÓN ESTE MES', 20, currentY);
+    doc.text(((t as any).performanceDashboard?.pdf?.criticalTitle || '⚠️ SECCIÓN CRÍTICA: CLIENTES SIN GESTIÓN ESTE MES'), 20, currentY);
     doc.setTextColor(30);
     currentY += 8;
 
     const missedCols = [100, 70];
-    drawCell('NOMBRE DEL CLIENTE', 20, currentY, missedCols[0], rowH, true);
-    drawCell('DÍAS SIN GESTIÓN', 20 + missedCols[0], currentY, missedCols[1], rowH, true);
+    drawCell(((t as any).performanceDashboard?.pdf?.clientName || 'NOMBRE DEL CLIENTE'), 20, currentY, missedCols[0], rowH, true);
+    drawCell(((t as any).performanceDashboard?.pdf?.daysWithoutVisit || 'DÍAS SIN GESTIÓN'), 20 + missedCols[0], currentY, missedCols[1], rowH, true);
     currentY += rowH;
 
     stats.missedClients.forEach((client: any) => {
@@ -177,17 +181,17 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
 
       const allLogs = state.collectionLogs.filter(l => l.clientId === client.id && !l.deletedAt);
       const lastLog = allLogs.length > 0 ? new Date(Math.max(...allLogs.map(l => new Date(l.date).getTime()))) : null;
-      const diff = lastLog ? Math.floor((new Date().getTime() - lastLog.getTime()) / (1000 * 3600 * 24)) : 'NUNCA';
+      const diff = lastLog ? Math.floor((new Date().getTime() - lastLog.getTime()) / (1000 * 3600 * 24)) : ((t as any).performanceDashboard?.pdf?.never || 'NUNCA');
 
       drawCell(client.name.substring(0, 40), 20, currentY, missedCols[0], rowH);
-      drawCell(`${diff} días atrasado`, 20 + missedCols[0], currentY, missedCols[1], rowH);
+      drawCell(`${diff} ${diff !== ((t as any).performanceDashboard?.pdf?.never || 'NUNCA') ? ((t as any).performanceDashboard?.pdf?.daysLate || 'días atrasado') : ''}`.trim(), 20 + missedCols[0], currentY, missedCols[1], rowH);
       currentY += rowH;
     });
 
     // Footer
     doc.setFontSize(8);
     doc.setTextColor(150);
-    doc.text('Este reporte es un documento de control interno generado por ANEXO COBRO.', 105, 285, { align: 'center' });
+    doc.text(((t as any).performanceDashboard?.pdf?.footer || 'Este reporte es un documento de control interno generado por ANEXO COBRO.'), 105, 285, { align: 'center' });
 
     saveAndOpenPDF(doc, `RENDIMIENTO_${collector.name.replace(/\s+/g, '_')}.pdf`);
   };
@@ -200,11 +204,11 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
             <i className="fa-solid fa-chart-pie text-blue-600"></i>
             {t.menu.performance}
           </h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Análisis de Gestión Mensual</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{(t as any).performanceDashboard?.subtitle || 'Análisis de Gestión Mensual'}</p>
         </div>
         <div className="bg-white px-5 py-3 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
           <div className="text-right">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Periodo Actual</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{(t as any).performanceDashboard?.currentPeriod || 'Periodo Actual'}</p>
             <p className="text-xs font-black text-slate-800 uppercase">
               {new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
             </p>
@@ -219,7 +223,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
         {(Array.isArray(collectors) ? collectors : []).length === 0 ? (
           <div className="py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400">
             <i className="fa-solid fa-user-tag text-5xl mb-4 opacity-20"></i>
-            <p className="text-lg font-bold">No hay cobradores para auditar.</p>
+            <p className="text-lg font-bold">{(t as any).performanceDashboard?.noCollectors || 'No hay cobradores para auditar.'}</p>
           </div>
         ) : (
           (Array.isArray(collectors) ? collectors : []).map(collector => {
@@ -242,11 +246,11 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                     </div>
                     <div>
                       <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">{collector.name}</h3>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cobrador de Ruta</p>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{(t as any).performanceDashboard?.routeCollector || 'Cobrador de Ruta'}</p>
                     </div>
                     <div className="w-full space-y-2">
                       <div className="flex justify-between items-end">
-                        <p className="text-[8px] font-black text-slate-400 uppercase">Cobertura de Visitas</p>
+                        <p className="text-[8px] font-black text-slate-400 uppercase">{(t as any).performanceDashboard?.visitCoverage || 'Cobertura de Visitas'}</p>
                         <p className={`text-xs font-black ${stats.allVisited ? 'text-emerald-500' : 'text-blue-600'}`}>{Math.round(stats.coverage)}%</p>
                       </div>
                       <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -256,7 +260,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                         />
                       </div>
                       <p className="text-[8px] font-bold text-slate-400 uppercase">
-                        {stats.clientsVisited} de {stats.totalActiveClients} clientes activos visitados
+                        {stats.clientsVisited} {((t as any).performanceDashboard?.activeClientsVisited || 'de {0} clientes activos visitados').replace('{0}', stats.totalActiveClients.toString())}
                       </p>
                     </div>
                   </div>
@@ -268,7 +272,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                         <i className="fa-solid fa-money-bill-trend-up"></i>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">Recaudado este mes</p>
+                        <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-1">{(t as any).performanceDashboard?.collectedThisMonth || 'Recaudado este mes'}</p>
                         <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.collectedThisMonth, state.settings)}</p>
                       </div>
                     </div>
@@ -278,7 +282,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                         <i className="fa-solid fa-hand-holding-dollar"></i>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black text-red-600 uppercase tracking-widest mb-1">No recaudado (Mes)</p>
+                        <p className="text-[9px] font-black text-red-600 uppercase tracking-widest mb-1">{(t as any).performanceDashboard?.notCollectedThisMonth || 'No recaudado (Mes)'}</p>
                         <p className="text-2xl font-black text-slate-900 tracking-tighter">{formatCurrency(stats.moneyNotCollected, state.settings)}</p>
                       </div>
                     </div>
@@ -288,7 +292,7 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                         <i className="fa-solid fa-star text-amber-400"></i>
                       </div>
                       <div className="relative z-10">
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Efectividad Meta</p>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).performanceDashboard?.goalEffectiveness || 'Efectividad Meta'}</p>
                         <p className="text-2xl font-black text-white tracking-tighter">
                           {stats.monthlyGoal > 0 ? Math.round((stats.collectedThisMonth / stats.monthlyGoal) * 100) : 0}%
                         </p>
@@ -300,16 +304,16 @@ const CollectorPerformance: React.FC<CollectorPerformanceProps> = ({ state }) =>
                   {/* Status Final */}
                   <div className="w-full lg:w-48 flex flex-col gap-3">
                     <div className={`p-4 rounded-2xl border text-center ${stats.allVisited ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100 animate-pulse'}`}>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Clientes Pendientes</p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).performanceDashboard?.pendingClients || 'Clientes Pendientes'}</p>
                       <p className={`text-xs font-black uppercase ${stats.allVisited ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {stats.allVisited ? 'SÍ, CUMPLIÓ' : `${stats.missedClients.length} SIN VISITA`}
+                        {stats.allVisited ? ((t as any).performanceDashboard?.yesCompleted || 'SÍ, CUMPLIÓ') : `${stats.missedClients.length} ${((t as any).performanceDashboard?.withoutVisit || 'SIN VISITA')}`}
                       </p>
                     </div>
                     <button
                       onClick={() => handleExportDetailedPDF(collector, stats)}
                       className="w-full py-3 bg-blue-600 text-white rounded-2xl font-black text-[9px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all hover:bg-blue-700"
                     >
-                      DETALLE COMPLETO
+                      {(t as any).performanceDashboard?.fullDetail || 'DETALLE COMPLETO'}
                     </button>
                   </div>
                 </div>

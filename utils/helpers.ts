@@ -242,7 +242,7 @@ export const formatFullDateTime = (country: string = 'CO'): string => {
   return new Intl.DateTimeFormat('es-ES', options).format(now);
 };
 
-export const formatLocalDate = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}): string => {
+export const formatLocalDate = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}, language: string = 'es'): string => {
   if (!date) return '---';
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) return '---';
@@ -255,7 +255,8 @@ export const formatLocalDate = (date: Date | string | null | undefined, country:
     ...options
   };
   
-  return new Intl.DateTimeFormat('es-ES', defaultOptions).format(d);
+  const locale = language === 'en' ? 'en-US' : language === 'fr' ? 'fr-FR' : language === 'pt' ? 'pt-BR' : 'es-ES';
+  return new Intl.DateTimeFormat(locale, defaultOptions).format(d);
 };
 
 export const formatLocalTime = (date: Date | string | null | undefined, country: string = 'CO', options: Intl.DateTimeFormatOptions = {}): string => {
@@ -595,7 +596,10 @@ export interface ReceiptData {
   fullDateTimeManual?: string;
 }
 
+import { getTranslation } from './translations';
+
 export const generateReceiptText = (data: ReceiptData, settings: AppSettings) => {
+  const t = getTranslation((settings as any).language || 'es') as any;
   const format = (text: string, bold?: boolean, size?: 'normal' | 'medium' | 'large') => {
     let result = text;
     if (bold) result = `<B1>${result}<B0>`;
@@ -614,27 +618,32 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const rawManualAlias = (data.companyAliasManual || '').trim();
   const alias = (rawManualAlias ? rawManualAlias : (settings.companyAlias || '')).toUpperCase();
 
-  const contactLabel = (data.contactLabelManual || '').trim() ? data.contactLabelManual : "TEL. PUBLICO";
+  const contactLabel = (data.contactLabelManual || '').trim() ? data.contactLabelManual : (t.receipt?.publicPhone || "TEL. PUBLICO");
   const rawManualPhone = (data.contactPhoneManual || '').trim();
   let phone = rawManualPhone ? rawManualPhone : (settings.contactPhone || '---');
   if (phone === '---' && settings.contactPhone) phone = settings.contactPhone;
   const formattedPhone = format(phone, settings.contactPhoneBold);
 
-  const idLabel = (data.companyIdentifierLabelManual || '').trim() ? data.companyIdentifierLabelManual : "ID EMPRESA";
+  let rawIdLabel = (data.companyIdentifierLabelManual || '').trim();
+  if (rawIdLabel === 'ID EMPRESA') rawIdLabel = t.receipt?.companyId || 'ID EMPRESA';
+  const idLabel = rawIdLabel ? rawIdLabel : (t.receipt?.companyId || "ID EMPRESA");
   const rawManualId = (data.companyIdentifierManual || '').trim();
   let idVal = rawManualId ? rawManualId : (settings.companyIdentifier || '---');
   if (idVal === '---' && settings.companyIdentifier) idVal = settings.companyIdentifier;
   const idValue = format(idVal, settings.companyIdentifierBold);
 
-  const rawManualShareLabel = (data.shareLabelManual || '').trim();
-  const bankLabel = (rawManualShareLabel ? rawManualShareLabel : (settings.shareLabel || 'BANCO')).toUpperCase();
+  let rawManualShareLabel = (data.shareLabelManual || '').trim();
+  let shareFallback = settings.shareLabel || (t.receipt?.bank || 'BANCO');
+  if (shareFallback.toUpperCase() === 'CUENTA') shareFallback = t.receipt?.account || 'CUENTA';
+  if (rawManualShareLabel && rawManualShareLabel.toUpperCase() === 'CUENTA') rawManualShareLabel = t.receipt?.account || 'CUENTA';
+  const bankLabel = (rawManualShareLabel ? rawManualShareLabel : shareFallback).toUpperCase();
 
   const rawManualShareVal = (data.shareValueManual || '').trim();
   let bankVal = rawManualShareVal ? rawManualShareVal : (settings.shareValue || '');
   if ((!bankVal || bankVal === '---') && settings.shareValue) bankVal = settings.shareValue;
   const bankValue = format(bankVal.toUpperCase(), settings.shareValueBold, settings.shareValueSize);
 
-  const supportLabel = "TEL. PUBLICO";
+  const supportLabel = t.receipt?.publicPhone || "TEL. PUBLICO";
   const rawManualSupport = (data.supportPhoneManual || '').trim();
   let supportVal = rawManualSupport ? rawManualSupport : (settings.contactPhone || '');
   if ((!supportVal || supportVal === '---') && settings.contactPhone) supportVal = settings.contactPhone;
@@ -652,7 +661,7 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
       if (exactRemainder > 0 && Math.floor(progress) < data.totalInstallments) {
         const pendingAmount = data.installmentValue - exactRemainder;
         const nextInstallmentNum = Math.floor(progress) + 1;
-        return `\nPENDIENTE ${currencySymbol}${pendingAmount.toLocaleString('es-CO').replace(/,/g, '.')}  /  ${nextInstallmentNum}`;
+        return `\n${t.receipt?.pending || 'PENDIENTE'} ${currencySymbol}${pendingAmount.toLocaleString('es-CO').replace(/,/g, '.')}  /  ${nextInstallmentNum}`;
       }
     }
     return '';
@@ -680,50 +689,51 @@ export const generateReceiptText = (data: ReceiptData, settings: AppSettings) =>
   const plazoStr = `${data.totalInstallments} ${data.frequency || ''}`.toUpperCase().trim();
 
   const bankBlock = (bankVal && bankVal !== '---')
-    ? `\n${bankLabel}\n${bankLabel.includes('CUENTA') ? 'NUMERO' : 'CUENTA'}: ${bankValue}\n===============================`
+    ? `\n${bankLabel}\n${bankLabel.includes('CUENTA') ? 'NUMERO' : (t.receipt?.account || 'CUENTA')}: ${bankValue}\n===============================`
     : '';
 
   return `
 ${company}
 ${alias ? alias : ''}
 ===============================${bankBlock}
-CLIENTE: ${data.clientName.toUpperCase()}
-FECHA: ${datePart ? datePart.trim() : dateTime}
-HORA: ${timePart ? timePart.trim() : '---'}
-METODO: ${data.isVirtual ? 'TRANSFERENCIA' : 'EFECTIVO'}
+${t.receipt?.client || 'CLIENTE'}: ${data.clientName.toUpperCase()}
+${t.receipt?.date || 'FECHA'}: ${datePart ? datePart.trim() : dateTime}
+${t.receipt?.time || 'HORA'}: ${timePart ? timePart.trim() : '---'}
+${t.receipt?.method || 'METODO'}: ${data.isVirtual ? (t.receipt?.transfer || 'TRANSFERENCIA') : (t.receipt?.cash || 'EFECTIVO')}
 ===============================
-MONTO: ${montoStr}
-CUOTA: ${cuotaStr}
-PLAZO: ${plazoStr}
+${t.receipt?.amount || 'MONTO'}: ${montoStr}
+${t.receipt?.installment || 'CUOTA'}: ${cuotaStr}
+${t.receipt?.term || 'PLAZO'}: ${plazoStr}
 ===============================
-SALDO ANTERIOR: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO').replace(/,/g, '.')}
-ABONO: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO').replace(/,/g, '.')}
-SALDO ACTUAL: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO').replace(/,/g, '.')}
+${t.receipt?.prevBalance || 'SALDO ANTERIOR'}: ${currencySymbol}${data.previousBalance.toLocaleString('es-CO').replace(/,/g, '.')}
+${t.receipt?.payment || 'ABONO'}: ${currencySymbol}${data.amountPaid.toLocaleString('es-CO').replace(/,/g, '.')}
+${t.receipt?.currentBalance || 'SALDO ACTUAL'}: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO').replace(/,/g, '.')}
 ===============================
-CUOTAS PAGADAS: ${displayedPaidInstallments}
-CUOTAS TOTALES: ${data.totalInstallments}${pendingInstallmentText()}
+${t.receipt?.paidInstallments || 'CUOTAS PAGADAS'}: ${displayedPaidInstallments}
+${t.receipt?.totalInstallments || 'CUOTAS TOTALES'}: ${data.totalInstallments}${pendingInstallmentText()}
 ===============================
-FECHA DE INICIO: ${formatDate(data.startDate)}
-FECHA DE VENCIMIENTO: ${formatDate(data.expiryDate)}
-DIAS DE MORA: ${data.daysOverdue} dias
+${t.receipt?.startDate || 'FECHA DE INICIO'}: ${formatDate(data.startDate)}
+${t.receipt?.expiryDate || 'FECHA DE VENCIMIENTO'}: ${formatDate(data.expiryDate)}
+${t.receipt?.daysOverdue || 'DIAS DE MORA'}: ${data.daysOverdue} ${t.receipt?.days || 'dias'}
 ===============================
 ${contactLabel}: ${formattedPhone}
-${idLabel}: ESTADO DE CUENTA
+${idLabel}: ${t.receipt?.accountState || 'ESTADO DE CUENTA'}
 ===============================
-GRACIAS POR SU PAGO
+${t.receipt?.thanks || 'GRACIAS POR SU PAGO'}
 `;
 };
 
 export const generateNoPaymentReceiptText = (data: ReceiptData, settings: AppSettings) => {
+  const t = getTranslation((settings as any).language || 'es') as any;
   const company = settings.companyName || 'ANEXO COBRO';
   const currencySymbol = settings.currencySymbol || '$';
   return `
 ===============================
-       NOTIFICACION
+       ${t.receipt?.notification || 'NOTIFICACION'}
 ===============================
-CLIENTE: ${data.clientName}
-FECHA: ${formatFullDateTime(settings.country)}
-SALDO: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
+${t.receipt?.client || 'CLIENTE'}: ${data.clientName}
+${t.receipt?.date || 'FECHA'}: ${formatFullDateTime(settings.country)}
+${t.receipt?.balance || 'SALDO'}: ${currencySymbol}${data.remainingBalance.toLocaleString('es-CO')}
 ===============================
 `;
 };

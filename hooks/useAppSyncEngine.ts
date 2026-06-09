@@ -182,18 +182,20 @@ export const useAppSyncEngine = (
     }
   };
 
+  const { setSuccessMessage, forceFullSync, processQueue, pullData } = sync;
+  
   const handleForceSync = useCallback(async (silent: boolean = false, message: string = "¡Sincronizado!", fullSync: boolean = false, skipPull: boolean = false) => {
-    if (!silent) sync.setSuccessMessage(message);
+    if (!silent) setSuccessMessage(message);
     if (fullSync) {
-      await sync.forceFullSync();
+      await forceFullSync();
     } else {
-      await sync.processQueue(true, false, skipPull);
+      await processQueue(true, false, skipPull);
       // Forzar un Pull incremental si es un disparo manual (no silent) para que el usuario "vea" que descargó datos
       if (!silent && !skipPull) {
-        await sync.pullData(false);
+        await pullData(false);
       }
     }
-  }, [sync]);
+  }, [setSuccessMessage, forceFullSync, processQueue, pullData]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -371,22 +373,30 @@ export const useAppSyncEngine = (
     const branchIdLower = branchId.toLowerCase();
 
     const myDirectCollectorIds = new Set<string>();
+    const myBranchIds = new Set<string>();
+    myBranchIds.add(branchIdLower);
+
     (Array.isArray(state.users) ? state.users : []).forEach(u => {
       const uManagerId = (u.managedBy || (u as any).managed_by)?.toLowerCase();
-      if (uManagerId === branchIdLower && u.role === Role.COLLECTOR) {
-        myDirectCollectorIds.add(u.id.toLowerCase());
+      if (uManagerId === branchIdLower) {
+        myBranchIds.add(u.id.toLowerCase()); // Incluir gerentes que dependen de mí
+        if (u.role === Role.COLLECTOR) {
+          myDirectCollectorIds.add(u.id.toLowerCase());
+        }
       }
     });
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
-      if (user.role === Role.ADMIN) return true;
+      const uName = (user.name || '').toUpperCase().trim();
+      const isSuperUser = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'].includes(uName);
+      if (isSuperUser) return true;
       
       const itemBranchLower = itemBranchId?.toLowerCase();
       const addedByLower = itemAddedBy?.toLowerCase() || '';
       const collectorIdLower = itemCollectorId?.toLowerCase() || '';
 
       if (itemBranchLower) {
-        return itemBranchLower === branchIdLower;
+        return myBranchIds.has(itemBranchLower);
       } else {
         return addedByLower === myIdLower ||
           myDirectCollectorIds.has(addedByLower) ||
@@ -426,13 +436,11 @@ export const useAppSyncEngine = (
       if (u.deletedAt || (u as any).deleted_at) return false;
       
       const uName = (u.name || '').toUpperCase().trim();
-      const excludedNames = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'];
-      if (excludedNames.includes(uName)) return false;
-
       const uId = u.id.toLowerCase();
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       
-      if (user.role === Role.ADMIN) {
+      const isSuperUser = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'].includes((user.name || '').toUpperCase().trim());
+      if (isSuperUser) {
         return true; 
       }
       
