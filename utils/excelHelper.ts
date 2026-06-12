@@ -538,18 +538,36 @@ export const processExcelImport = (file: File, collectorId: string, branchId: st
     });
 };
 
-export const downloadExcelTemplate = () => {
-    const headers = [
-        "DOCUMENTO", "NOMBRE COMPLETO", "TELEFONO", "DIRECCION", 
+export const downloadExcelTemplate = (lang: string = 'es') => {
+    const isFr = lang === 'fr';
+    const isPt = lang === 'pt';
+
+    const headers = isFr ? [
+        "DOCUMENT", "NOM COMPLET", "TÉLÉPHONE", "ADRESSE",
+        "MONTANT PRÊTÉ", "VALEUR ÉCHÉANCE", "TOTAL À PAYER", "MONTANT PERÇU",
+        "SOLDE RESTANT", "ÉCHÉANCES TOTALES", "ÉCHÉANCES PAYÉES",
+        "DATE DÉBUT", "VENDEUR"
+    ] : isPt ? [
+        "DOCUMENTO", "NOME COMPLETO", "TELEFONE", "ENDEREÇO",
+        "VALOR EMPRESTADO", "VALOR PARCELA", "TOTAL A PAGAR", "VALOR COBRADO",
+        "SALDO PENDENTE", "PARCELAS TOTAIS", "PARCELAS PAGAS",
+        "DATA INÍCIO", "VENDEDOR"
+    ] : [
+        "DOCUMENTO", "NOMBRE COMPLETO", "TELEFONO", "DIRECCION",
         "MONTO PRESTADO", "VALOR CUOTA", "TOTAL A PAGAR", "MONTO COBRADO",
-        "SALDO PENDIENTE", "CUOTAS TOTALES", "CUOTAS PAGADAS", 
+        "SALDO PENDIENTE", "CUOTAS TOTALES", "CUOTAS PAGADAS",
         "FECHA INICIO", "VENDEDOR"
     ];
-    
+
+    const exampleName = isFr ? "JEAN DUPONT" : isPt ? "JOÃO SILVA" : "JUAN PEREZ";
+    const exampleAddr = isFr ? "123 RUE PRINCIPALE" : isPt ? "RUA FALSA 123" : "CALLE FALSA 123";
+    const sheetName = isFr ? "Modèle Importation" : isPt ? "Modelo Importação" : "Plantilla Importacion";
+    const fileName = isFr ? "Modele_Annexo_Cobros.xlsx" : isPt ? "Modelo_Anexo_Cobros.xlsx" : "Plantilla_Anexo_Cobros.xlsx";
+
     // Plantilla de ejemplo con matemática correcta
     const exampleData = [
         [
-            "1234567", "JUAN PEREZ", "0981123456", "CALLE FALSA 123", 
+            "1234567", exampleName, "0981123456", exampleAddr, 
             2000000, 100000, 2400000, 1200000,
             1200000, 24, 12,
             "13/03/2026", "VEND-01"
@@ -559,7 +577,7 @@ export const downloadExcelTemplate = () => {
     const data = [headers, ...exampleData];
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Plantilla Importacion");
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Estilos basicos para la cabecera
     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
@@ -573,5 +591,6 @@ export const downloadExcelTemplate = () => {
         };
     }
 
-    XLSX.writeFile(workbook, "Plantilla_Anexo_Cobros.xlsx");
+    XLSX.writeFile(workbook, fileName);
 };
+

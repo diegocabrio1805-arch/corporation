@@ -454,7 +454,7 @@ c.isActive !== false;
       const uManagedBy = (u.managedBy || (u as any).managed_by)?.toLowerCase();
       
       const isSuperUser = ['DIEGO', 'FABIAN PEDROZO', 'ALTERFINZONA01'].includes((user.name || '').toUpperCase().trim());
-      if (isSuperUser) {
+      if (isSuperUser || user.role === Role.ADMIN) {
         return true; 
       }
       

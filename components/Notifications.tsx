@@ -97,7 +97,7 @@ const Notifications: React.FC<NotificationsProps> = ({ state }) => {
                   </span>
                 </div>
                 <h4 className="font-black text-xl text-slate-800 uppercase tracking-tighter truncate">{alert.client.name}</h4>
-                <p className="text-sm font-black text-blue-600 mt-2">{formatCurrency(alert.installment.amount, state.settings)} ({(t as any).notifications?.installmentSingle || 'Cuota #'}{alert.installment.number})</p>
+                <p className="text-sm font-black text-blue-600 mt-2">{formatCurrency(alert.installment.amount, state.settings)} ({state.settings.language === 'fr' ? 'Échéance #' : state.settings.language === 'pt' ? 'Parcela #' : 'Cuota #'}{alert.installment.number})</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <button

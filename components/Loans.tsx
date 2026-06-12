@@ -376,10 +376,10 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             <thead>
               <tr>
                 <th>Cliente</th>
-                <th>{((t as any).loans.filters?.tableHeaders?.phone || 'Teléfono')}</th>
+                <th>{(((t as any).loans?.filters || {})?.tableHeaders?.phone || 'Teléfono')}</th>
                 <th>Dirección</th>
-                <th>{((t as any).loans.filters?.tableHeaders?.daysOverdue || 'Días Mora')}</th>
-                <th>{((t as any).loans.filters?.tableHeaders?.installmentValue || 'Valor Cuota')}</th>
+                <th>{(((t as any).loans?.filters || {})?.tableHeaders?.daysOverdue || 'Días Mora')}</th>
+                <th>{(((t as any).loans?.filters || {})?.tableHeaders?.installmentValue || 'Valor Cuota')}</th>
                 <th>Saldo Total</th>
               </tr>
             </thead>
@@ -641,7 +641,12 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               .replace('{saldo}', formatCurrency(currentBalance, state.settings))
               .replace('{atraso}', overdueDays.toString());
         } else {
-          msg = ((t as any).loans?.card?.noPaymentMsg || `Hola {cliente}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de {saldo} y cuentas con {atraso} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`)
+          const defaultMsg = state.settings.language === 'fr' 
+            ? `Bonjour {cliente}, nous vous informons qu'aucun paiement n'a été enregistré aujourd'hui. Votre solde en attente est de {saldo} et vous avez {atraso} jours de retard. Veuillez vous mettre à jour pour éviter tout désagrément, merci`
+            : state.settings.language === 'pt'
+            ? `Olá {cliente}, informamos que nenhum pagamento foi registrado hoje. Seu saldo pendente é de {saldo} e você tem {atraso} dias de atraso. Por favor, atualize-se para evitar transtornos, obrigado`
+            : `Hola {cliente}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de {saldo} y cuentas con {atraso} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+          msg = ((t as any).loans?.card?.noPaymentMsg || defaultMsg)
               .replace('{cliente}', client.name)
               .replace('{saldo}', formatCurrency(currentBalance, state.settings))
               .replace('{atraso}', overdueDays.toString());
@@ -992,28 +997,28 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-hand-holding-dollar"></i>
-          {(t as any).loans.tabs.management}
+          {((t as any).loans?.tabs || {}).management}
         </button>
         <button
           onClick={() => setViewMode('renovaciones')}
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'renovaciones' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-rotate"></i>
-          {(t as any).loans.tabs.renewals}
+          {((t as any).loans?.tabs || {}).renewals}
         </button>
         <button
           onClick={() => setViewMode('vencidos')}
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'vencidos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-calendar-xmark"></i>
-          {(t as any).loans.tabs.overdue}
+          {((t as any).loans?.tabs || {}).overdue}
         </button>
         <button
           onClick={() => setViewMode('ocultos')}
           className={`flex-1 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-w-[100px] ${viewMode === 'ocultos' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
         >
           <i className="fa-solid fa-eye-slash"></i>
-          {(t as any).loans.tabs.hidden}
+          {((t as any).loans?.tabs || {}).hidden}
         </button>
       </div>
 
@@ -1041,7 +1046,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
           <div className="relative w-full md:w-80">
             <input
               type="text"
-              placeholder={((t as any).loans.filters?.tableHeaders?.searchPlaceholder || 'Buscar...')}
+              placeholder={state.settings.language === 'fr' ? 'Rechercher...' : state.settings.language === 'pt' ? 'Pesquisar...' : 'Buscar...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl md:rounded-2xl py-3 md:py-4 pl-10 md:pl-12 pr-4 text-xs md:sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
@@ -1055,11 +1060,11 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
       {viewMode === 'gestion' && (
         <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-1 overflow-x-auto">
           {([
-            { key: 'all',              label: (t as any).loans.filters.all,          icon: 'fa-layer-group',    active: 'bg-slate-900 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50' },
-            { key: 'Diaria',           label: (t as any).loans.filters.daily,        icon: 'fa-sun',            active: 'bg-amber-500 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
-            { key: Frequency.WEEKLY,    label: (t as any).loans.filters.weekly,        icon: 'fa-calendar-week',  active: 'bg-violet-600 text-white shadow-lg',  idle: 'text-slate-400 hover:bg-violet-50 hover:text-violet-600' },
-            { key: Frequency.BIWEEKLY,  label: (t as any).loans.filters.biweekly,      icon: 'fa-calendar-days',  active: 'bg-blue-600 text-white shadow-lg',    idle: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600' },
-            { key: Frequency.MONTHLY,   label: (t as any).loans.filters.monthly,        icon: 'fa-calendar',       active: 'bg-slate-600 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' },
+            { key: 'all',              label: ((t as any).loans?.filters || {}).all,          icon: 'fa-layer-group',    active: 'bg-slate-900 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50' },
+            { key: 'Diaria',           label: ((t as any).loans?.filters || {}).daily,        icon: 'fa-sun',            active: 'bg-amber-500 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-amber-50 hover:text-amber-600' },
+            { key: Frequency.WEEKLY,    label: ((t as any).loans?.filters || {}).weekly,        icon: 'fa-calendar-week',  active: 'bg-violet-600 text-white shadow-lg',  idle: 'text-slate-400 hover:bg-violet-50 hover:text-violet-600' },
+            { key: Frequency.BIWEEKLY,  label: ((t as any).loans?.filters || {}).biweekly,      icon: 'fa-calendar-days',  active: 'bg-blue-600 text-white shadow-lg',    idle: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600' },
+            { key: Frequency.MONTHLY,   label: ((t as any).loans?.filters || {}).monthly,        icon: 'fa-calendar',       active: 'bg-slate-600 text-white shadow-lg',   idle: 'text-slate-400 hover:bg-slate-50 hover:text-slate-600' },
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -1087,7 +1092,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
               <div className="col-span-full py-16 md:py-20 bg-white rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 text-center px-4">
                 <i className="fa-solid fa-folder-open text-4xl md:text-5xl mb-4 opacity-10"></i>
                 <p className="text-[10px] md:text-xs font-black uppercase tracking-widest">
-                  {viewMode === 'renovaciones' ? (t as any).loans.emptyStates.noRenewals : (t as any).loans.emptyStates.noPending}
+                  {viewMode === 'renovaciones' ? ((t as any).loans?.emptyStates || {}).noRenewals : ((t as any).loans?.emptyStates || {}).noPending}
                 </p>
               </div>
             ) : (
@@ -1119,7 +1124,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         </div>
                         <div className="text-right flex flex-col items-end gap-1">
                           <span className={`px-2 py-0.5 md:px-3 md:py-1 rounded-md md:rounded-lg text-[7px] md:text-[8px] font-black uppercase border ${daysOverdue > 0 ? 'bg-red-900/30 text-red-400 border-red-900/50 animate-pulse' : 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50'}`}>
-                            {daysOverdue > 0 ? `${daysOverdue} ${(t as any).loans.card.daysOverdue}` : (t as any).loans.card.upToDate}
+                            {daysOverdue > 0 ? `${daysOverdue} ${((t as any).loans?.card || {}).daysOverdue}` : ((t as any).loans?.card || {}).upToDate}
                           </span>
                           <button 
                             onClick={() => handleDirectWhatsApp(client?.phone || '')}
@@ -1140,51 +1145,51 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           
                           {/* SECCIÓN GPS ESTILO EXPEDIENTE */}
                           <div className="flex items-center gap-2 mt-1 py-1 flex-wrap">
-                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">{(t as any).loans.card.gpsMap}</span>
+                            <span className="text-[7px] font-black text-slate-500 uppercase tracking-tighter">{((t as any).loans?.card || {}).gpsMap}</span>
                             <button 
                               onClick={() => handleOpenMap(client?.domicilioLocation)}
                               className="px-3 py-1 bg-slate-800 text-emerald-400 rounded-full text-[8px] font-black uppercase flex items-center gap-1 hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-slate-700"
                             >
-                              <i className="fa-solid fa-house-chimney"></i> {(t as any).loans.card.home}
+                              <i className="fa-solid fa-house-chimney"></i> {((t as any).loans?.card || {}).home}
                             </button>
                             <button 
                               onClick={() => handleOpenMap(client?.location)}
                               className="px-3 py-1 bg-slate-800 text-blue-400 rounded-full text-[8px] font-black uppercase flex items-center gap-1 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-slate-700"
                             >
-                              <i className="fa-solid fa-briefcase"></i> {(t as any).loans.card.business}
+                              <i className="fa-solid fa-briefcase"></i> {((t as any).loans?.card || {}).business}
                             </button>
                             {balance > 0.01 && (() => {
-                              const DIAS = (t as any).loans.card.daysOfWeek || ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
+                              const DIAS = ((t as any).loans?.card || {}).daysOfWeek || ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
                               const startDate = new Date(loan.createdAt.split('T')[0] + 'T00:00:00');
                               const diaSemana = DIAS[startDate.getDay()];
                               if (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) {
                                 return (
                                   <span className="text-amber-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-sun text-xs"></i> {(t as any).loans.card.freqDaily || 'DIARIO · LUN A SÁB'}
+                                    <i className="fa-solid fa-sun text-xs"></i> {((t as any).loans?.card || {}).freqDaily || 'DIARIO · LUN A SÁB'}
                                   </span>
                                 );
                               } else if (loan.frequency === Frequency.DAILY_MF) {
                                 return (
                                   <span className="text-emerald-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar-day text-xs"></i> {(t as any).loans.card.freqDailyMF || 'DIARIO · LUN A VIE'}
+                                    <i className="fa-solid fa-calendar-day text-xs"></i> {((t as any).loans?.card || {}).freqDailyMF || 'DIARIO · LUN A VIE'}
                                   </span>
                                 );
                               } else if (loan.frequency === Frequency.WEEKLY) {
                                 return (
                                   <span className="text-violet-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar-week text-xs"></i> {((t as any).loans.card.freqWeekly || 'SEMANAL · ')} {diaSemana}
+                                    <i className="fa-solid fa-calendar-week text-xs"></i> {(((t as any).loans?.card || {}).freqWeekly || 'SEMANAL · ')} {diaSemana}
                                   </span>
                                 );
                               } else if (loan.frequency === Frequency.BIWEEKLY) {
                                 return (
                                   <span className="text-blue-400 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar-days text-xs"></i> {(t as any).loans.card.freqBiweekly || 'QUINCENAL'}
+                                    <i className="fa-solid fa-calendar-days text-xs"></i> {((t as any).loans?.card || {}).freqBiweekly || 'QUINCENAL'}
                                   </span>
                                 );
                               } else {
                                 return (
                                   <span className="text-slate-300 text-sm font-black uppercase tracking-tight flex items-center gap-1.5">
-                                    <i className="fa-solid fa-calendar text-xs"></i> {(t as any).loans.card.freqMonthly || 'MENSUAL'}
+                                    <i className="fa-solid fa-calendar text-xs"></i> {((t as any).loans?.card || {}).freqMonthly || 'MENSUAL'}
                                   </span>
                                 );
                               }
@@ -1197,31 +1202,31 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <>
                           <div className="bg-slate-950 p-3 md:p-4 rounded-xl md:rounded-2xl space-y-2 md:space-y-3 border border-slate-800 shadow-inner">
                             <div className="flex justify-between items-center opacity-60">
-                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{(t as any).loans.card.approvedAmount}</p>
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{((t as any).loans?.card || {}).approvedAmount}</p>
                               <p className="text-[10px] md:text-xs font-black text-slate-400 font-mono">{formatCurrency((loan as any)._consolidatedPrincipal || loan.principal, state.settings)}</p>
                             </div>
                             
                             {loan.interestRate > 0 && (
                               <div className="flex justify-between items-center border-b border-slate-800/50 pb-2">
-                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{(t as any).loans.card.totalAmount}</p>
+                                <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-tighter">{((t as any).loans?.card || {}).totalAmount}</p>
                                 <p className="text-[10px] md:text-xs font-black text-slate-300 font-mono">{formatCurrency((loan as any)._consolidatedTotalAmount || loan.totalAmount, state.settings)}</p>
                               </div>
                             )}
 
                             <div className="flex justify-between items-center pt-1">
-                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">{(t as any).loans.card.installment}</p>
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">{((t as any).loans?.card || {}).installment}</p>
                               <p className="text-sm md:text-lg font-black text-blue-400 font-mono">{formatCurrency((loan as any)._consolidatedInstallmentValue || loan.installmentValue, state.settings)}</p>
                             </div>
                             <div className="flex justify-between items-center pt-1.5 md:pt-2 border-t border-slate-800">
-                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">{(t as any).loans.card.balance}</p>
+                              <p className="text-[7px] md:text-[8px] font-black text-slate-500 uppercase">{((t as any).loans?.card || {}).balance}</p>
                               <p className="text-xs md:text-sm font-black text-red-400 font-mono">{formatCurrency(balance, state.settings)}</p>
                             </div>
                           </div>
 
                           <div className="space-y-1">
                             <div className="flex justify-between text-[7px] md:text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                              <span>{(t as any).loans.card.progress}</span>
-                              <span className="text-white font-mono">{installmentsPaid} / {loan.totalInstallments} <span className="opacity-40 ml-1">{(t as any).loans.card.installments}</span></span>
+                              <span>{((t as any).loans?.card || {}).progress}</span>
+                              <span className="text-white font-mono">{installmentsPaid} / {loan.totalInstallments} <span className="opacity-40 ml-1">{((t as any).loans?.card || {}).installments}</span></span>
                             </div>
                             <div className="w-full h-1.5 md:h-2 bg-slate-800 rounded-full overflow-hidden shadow-inner">
                               <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${progress}%` }}></div>
@@ -1307,7 +1312,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <div className="mt-4 bg-slate-900 rounded-2xl overflow-hidden animate-slideDown border border-white/5 shadow-2xl">
                           <div className="p-3 bg-slate-800/50 flex justify-between items-center border-b border-white/5">
                             <h5 className="text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                              <i className="fa-solid fa-clock-rotate-left"></i> {((t as any).loans.filters?.history?.title || 'Historial Reciente')}
+                              <i className="fa-solid fa-clock-rotate-left"></i> {state.settings.language === 'fr' ? 'HISTORIQUE RÉCENT' : state.settings.language === 'pt' ? 'HISTÓRICO RECENTE' : 'Historial Reciente'}
                             </h5>
                             <button onClick={() => toggleHistory(loan.id)} className="text-white/40 hover:text-white"><i className="fa-solid fa-xmark"></i></button>
                           </div>
@@ -1315,20 +1320,20 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                             <table className="w-full text-left">
                               <thead>
                                 <tr className="text-[7px] font-black text-slate-500 uppercase tracking-tighter border-b border-white/5">
-                                  <th className="px-3 py-2">Fecha / Hora</th>
-                                  <th className="px-3 py-2">{((t as any).loans.filters?.history?.concept || 'Concepto')}</th>
-                                  <th className="px-3 py-2 text-right">{((t as any).loans.filters?.history?.amount || 'Monto')}</th>
-                                  <th className="px-3 py-2 text-center">{((t as any).loans.filters?.tableHeaders?.actions || 'Acciones')}</th>
+                                  <th className="px-3 py-2">{state.settings.language === 'fr' ? 'DATE / HEURE' : state.settings.language === 'pt' ? 'DATA / HORA' : 'Fecha / Hora'}</th>
+                                  <th className="px-3 py-2">{state.settings.language === 'fr' ? 'Concept' : state.settings.language === 'pt' ? 'Conceito' : 'Concepto'}</th>
+                                  <th className="px-3 py-2 text-right">{state.settings.language === 'fr' ? 'Montant' : state.settings.language === 'pt' ? 'Valor' : 'Monto'}</th>
+                                  <th className="px-3 py-2 text-center">{state.settings.language === 'fr' ? 'Actions' : state.settings.language === 'pt' ? 'Ações' : 'Acciones'}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-white/5">
                                 {cardLoanLogs.length === 0 ? (
-                                  <tr><td colSpan={4} className="px-3 py-6 text-center text-[8px] font-bold text-slate-500 uppercase tracking-widest">Sin abonos recientes</td></tr>
+                                  <tr><td colSpan={4} className="px-3 py-6 text-center text-[8px] font-bold text-slate-500 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Aucun paiement récent' : state.settings.language === 'pt' ? 'Sem abonos recentes' : 'Sin abonos recientes'}</td></tr>
                                 ) : (
                                   [...cardLoanLogs].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5).map(log => (
                                     <tr key={log.id} className="text-[9px] font-bold text-slate-300 hover:bg-white/5">
                                       <td className="px-3 py-2">{formatDate(log.date)}<br/><span className="text-[7px] opacity-40">{new Date(log.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></td>
-                                      <td className="px-3 py-2 uppercase text-[8px]">{log.type === CollectionLogType.PAYMENT ? ((t as any).loans.filters?.history?.paymentReceived || 'Abono Recibido') : 'No Pago'}</td>
+                                      <td className="px-3 py-2 uppercase text-[8px]">{log.isRenewal ? 'Renovación' : (log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : state.settings.language === 'pt' ? 'Pagamento Recebido' : 'Abono Recibido') : 'No Pago')}</td>
                                       <td className="px-3 py-2 text-right font-black text-white">{formatCurrency(log.amount || 0, state.settings)}</td>
                                       <td className="px-3 py-2 text-center">
                                         {isAdminOrManager && (
@@ -1355,21 +1360,21 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <button
                           onClick={() => handleReprintLastReceipt(loan.id)}
                           className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-slate-600"
-                          title={(t as any).loans.card.printLast || "Imprimir Último"}
+                          title={((t as any).loans?.card || {}).printLast || "Imprimir Último"}
                         >
                           <i className="fa-solid fa-print text-sm"></i>
                         </button>
                         <button
                           onClick={() => handleShareLastReceiptAsPhoto(loan.id)}
                           className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-emerald-900/40 text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-emerald-800"
-                          title={(t as any).loans.card.photoWhatsApp || "Foto WhatsApp"}
+                          title={((t as any).loans?.card || {}).photoWhatsApp || "Foto WhatsApp"}
                         >
                           <i className="fa-solid fa-camera text-sm"></i>
                         </button>
                         <button
                           onClick={() => toggleHistory(loan.id)}
                           className={`w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl transition-all flex items-center justify-center shadow-sm active:scale-95 border ${expandedHistory[loan.id] ? 'bg-blue-600 text-white border-blue-500' : 'bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white border-blue-800'}`}
-                          title={(t as any).loans.card.paymentHistory || "Historial de Pagos"}
+                          title={((t as any).loans?.card || {}).paymentHistory || "Historial de Pagos"}
                         >
                           <i className="fa-solid fa-history text-sm"></i>
                         </button>
@@ -1377,7 +1382,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                           <button
                             onClick={() => { if (confirm('¿BORRAR ÚLTIMO PAGO? Se revertirá el saldo.')) deleteCollectionLog?.(lastPayLog.id); }}
                             className="w-10 md:w-12 h-10 md:h-12 rounded-lg md:rounded-xl bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-95 border border-red-800"
-                            title={(t as any).loans.card.deleteLast || "Borrar Último"}
+                            title={((t as any).loans?.card || {}).deleteLast || "Borrar Último"}
                           >
                             <i className="fa-solid fa-trash-can text-sm"></i>
                           </button>
@@ -1390,13 +1395,13 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                               onClick={() => handleQuickAction(loan.id, CollectionLogType.NO_PAGO)}
                               className="flex-1 py-2.5 md:py-3 bg-slate-700 border border-slate-600 rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] text-red-400 uppercase tracking-widest hover:bg-red-900/20 transition-all active:scale-95"
                             >
-                              {(t as any).loans.card.noPaymentBtn || 'No Pago'}
+                              {((t as any).loans?.card || {}).noPaymentBtn || 'No Pago'}
                             </button>
                             <button
                               onClick={() => handleOpenPayment(loan)}
                               className="flex-1 py-2.5 md:py-3 bg-emerald-600 text-white rounded-lg md:rounded-xl font-black text-[8px] md:text-[9px] uppercase tracking-widest shadow-lg shadow-emerald-900/20 hover:bg-emerald-500 transition-all active:scale-95"
                             >
-                              {(t as any).loans.card.payBtn || 'Pagar'}
+                              {((t as any).loans?.card || {}).payBtn || 'Pagar'}
                             </button>
                           </>
                         )}
@@ -1416,17 +1421,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 disabled={currentPage === 1}
                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >
-                {(t as any).loans.pagination.prev}
+                {((t as any).loans?.pagination || {}).prev}
               </button>
               <span className="text-[10px] font-black text-slate-400">
-                {(t as any).loans.pagination.page} {currentPage} {(t as any).loans.pagination.of} {totalPages}
+                {((t as any).loans?.pagination || {}).page} {currentPage} {((t as any).loans?.pagination || {}).of} {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
               >
-                {(t as any).loans.pagination.next}
+                {((t as any).loans?.pagination || {}).next}
               </button>
             </div>
           )}
@@ -1439,14 +1444,14 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
-                  <th className="px-6 py-5 border-r border-white/10">{((t as any).loans.filters?.tableHeaders?.clientId || 'Cliente / ID')}</th>
-                  <th className="px-6 py-5 border-r border-white/10">{((t as any).loans.filters?.tableHeaders?.contact || 'Contacto')}</th>
-                  <th className="px-6 py-5 border-r border-white/10">{((t as any).loans.filters?.tableHeaders?.location || 'Ubicación')}</th>
-                  <th className="px-6 py-5 border-r border-white/10 text-center">{((t as any).loans.filters?.tableHeaders?.daysOverdue || 'Días Mora')}</th>
-                  <th className="px-6 py-5 border-r border-white/10 text-center">{((t as any).loans.filters?.tableHeaders?.paidInstallments || 'Cuotas Pagadas')}</th>
-                  <th className="px-6 py-5 border-r border-white/10 text-right">{((t as any).loans.filters?.tableHeaders?.installmentValue || 'Valor Cuota')}</th>
-                  <th className="px-6 py-5 border-r border-white/10 text-right">{((t as any).loans.filters?.tableHeaders?.pendingBalance || 'Saldo Pend.')}</th>
-                  <th className="px-6 py-5 text-center">{((t as any).loans.filters?.tableHeaders?.management || 'Gestión')}</th>
+                  <th className="px-6 py-5 border-r border-white/10">{state.settings.language === 'fr' ? 'CLIENT / ID' : state.settings.language === 'pt' ? 'CLIENTE / ID' : 'Cliente / ID'}</th>
+                  <th className="px-6 py-5 border-r border-white/10">{state.settings.language === 'fr' ? 'CONTACT' : state.settings.language === 'pt' ? 'CONTATO' : 'Contacto'}</th>
+                  <th className="px-6 py-5 border-r border-white/10">{state.settings.language === 'fr' ? 'LOCALISATION' : state.settings.language === 'pt' ? 'LOCALIZAÇÃO' : 'Ubicación'}</th>
+                  <th className="px-6 py-5 border-r border-white/10 text-center">{state.settings.language === 'fr' ? 'JOURS DE RETARD' : state.settings.language === 'pt' ? 'DIAS DE ATRASO' : 'Días Mora'}</th>
+                  <th className="px-6 py-5 border-r border-white/10 text-center">{state.settings.language === 'fr' ? 'QUOTAS PAYÉES' : state.settings.language === 'pt' ? 'PARCELAS PAGAS' : 'Cuotas Pagadas'}</th>
+                  <th className="px-6 py-5 border-r border-white/10 text-right">{state.settings.language === 'fr' ? 'VALEUR QUOTA' : state.settings.language === 'pt' ? 'VALOR PARCELA' : 'Valor Cuota'}</th>
+                  <th className="px-6 py-5 border-r border-white/10 text-right">{state.settings.language === 'fr' ? 'SOLDE PEND.' : state.settings.language === 'pt' ? 'SALDO PEND.' : 'Saldo Pend.'}</th>
+                  <th className="px-6 py-5 text-center">{state.settings.language === 'fr' ? 'GESTION' : state.settings.language === 'pt' ? 'GESTÃO' : 'Gestión'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1505,15 +1510,15 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
-              >{((t as any).loans.pagination?.prev || 'Anterior')}</button>
+              >{(((t as any).loans?.pagination || {})?.prev || 'Anterior')}</button>
               <span className="text-[10px] font-black text-slate-400">
-                {((t as any).loans.pagination?.page || 'Página')} {currentPage} {((t as any).loans.pagination?.of || 'de')} {totalPages}
+                {(((t as any).loans?.pagination || {})?.page || 'Página')} {currentPage} {(((t as any).loans?.pagination || {})?.of || 'de')} {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-black text-[10px] uppercase shadow-sm disabled:opacity-50"
-              >{((t as any).loans.pagination?.next || 'Siguiente')}</button>
+              >{(((t as any).loans?.pagination || {})?.next || 'Siguiente')}</button>
             </div>
           )}
         </div>
@@ -1526,17 +1531,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-800 text-white text-[9px] font-black uppercase tracking-widest">
-                  <th className="px-6 py-5 border-r border-white/10">{((t as any).loans.filters?.tableHeaders?.regDate || 'Fecha Registro')}</th>
-                  <th className="px-6 py-5 border-r border-white/10">{((t as any).loans.filters?.tableHeaders?.clientId || 'Cliente / ID')}</th>
-                  <th className="px-6 py-5 border-r border-white/10">{((t as any).loans.filters?.tableHeaders?.phone || 'Teléfono')}</th>
-                  <th className="px-6 py-5 border-r border-white/10 text-right">{((t as any).loans.filters?.tableHeaders?.archivedBalance || 'Saldo Archivador')}</th>
-                  <th className="px-6 py-5 text-center">{((t as any).loans.filters?.tableHeaders?.actions || 'Acciones')}</th>
+                  <th className="px-6 py-5 border-r border-white/10">{state.settings.language === 'fr' ? 'DATE INSCRIPTION' : state.settings.language === 'pt' ? 'DATA REGISTRO' : 'Fecha Registro'}</th>
+                  <th className="px-6 py-5 border-r border-white/10">{state.settings.language === 'fr' ? 'CLIENT / ID' : state.settings.language === 'pt' ? 'CLIENTE / ID' : 'Cliente / ID'}</th>
+                  <th className="px-6 py-5 border-r border-white/10">{state.settings.language === 'fr' ? 'TÉLÉPHONE' : state.settings.language === 'pt' ? 'TELEFONE' : 'Teléfono'}</th>
+                  <th className="px-6 py-5 border-r border-white/10 text-right">{state.settings.language === 'fr' ? 'SOLDE ARCHIVÉ' : state.settings.language === 'pt' ? 'SALDO ARQUIVADO' : 'Saldo Archivador'}</th>
+                  <th className="px-6 py-5 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : state.settings.language === 'pt' ? 'AÇÕES' : 'Acciones'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
                 {(hiddenClientsData || []).length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-24 text-center text-slate-300 font-black uppercase tracking-[0.3em]">No hay clientes ocultos actualmente</td>
+                    <td colSpan={5} className="px-6 py-24 text-center text-slate-300 font-black uppercase tracking-[0.3em]">{state.settings.language === 'fr' ? 'Aucun client caché actuellement' : state.settings.language === 'pt' ? 'Não há clientes ocultos atualmente' : 'No hay clientes ocultos actualmente'}</td>
                   </tr>
                 ) : (
                   (Array.isArray(hiddenClientsData) ? hiddenClientsData : []).map(client => (
@@ -1551,7 +1556,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                             onClick={() => handleRestoreClient(client)}
                             className="px-4 py-2 bg-emerald-500 text-white rounded-lg font-black text-[9px] uppercase tracking-widest active:scale-90 transition-all shadow-md flex items-center justify-center mx-auto gap-2"
                           >
-                            <i className="fa-solid fa-eye"></i>{((t as any).loans.filters?.tableHeaders?.restore || 'RESTAURAR')}</button>
+                            <i className="fa-solid fa-eye"></i>{(((t as any).loans?.filters || {})?.tableHeaders?.restore || 'RESTAURAR')}</button>
                         )}
                       </td>
                     </tr>
@@ -1561,8 +1566,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
             </table>
           </div>
           <div className="p-4 bg-slate-900 text-white flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-            <span>{((t as any).loans.filters?.tableHeaders?.archivedRecords || 'Registros en Archivo')}: {hiddenClientsData.length}</span>
-            <span className="text-slate-500">{((t as any).loans.filters?.tableHeaders?.hiddenAudit || 'Auditoría de Clientes Ocultos')}</span>
+            <span>{state.settings.language === 'fr' ? 'Enregistrements archivés' : state.settings.language === 'pt' ? 'Registros no Arquivo' : 'Registros en Archivo'}: {hiddenClientsData.length}</span>
+            <span className="text-slate-500">{state.settings.language === 'fr' ? 'Audit des clients cachés' : state.settings.language === 'pt' ? 'Auditoria de Clientes Ocultos' : 'Auditoría de Clientes Ocultos'}</span>
           </div>
         </div>
       )}
@@ -1572,17 +1577,17 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
         <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-y-auto pt-10 md:pt-20">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-sm overflow-hidden animate-scaleIn border border-white/20">
             <div className="p-5 md:p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
-              <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">Registrar Abono</h3></div>
+              <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'ENREGISTRER PAIEMENT' : state.settings.language === 'pt' ? 'REGISTRAR PAGAMENTO' : 'Registrar Abono'}</h3></div>
               <button onClick={resetUI} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <div className="p-5 md:p-6 space-y-4 md:space-y-6">
               <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-6 bg-slate-50 p-1 rounded-xl border border-slate-200`}>
-                <button onClick={() => setMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualPayment && !isRenewalPayment && !isQrPayment ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Efectivo</button>
-                <button onClick={() => setMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualPayment ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Transf.</button>
+                <button onClick={() => setMethod('cash')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${!isVirtualPayment && !isRenewalPayment && !isQrPayment ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Espèces' : state.settings.language === 'pt' ? 'Dinheiro' : 'Efectivo'}</button>
+                <button onClick={() => setMethod('virtual')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isVirtualPayment ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Virement' : state.settings.language === 'pt' ? 'Transfer.' : 'Transf.'}</button>
                 {state.currentUser?.role === Role.ADMIN && (
                   <button onClick={() => setMethod('qr')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isQrPayment ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>QR</button>
                 )}
-                <button onClick={() => setMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalPayment ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>Renovar</button>
+                <button onClick={() => setMethod('renewal')} className={`py-2 rounded-lg text-[8px] font-black uppercase border transition-all ${isRenewalPayment ? 'bg-amber-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 active:bg-slate-100'}`}>{state.settings.language === 'fr' ? 'Renouveler' : state.settings.language === 'pt' ? 'Renovar' : 'Renovar'}</button>
               </div>
 
               {isWaitingForQrPayment ? (
@@ -1618,8 +1623,8 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                   {isQrPayment && !hasQrConfig && (
                     <div className="bg-purple-50 p-4 rounded-2xl border border-purple-200 text-center mb-4 animate-fadeIn">
                       <i className="fa-solid fa-triangle-exclamation text-purple-600 text-xl mb-2"></i>
-                      <p className="text-[10px] font-black text-purple-800 uppercase tracking-widest">Configuración Requerida</p>
-                      <p className="text-[8px] text-purple-600 mt-1 uppercase font-bold leading-normal">El Gerente debe configurar las credenciales de Bancard en Opciones para habilitar este cobro.</p>
+                      <p className="text-[10px] font-black text-purple-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Configuration Requise' : state.settings.language === 'pt' ? 'Configuração Necessária' : 'Configuración Requerida'}</p>
+                      <p className="text-[8px] text-purple-600 mt-1 uppercase font-bold leading-normal">{state.settings.language === 'fr' ? 'Le gérant doit configurer les identifiants Bancard dans les Options pour activer ce paiement.' : state.settings.language === 'pt' ? 'O gerente deve configurar as credenciais Bancard em Opções para ativar este pagamento.' : 'El Gerente debe configurar las credenciales de Bancard en Opciones para habilitar este cobro.'}</p>
                     </div>
                   )}
 
@@ -1648,9 +1653,7 @@ const Loans: React.FC<LoansProps> = ({ state, addCollectionAttempt, deleteCollec
                         <>
                           <i className="fa-solid fa-qrcode"></i> Generar QR de Cobro
                         </>
-                      ) : (
-                        'Confirmar Cobro'
-                      )}
+                      ) : state.settings.language === 'fr' ? 'CONFIRMER PAIEMENT' : state.settings.language === 'pt' ? 'CONFIRMAR PAGAMENTO' : 'Confirmar Cobro'}
                     </button>
                   ) : null}
                 </>

@@ -434,14 +434,22 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                           </div>
                           <h5 className="font-black text-slate-950 text-lg uppercase tracking-tight truncate mb-4">{col.name}</h5>
 
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center text-[8px] font-black uppercase bg-slate-50 p-2 rounded-lg border border-slate-200">
-                              <span className="text-slate-600">Status:</span>
+                          <div className="space-y-1.5 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                            <div className="flex justify-between text-[8px] font-black text-slate-950 uppercase">
+                              <span className="opacity-60 text-slate-600">Status:</span>
                               <span className={col.blocked ? 'text-red-700' : 'text-emerald-700'}>{col.blocked ? 'SUSPENDIDO' : 'ACTIVO'}</span>
                             </div>
-                            <div className="flex justify-between items-center text-[8px] font-black uppercase bg-slate-50 p-2 rounded-lg border border-slate-200">
-                              <span className="text-slate-600">Expira:</span>
-                              <span className={colCritical ? 'text-red-700 font-black' : 'text-slate-900'}>{col.expiryDate || '---'}</span>
+                            <div className="flex justify-between text-[8px] font-black text-slate-950 uppercase">
+                              <span className="opacity-60 text-slate-600">Usuario:</span>
+                              <span>{col.username}</span>
+                            </div>
+                            <div className="flex justify-between text-[8px] font-black text-slate-950 uppercase">
+                              <span className="opacity-60 text-slate-600">Clave:</span>
+                              <span className="text-blue-700">{col.password || '---'}</span>
+                            </div>
+                            <div className="flex justify-between text-[8px] font-black text-slate-950 uppercase pt-1 border-t border-slate-200">
+                              <span className="opacity-60 text-slate-600">Corte:</span>
+                              <span className={colCritical ? 'text-red-700' : ''}>{col.expiryDate || '---'}</span>
                             </div>
                           </div>
 
@@ -462,7 +470,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                           <div className="mt-4 p-3 rounded-xl border bg-slate-50 border-slate-200">
                             <div className="flex items-center gap-2 mb-2">
                               <i className="fa-solid fa-location-dot text-sm text-blue-600"></i>
-                              <span className="text-[8px] font-black uppercase text-slate-700">GPS Obligatorio</span>
+                              <span className="text-[8px] font-black uppercase text-slate-700">{state.settings.language === 'fr' ? 'GPS OBLIGATOIRE' : state.settings.language === 'pt' ? 'GPS OBRIGATÓRIO' : 'GPS OBLIGATORIO'}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <button
@@ -471,7 +479,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                                 className={`py-2 px-3 rounded-lg font-black text-[7px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${col.requiresLocation ? 'bg-emerald-600 text-white opacity-50' : 'bg-blue-600 text-white active:scale-95'}`}
                               >
                                 <i className="fa-solid fa-check"></i>
-                                {col.requiresLocation ? 'ACTIVO' : 'ACTIVAR'}
+                                {col.requiresLocation ? (state.settings.language === 'fr' ? 'ACTIF' : state.settings.language === 'pt' ? 'ATIVO' : 'ACTIVO') : (state.settings.language === 'fr' ? 'ACTIVER' : state.settings.language === 'pt' ? 'ATIVAR' : 'ACTIVAR')}
                               </button>
                               <button
                                 onClick={() => onUpdateUser({ ...col, requiresLocation: false })}
@@ -479,7 +487,7 @@ const Managers: React.FC<ManagersProps> = ({ state, onAddUser, onUpdateUser, onD
                                 className={`py-2 px-3 rounded-lg font-black text-[7px] uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${!col.requiresLocation ? 'bg-slate-400 text-white opacity-50' : 'bg-red-600 text-white active:scale-95'}`}
                               >
                                 <i className="fa-solid fa-xmark"></i>
-                                {!col.requiresLocation ? 'INACTIVO' : 'DESACTIVAR'}
+                                {!col.requiresLocation ? (state.settings.language === 'fr' ? 'INACTIF' : state.settings.language === 'pt' ? 'INATIVO' : 'INACTIVO') : (state.settings.language === 'fr' ? 'DÉSACTIVER' : state.settings.language === 'pt' ? 'DESATIVAR' : 'DESACTIVAR')}
                               </button>
                             </div>
                           </div>

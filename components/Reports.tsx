@@ -664,14 +664,14 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
-      doc.text(t.auditPdf?.title || 'AUDITORIA DE CAMPO - CONTROL', 105, 20, { align: 'center' });
+      doc.text(activeSettings.language === 'fr' ? 'AUDIT DE TERRAIN - CONTRÔLE' : activeSettings.language === 'pt' ? 'AUDITORIA DE CAMPO - CONTROLE' : 'AUDITORIA DE CAMPO - CONTROL', 105, 20, { align: 'center' });
       doc.setFontSize(10);
-      doc.text(`${t.auditPdf?.subtitle || 'SISTEMA DE GESTIÓN DE CARTERA'} - ${dateStr}`, 105, 30, { align: 'center' });
+      doc.text(`${activeSettings.language === 'fr' ? 'SYSTÈME DE GESTION DE PORTEFEUILLE' : activeSettings.language === 'pt' ? 'SISTEMA DE GESTÃO DE CARTEIRA' : 'SISTEMA DE GESTIÓN DE CARTERA'} - ${dateStr}`, 105, 30, { align: 'center' });
       // Info
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
-      doc.text(`${t.auditPdf?.collector || 'Cobrador:'} ${collectorName}`, 20, 55);
-      doc.text(`${t.auditPdf?.period || 'Periodo:'} ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
+      doc.text(`${activeSettings.language === 'fr' ? 'Collecteur:' : 'Cobrador:'} ${collectorName}`, 20, 55);
+      doc.text(`${activeSettings.language === 'fr' ? 'Période:' : activeSettings.language === 'pt' ? 'Período:' : 'Periodo:'} ${selectedDate} / ${endDate || selectedDate}`, 20, 65);
 
       // Calculations - DASHBOARD ALIGNMENT (CLIENT-FIRST)
       const collectorLower = selectedCollector.toLowerCase();
@@ -726,10 +726,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          // REGLA: Si no debe nada y no tiene atraso, ignorar (préstamo pagado y al día)
          if (balance <= 0 && daysOverdue <= 0) return null;
 
-         let gapStatus = t.auditPdf?.normal || 'NORMAL';
-         if (daysSinceVisit >= 20) gapStatus = t.auditPdf?.critical || 'CRÍTICO';
-         else if (daysSinceVisit >= 8) gapStatus = t.auditPdf?.alert || 'ALERTA';
-         else if (daysSinceVisit >= 4) gapStatus = t.auditPdf?.attention || 'ATENCIÓN';
+         let gapStatus = 'NORMAL';
+         if (daysSinceVisit >= 20) gapStatus = activeSettings.language === 'fr' ? 'CRITIQUE' : activeSettings.language === 'pt' ? 'CRÍTICO' : 'CRÍTICO';
+         else if (daysSinceVisit >= 8) gapStatus = activeSettings.language === 'fr' ? 'ALERTE' : activeSettings.language === 'pt' ? 'ALERTA' : 'ALERTA';
+         else if (daysSinceVisit >= 4) gapStatus = activeSettings.language === 'fr' ? 'ATTENTION' : activeSettings.language === 'pt' ? 'ATENÇÃO' : 'ATENCIÓN';
 
          // Último pago real del préstamo ACTIVO
          const lastPaymentLog = allClientLogs
@@ -760,26 +760,26 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
       doc.rect(20, 75, 170, 20, 'F');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${t.auditPdf?.totalAudited || 'Total Cartera Auditada:'} ${auditData.length} ${t.auditPdf?.clientsWithBalance || 'Clientes con Saldo'}`, 30, 87);
+      doc.text(`${activeSettings.language === 'fr' ? 'Total Portefeuille Audité:' : activeSettings.language === 'pt' ? 'Total Carteira Auditada:' : 'Total Cartera Auditada:'} ${auditData.length} ${activeSettings.language === 'fr' ? 'Clients avec Solde' : activeSettings.language === 'pt' ? 'Clientes com Saldo' : 'Clientes con Saldo'}`, 30, 87);
       doc.setTextColor(220, 38, 38); // Red
-      doc.text(`${t.auditPdf?.outOfRange || 'FUERA DE RANGO'} (>=4 ${t.auditPdf?.days || 'Días'}): ${alertasCount}`, 125, 87);
+      doc.text(`${activeSettings.language === 'fr' ? 'HORS LIMITES' : activeSettings.language === 'pt' ? 'FORA DE LIMITE' : 'FUERA DE RANGO'} (>=4 ${activeSettings.language === 'fr' ? 'Jours' : activeSettings.language === 'pt' ? 'Dias' : 'Días'}): ${alertasCount}`, 125, 87);
 
       // Detail List
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
-      doc.text(t.auditPdf?.controlTitle || 'Control de Gestión y Morosidad (Prioridad S/ REGISTRO):', 20, 105);
+      doc.text(activeSettings.language === 'fr' ? 'Contrôle de Gestion et d\'Impayés (Priorité S/ ENREGISTREMENT):' : activeSettings.language === 'pt' ? 'Controle de Gestão e Inadimplência (Prioridade S/ REGISTRO):' : 'Control de Gestión y Morosidad (Prioridad S/ REGISTRO):', 20, 105);
 
       let currentY = 115;
       doc.setFontSize(6.5);
       doc.setFont('helvetica', 'bold');
       doc.text('#', 20, currentY);
-      doc.text(t.auditPdf?.client || 'CLIENTE', 26, currentY);
-      doc.text(t.auditPdf?.balance || 'SALDO', 72, currentY);
-      doc.text(t.auditPdf?.overdue || 'ATRASO', 95, currentY);
-      doc.text(t.auditPdf?.unregistered || 'S/ REGIST.', 114, currentY);
-      doc.text('ÚLT. PAGO', 136, currentY);
-      doc.text(t.auditPdf?.status || 'ESTADO', 160, currentY);
-      doc.text(t.auditPdf?.location || 'UBICACION', 176, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'CLIENT' : 'CLIENTE', 26, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'SOLDE' : 'SALDO', 72, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'RETARD' : 'ATRASO', 95, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'S/ ENREGIST.' : 'S/ REGIST.', 114, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'DERN. PAIEMENT' : activeSettings.language === 'pt' ? 'ÚLT. PAGAMENTO' : 'ÚLT. PAGO', 136, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'STATUT' : 'ESTADO', 160, currentY);
+      doc.text(activeSettings.language === 'fr' ? 'LOCALISATION' : activeSettings.language === 'pt' ? 'LOCALIZAÇÃO' : 'UBICACION', 176, currentY);
 
       doc.line(20, currentY + 2, 210, currentY + 2);
       currentY += 10;
@@ -802,9 +802,9 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          // Determinar Color del Estado según Inactividad
          let stR = 30, stG = 41, stB = 59;
-         if (item.gapStatus === (t.auditPdf?.critical || 'CRÍTICO')) { stR = 220; stG = 38; stB = 38; }
-         else if (item.gapStatus === (t.auditPdf?.alert || 'ALERTA')) { stR = 234; stG = 88; stB = 12; }
-         else if (item.gapStatus === (t.auditPdf?.attention || 'ATENCIÓN')) { stR = 245; stG = 158; stB = 11; }
+         if (item.gapStatus === (activeSettings.language === 'fr' ? 'CRITIQUE' : 'CRÍTICO')) { stR = 220; stG = 38; stB = 38; }
+         else if (item.gapStatus === (activeSettings.language === 'fr' ? 'ALERTE' : 'ALERTA')) { stR = 234; stG = 88; stB = 12; }
+         else if (item.gapStatus === (activeSettings.language === 'fr' ? 'ATTENTION' : activeSettings.language === 'pt' ? 'ATENÇÃO' : 'ATENCIÓN')) { stR = 245; stG = 158; stB = 11; }
 
          doc.setFontSize(6.5);
          // Número de fila
@@ -821,8 +821,8 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
          // Atraso y Registro
          doc.setTextColor(30, 41, 59);
-         doc.text(`${item.atraso} ${t.auditPdf?.d || 'd.'}`, 95, currentY);
-         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' ' + (t.auditPdf?.d || 'd.')}`, 114, currentY);
+         doc.text(`${item.atraso} ${activeSettings.language === 'fr' ? 'j.' : 'd.'}`, 95, currentY);
+         doc.text(`${item.diasInactivo > 365 ? '---' : item.diasInactivo + ' ' + (activeSettings.language === 'fr' ? 'j.' : 'd.')}`, 114, currentY);
 
          // Último Pago
          if (item.lastPaymentDays !== null && item.lastPaymentDays !== undefined) {
@@ -831,7 +831,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
             const lpB = item.lastPaymentDays <= 7 ? 129 : item.lastPaymentDays <= 14 ? 6 : 38;
             doc.setTextColor(lpR, lpG, lpB);
             doc.setFont('helvetica', 'bold');
-            doc.text(`${item.lastPaymentDays} ${t.auditPdf?.d || 'd.'}`, 136, currentY);
+            doc.text(`${item.lastPaymentDays} ${activeSettings.language === 'fr' ? 'j.' : 'd.'}`, 136, currentY);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(5.5);
             doc.setTextColor(100, 116, 139);
@@ -840,7 +840,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          } else {
             doc.setTextColor(220, 38, 38);
             doc.setFont('helvetica', 'bold');
-            doc.text(t.auditPdf?.never || 'NUNCA', 136, currentY);
+            doc.text(activeSettings.language === 'fr' ? 'JAMAIS' : 'NUNCA', 136, currentY);
             doc.setFont('helvetica', 'normal');
          }
 
@@ -854,10 +854,10 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
          doc.setFont('helvetica', 'bold');
          if (item.hasLocation) {
             doc.setTextColor(16, 185, 129); // Verde
-            doc.text(t.auditPdf?.locR || 'UBICACION R', 176, currentY);
+            doc.text(activeSettings.language === 'fr' ? 'LOCALISATION R' : activeSettings.language === 'pt' ? 'LOCALIZAÇÃO R' : 'UBICACION R', 176, currentY);
          } else {
             doc.setTextColor(220, 38, 38); // Rojo
-            doc.text(t.auditPdf?.locNr || 'UBICACION NR', 176, currentY);
+            doc.text(activeSettings.language === 'fr' ? 'LOCALISATION NR' : activeSettings.language === 'pt' ? 'LOCALIZAÇÃO NR' : 'UBICACION NR', 176, currentY);
          }
          doc.setFont('helvetica', 'normal');
 
@@ -866,7 +866,7 @@ const Reports: React.FC<ReportsProps> = ({ state, settings }) => {
 
       doc.setTextColor(150);
       doc.setFontSize(8);
-      doc.text('Este reporte es un cálculo matemático local basado en registros de actividad.', 105, 285, { align: 'center' });
+      doc.text(activeSettings.language === 'fr' ? 'Ce rapport est un calcul mathématique local basé sur des registres d\'activité.' : activeSettings.language === 'pt' ? 'Este relatório é um cálculo matemático local baseado em registros de atividade.' : 'Este reporte es un cálculo matemático local basado en registros de actividad.', 105, 285, { align: 'center' });
 
       saveAndOpenPDF(doc, `AUDITORIA_LOCAL_${collectorName.replace(/\s+/g, '_')}.pdf`);
    };

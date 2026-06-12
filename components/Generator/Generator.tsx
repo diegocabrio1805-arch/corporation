@@ -166,7 +166,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
             documentIdNumber: '',
             phoneNumber: '',
             paymentMethod: 'Efectivo',
-            legalText: formData.type === DocumentType.PAGARE ? (tg?.defaultPagare || DEFAULT_PAGARE_TEXT) : (formData.type === DocumentType.RECIBO ? (tg?.defaultRecibo || DEFAULT_RECIBO_TEXT) : (tg?.defaultManual || DEFAULT_MANUAL_TEXT)),
+            legalText: formData.type === DocumentType.PAGARE ? (settings?.language === 'fr' ? `Le [FECHA] je paierai solidairement sans frais à votre ordre, au domicile [DOMICILIO] La somme de [MONEDA_NOMBRE] [MONTO_LETRAS].\n\nPour la valeur reçue en [CONCEPTO] à mon entière satisfaction. En cas de non-paiement de ce document à la date d'échéance, le(s) débiteur(s) sera(ont) constitué(s) en retard...` : settings?.language === 'pt' ? `No dia [FECHA] Pagarei(emos) solidariamente livre de despesas e sem protesto à sua ordem, no domicílio [DOMICILIO] A quantia de [MONEDA_NOMBRE] [MONTO_LETRAS].\n\nPelo valor recebido em [CONCEPTO] para minha inteira satisfação. Caso este documento não seja pago no dia do vencimento...` : DEFAULT_PAGARE_TEXT) : (formData.type === DocumentType.RECIBO ? (settings?.language === 'fr' ? `J'ai reçu de [DEUDOR_NOMBRE] la somme de [MONEDA_NOMBRE] [MONTO_LETRAS] pour le concept de [CONCEPTO].` : settings?.language === 'pt' ? `Recebi de [DEUDOR_NOMBRE] a quantia de [MONEDA_NOMBRE] [MONTO_LETRAS] referente a [CONCEPTO].` : DEFAULT_RECIBO_TEXT) : (settings?.language === 'fr' ? `Rédigez ici le contenu de votre document...` : settings?.language === 'pt' ? `Escreva aqui o conteúdo do seu documento...` : DEFAULT_MANUAL_TEXT)),
         });
         setSignature(null);
     };
@@ -581,7 +581,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
     };
 
     const handleTypeChange = (type: DocumentType) => {
-        const text = type === DocumentType.PAGARE ? (tg?.defaultPagare || DEFAULT_PAGARE_TEXT) : (type === DocumentType.RECIBO ? (tg?.defaultRecibo || DEFAULT_RECIBO_TEXT) : (tg?.defaultManual || DEFAULT_MANUAL_TEXT));
+        const text = type === DocumentType.PAGARE ? (settings?.language === 'fr' ? `Le [FECHA] je paierai solidairement sans frais à votre ordre, au domicile [DOMICILIO] La somme de [MONEDA_NOMBRE] [MONTO_LETRAS].\n\nPour la valeur reçue en [CONCEPTO] à mon entière satisfaction. En cas de non-paiement de ce document à la date d'échéance, le(s) débiteur(s) sera(ont) constitué(s) en retard...` : settings?.language === 'pt' ? `No dia [FECHA] Pagarei(emos) solidariamente livre de despesas e sem protesto à sua ordem, no domicílio [DOMICILIO] A quantia de [MONEDA_NOMBRE] [MONTO_LETRAS].\n\nPelo valor recebido em [CONCEPTO] para minha inteira satisfação. Caso este documento não seja pago no dia do vencimento...` : DEFAULT_PAGARE_TEXT) : (type === DocumentType.RECIBO ? (settings?.language === 'fr' ? `J'ai reçu de [DEUDOR_NOMBRE] la somme de [MONEDA_NOMBRE] [MONTO_LETRAS] pour le concept de [CONCEPTO].` : settings?.language === 'pt' ? `Recebi de [DEUDOR_NOMBRE] a quantia de [MONEDA_NOMBRE] [MONTO_LETRAS] referente a [CONCEPTO].` : DEFAULT_RECIBO_TEXT) : (settings?.language === 'fr' ? `Rédigez ici le contenu de votre document...` : settings?.language === 'pt' ? `Escreva aqui o conteúdo do seu documento...` : DEFAULT_MANUAL_TEXT));
         setFormData({ ...formData, type, legalText: text });
     };
 
@@ -597,13 +597,13 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                             onClick={() => setActiveSidebarTab('history')}
                             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${activeSidebarTab === 'history' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            <History className="w-3.5 h-3.5 inline mr-1" /> {tg?.history || "Historial"}
+                            <History className="w-3.5 h-3.5 inline mr-1" /> {settings?.language === 'fr' ? 'Historique' : settings?.language === 'pt' ? 'Histórico' : 'Historial'}
                         </button>
                         <button
                             onClick={() => setActiveSidebarTab('templates')}
                             className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${activeSidebarTab === 'templates' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            <BookOpen className="w-3.5 h-3.5 inline mr-1" /> {tg?.templates || "Plantillas"}
+                            <BookOpen className="w-3.5 h-3.5 inline mr-1" /> {settings?.language === 'fr' ? 'Modèles' : settings?.language === 'pt' ? 'Modelos' : 'Plantillas'}
                         </button>
                     </div>
 
@@ -612,7 +612,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                             <div className="p-3">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                                    <input type="text" placeholder={tg?.search || "Buscar..."} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-800 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                    <input type="text" placeholder={settings?.language === 'fr' ? 'Rechercher...' : settings?.language === 'pt' ? 'Pesquisar...' : 'Buscar...'} className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold text-slate-800 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                                 </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -640,8 +640,8 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                             {templates.length === 0 ? (
                                 <div className="p-8 text-center text-slate-400">
                                     <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                    <p className="text-[10px] font-bold uppercase">{tg?.noTemplates || 'Sin plantillas'}</p>
-                                    <p className="text-[9px] mt-2">{tg?.saveAsTemplateTip || 'Guarda el texto actual como plantilla para verlo aquí.'}</p>
+                                    <p className="text-[10px] font-bold uppercase">{settings?.language === 'fr' ? 'Aucun modèle' : settings?.language === 'pt' ? 'Sem modelos' : 'Sin plantillas'}</p>
+                                    <p className="text-[9px] mt-2">{settings?.language === 'fr' ? 'Enregistrez le texte actuel comme modèle pour le voir ici.' : settings?.language === 'pt' ? 'Salve o texto atual como modelo para vê-lo aqui.' : 'Guarda el texto actual como plantilla para verlo aquí.'}</p>
                                 </div>
                             ) : (
                                 templates.map(temp => (
@@ -669,7 +669,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsHistoryOpen(true)} className="md:hidden p-2 text-slate-500 bg-slate-50 rounded-xl"><History className="w-5 h-5" /></button>
                         <div>
-                            <h1 className="text-xs font-black text-slate-900 uppercase tracking-tighter">{tg?.title || 'Generador de Pagarés'}</h1>
+                            <h1 className="text-xs font-black text-slate-900 uppercase tracking-tighter">{settings?.language === 'fr' ? 'Générateur de Billets' : settings?.language === 'pt' ? 'Gerador de Notas' : 'Generador de Pagarés'}</h1>
                             <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">{tg?.subtitle || 'v1.1.0 Pro Standalone'}</p>
                         </div>
                     </div>
@@ -680,22 +680,22 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                 handleScanPrinters();
                             }}
                             className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-[9px] font-black uppercase transition-all ${connectedDevice ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
-                            title={connectedDevice ? `${t.settingsPage?.linked || 'Conectado a:'} ${connectedDevice}` : (t.settingsPage?.linkPrinterTitle || 'Vincular Impresora')}
+                            title={connectedDevice ? `${settings?.language === 'fr' ? 'Connecté à:' : settings?.language === 'pt' ? 'Conectado a:' : 'Conectado a:'} ${connectedDevice}` : (settings?.language === 'fr' ? 'Associer Imprimante' : settings?.language === 'pt' ? 'Vincular Impressora' : 'Vincular Impresora')}
                         >
                             <Printer className="w-3.5 h-3.5" />
-                            {connectedDevice ? 'Conectado' : (t.settingsPage?.linkPrinterTitle?.split(' ')[0] || 'Vincular')}
+                            {connectedDevice ? (settings?.language === 'fr' ? 'Connecté' : settings?.language === 'pt' ? 'Conectado' : 'Conectado') : (settings?.language === 'fr' ? 'Associer' : settings?.language === 'pt' ? 'Vincular' : 'Vincular')}
                         </button>
                         <div className="relative" ref={paperMenuRef}>
                             <button onClick={() => setIsPaperMenuOpen(!isPaperMenuOpen)} className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[9px] font-black uppercase text-slate-600 hover:bg-slate-100 transition-all">
                                 {paperSize === 'A4' ? <Maximize2 className="w-3.5 h-3.5" /> : paperSize === 'Oficio' ? <FileBox className="w-3.5 h-3.5" /> : <Printer className="w-3.5 h-3.5" />}
-                                {paperSize === 'A4' ? (tg?.a4 || 'A4') : paperSize === 'Oficio' ? (tg?.oficio || 'Oficio') : (tg?.thermal || 'Térmico')}
+                                {paperSize === 'A4' ? 'A4' : paperSize === 'Oficio' ? (settings?.language === 'fr' ? 'Légal' : settings?.language === 'pt' ? 'Ofício' : 'Oficio') : (settings?.language === 'fr' ? 'Thermique' : settings?.language === 'pt' ? 'Térmico' : 'Térmico')}
                                 <ChevronDown className="w-3 h-3" />
                             </button>
                             {isPaperMenuOpen && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50">
-                                    <button onClick={() => changePaperSize('A4')} className="w-full px-4 py-3 text-left text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"><Maximize2 className="w-4 h-4" /> {tg?.paperA4 || 'Papel A4'}</button>
-                                    <button onClick={() => changePaperSize('Oficio')} className="w-full px-4 py-3 text-left text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"><FileBox className="w-4 h-4" /> {tg?.paperOficio || 'Papel Oficio'}</button>
-                                    <button onClick={() => changePaperSize('Thermal58mm')} className="w-full px-4 py-3 text-left text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"><Printer className="w-4 h-4" /> {tg?.paperThermal || 'Térmico 58mm'}</button>
+                                    <button onClick={() => changePaperSize('A4')} className="w-full px-4 py-3 text-left text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"><Maximize2 className="w-4 h-4" /> {settings?.language === 'fr' ? 'Papier A4' : settings?.language === 'pt' ? 'Papel A4' : 'Papel A4'}</button>
+                                    <button onClick={() => changePaperSize('Oficio')} className="w-full px-4 py-3 text-left text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"><FileBox className="w-4 h-4" /> {settings?.language === 'fr' ? 'Papier Légal' : settings?.language === 'pt' ? 'Papel Ofício' : 'Papel Oficio'}</button>
+                                    <button onClick={() => changePaperSize('Thermal58mm')} className="w-full px-4 py-3 text-left text-[9px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2"><Printer className="w-4 h-4" /> {settings?.language === 'fr' ? 'Thermique 58mm' : settings?.language === 'pt' ? 'Térmico 58mm' : 'Térmico 58mm'}</button>
                                 </div>
                             )}
                         </div>
@@ -708,25 +708,25 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
                             <div className="bg-slate-50/50 p-4 border-b border-slate-100 flex items-center justify-between">
                                 <div className="flex gap-1 bg-slate-200 p-1 rounded-xl">
-                                    <button onClick={() => handleTypeChange(DocumentType.PAGARE)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${formData.type === DocumentType.PAGARE ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>{tg?.promissoryNote || 'Pagaré'}</button>
-                                    <button onClick={() => handleTypeChange(DocumentType.RECIBO)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${formData.type === DocumentType.RECIBO ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>{tg?.receipt || 'Recibo'}</button>
+                                    <button onClick={() => handleTypeChange(DocumentType.PAGARE)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${formData.type === DocumentType.PAGARE ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>{settings?.language === 'fr' ? 'Billet à Ordre' : settings?.language === 'pt' ? 'Nota Promissória' : 'Pagaré'}</button>
+                                    <button onClick={() => handleTypeChange(DocumentType.RECIBO)} className={`px-4 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${formData.type === DocumentType.RECIBO ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>{settings?.language === 'fr' ? 'Reçu' : settings?.language === 'pt' ? 'Recibo' : 'Recibo'}</button>
                                     <button onClick={() => handleTypeChange(DocumentType.MANUAL)} className={`px-3 py-1.5 rounded-lg transition-all ${formData.type === DocumentType.MANUAL ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}><Pencil className="w-4 h-4" /></button>
                                 </div>
                                 <div className="flex items-center gap-2 relative" ref={templateMenuRef}>
                                     <button type="button" onClick={() => setIsTemplateMenuOpen(!isTemplateMenuOpen)} className="text-[8px] font-black text-indigo-600 uppercase border border-indigo-100 px-3 py-1.5 rounded-lg hover:bg-white flex items-center gap-1.5">
                                         <BookOpen className="w-3 h-3" />
-                                        {tg?.templates || "Plantillas"}
+                                        {settings?.language === 'fr' ? 'Modèles' : settings?.language === 'pt' ? 'Modelos' : 'Plantillas'}
                                         <ChevronDown className="w-2.5 h-2.5" />
                                     </button>
                                     {isTemplateMenuOpen && (
                                         <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-[60] overflow-hidden animate-scaleIn">
                                             <div className="p-3 bg-slate-50 border-b border-slate-100">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{tg?.myTemplates || 'Mis Plantillas'}</p>
+                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{settings?.language === 'fr' ? 'Mes Modèles' : settings?.language === 'pt' ? 'Meus Modelos' : 'Mis Plantillas'}</p>
                                             </div>
                                             <div className="max-h-64 overflow-y-auto custom-scrollbar">
                                                 {templates.length === 0 ? (
                                                     <div className="p-4 text-center cursor-default">
-                                                        <p className="text-[8px] font-bold text-slate-400 uppercase">{tg?.noTemplates || "Sin plantillas"}</p>
+                                                        <p className="text-[8px] font-bold text-slate-400 uppercase">{settings?.language === 'fr' ? 'Aucun modèle' : settings?.language === 'pt' ? 'Sem modelos' : 'Sin plantillas'}</p>
                                                     </div>
                                                 ) : (
                                                     templates.map(temp => (
@@ -755,7 +755,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                                 }}
                                                 className="w-full p-3 bg-slate-50 text-[8px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 transition-colors"
                                             >
-                                                {tg?.manageTemplates || "Gestionar Plantillas"}
+                                                {settings?.language === 'fr' ? 'Gérer les modèles' : settings?.language === 'pt' ? 'Gerenciar Modelos' : 'Gestionar Plantillas'}
                                             </button>
                                         </div>
                                     )}
@@ -766,7 +766,7 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                 {formData.type !== DocumentType.MANUAL && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
-                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{tg?.principalAmount || 'Monto Principal'}</label>
+                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{settings?.language === 'fr' ? 'Montant Principal' : settings?.language === 'pt' ? 'Valor Principal' : 'Monto Principal'}</label>
                                             <div className="flex gap-2">
                                                 <div className="flex-1 relative">
                                                     <input
@@ -794,46 +794,46 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                                 </div>
                                             </div>
                                             <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
-                                                <p className="text-[10px] font-black text-emerald-700 uppercase italic">{tg?.amountInWordsPrefix || 'SON'}: {formData.amountInWords || 'CERO'} {formData.currencyName}</p>
+                                                <p className="text-[10px] font-black text-emerald-700 uppercase italic">{settings?.language === 'fr' ? 'SONT' : settings?.language === 'pt' ? 'SÃO' : 'SON'}: {formData.amountInWords || 'CERO'} {formData.currencyName}</p>
                                             </div>
                                         </div>
 
                                         <div className="space-y-2 text-black">
-                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{tg?.documentDates || 'Fechas del Documento'}</label>
+                                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{settings?.language === 'fr' ? 'Dates du Document' : settings?.language === 'pt' ? 'Datas do Documento' : 'Fechas del Documento'}</label>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
-                                                    <label className="text-[8px] font-black text-slate-500 uppercase block mb-1">{tg?.issueDate || 'Fecha Emisión'}</label>
+                                                    <label className="text-[8px] font-black text-slate-500 uppercase block mb-1">{settings?.language === 'fr' ? "Date d'Émission" : settings?.language === 'pt' ? 'Data de Emissão' : 'Fecha Emisión'}</label>
                                                     <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-black text-xs" />
                                                 </div>
                                                 {formData.type === DocumentType.PAGARE && (
                                                     <div>
-                                                        <label className="text-[8px] font-black text-red-500 uppercase block mb-1">{tg?.dueDate || 'Fecha Vencimiento'}</label>
+                                                        <label className="text-[8px] font-black text-red-500 uppercase block mb-1">{settings?.language === 'fr' ? "Date d'Échéance" : settings?.language === 'pt' ? 'Data de Vencimento' : 'Fecha Vencimiento'}</label>
                                                         <input type="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="w-full p-3 bg-red-50 border-2 border-red-100 rounded-2xl focus:border-red-500 outline-none font-black text-xs text-red-900" />
                                                     </div>
                                                 )}
                                             </div>
-                                            <input type="text" value={formData.folio} onChange={(e) => setFormData({ ...formData, folio: e.target.value })} placeholder={tg?.folioRef || "Número de Folio / Referencia"} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black text-xs" />
+                                            <input type="text" value={formData.folio} onChange={(e) => setFormData({ ...formData, folio: e.target.value })} placeholder={settings?.language === 'fr' ? 'Numéro de Folio / Référence' : settings?.language === 'pt' ? 'Número do Folio / Referência' : 'Número de Folio / Referencia'} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-black text-xs" />
                                         </div>
 
                                         <div className="space-y-4 md:col-span-2 text-black">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="space-y-1">
-                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{formData.type === DocumentType.PAGARE ? (tg?.debtorName || 'Nombre del Deudor') : (tg?.payerName || 'De (Nombre Pagador)')}</label>
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{formData.type === DocumentType.PAGARE ? (settings?.language === 'fr' ? 'Nom du Débiteur' : settings?.language === 'pt' ? 'Nome do Devedor' : 'Nombre del Deudor') : (settings?.language === 'fr' ? 'De (Nom du Payeur)' : settings?.language === 'pt' ? 'De (Nome Pagador)' : 'De (Nombre Pagador)')}</label>
                                                     <input type="text" value={formData.debtorName} onChange={(e) => setFormData({ ...formData, debtorName: e.target.value })} className="w-full p-3 bg-indigo-50/20 border-2 border-indigo-100 rounded-2xl font-black text-sm outline-none" placeholder={tg?.ejJuan || "EJ: JUAN PÉREZ"} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{tg?.documentId || 'Cédula / Documento'}</label>
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{settings?.language === 'fr' ? 'Document / CNI' : settings?.language === 'pt' ? 'Documento / CPF' : 'Cédula / Documento'}</label>
                                                     <input type="text" value={formData.documentIdNumber} onChange={(e) => setFormData({ ...formData, documentIdNumber: e.target.value })} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-sm outline-none" placeholder={tg?.ejDoc || "EJ: 4.567.890"} />
                                                 </div>
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div className="space-y-1">
-                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{formData.type === DocumentType.PAGARE ? (tg?.beneficiaryName || 'Nombre del Beneficiario') : (tg?.receiverName || 'Para (Nombre Quien Recibe)')}</label>
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{formData.type === DocumentType.PAGARE ? (settings?.language === 'fr' ? 'Nom du Bénéficiaire' : settings?.language === 'pt' ? 'Nome do Beneficiário' : 'Nombre del Beneficiario') : (settings?.language === 'fr' ? 'À (Nom du Récepteur)' : settings?.language === 'pt' ? 'Para (Nome Recebedor)' : 'Para (Nombre Quien Recibe)')}</label>
                                                     <input type="text" value={formData.beneficiaryName} onChange={(e) => setFormData({ ...formData, beneficiaryName: e.target.value })} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-sm outline-none" placeholder={tg?.ejBeneficiary || "EJ: PRESTAMASTER"} />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{tg?.concept || 'Concepto / Motivo'}</label>
+                                                    <label className="text-[9px] font-black text-slate-400 uppercase">{settings?.language === 'fr' ? 'Concept / Motif' : settings?.language === 'pt' ? 'Conceito / Motivo' : 'Concepto / Motivo'}</label>
                                                     <input type="text" value={formData.concept} onChange={(e) => setFormData({ ...formData, concept: e.target.value })} className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl font-black text-sm outline-none" placeholder={tg?.ejConcept || "EJ: PRESTAMO PERSONAL"} />
                                                 </div>
                                             </div>
@@ -843,10 +843,10 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
 
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Edit3 className="w-3.5 h-3.5" /> {tg?.documentRedaction || 'Redacción del Documento'}</label>
-                                        <button type="button" onClick={saveCurrentAsTemplate} className="text-[8px] font-black text-emerald-600 uppercase border border-emerald-100 px-3 py-1.5 rounded-lg hover:bg-emerald-50"><BookmarkPlus className="w-3 h-3 inline mr-1" /> {tg?.saveAsTemplate || 'Guardar como Plantilla'}</button>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Edit3 className="w-3.5 h-3.5" /> {settings?.language === 'fr' ? 'Rédaction du Document' : settings?.language === 'pt' ? 'Redação do Documento' : 'Redacción del Documento'}</label>
+                                        <button type="button" onClick={saveCurrentAsTemplate} className="text-[8px] font-black text-emerald-600 uppercase border border-emerald-100 px-3 py-1.5 rounded-lg hover:bg-emerald-50"><BookmarkPlus className="w-3 h-3 inline mr-1" /> {settings?.language === 'fr' ? 'Enregistrer comme Modèle' : settings?.language === 'pt' ? 'Salvar como Modelo' : 'Guardar como Plantilla'}</button>
                                     </div>
-                                    <textarea rows={formData.type === DocumentType.MANUAL ? 15 : 6} value={formData.legalText} onChange={(e) => setFormData({ ...formData, legalText: e.target.value })} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-indigo-500 transition-all outline-none font-serif text-sm leading-relaxed text-slate-800 font-bold" placeholder={tg?.redactHere || "Redacte el contenido aquí..."} />
+                                    <textarea rows={formData.type === DocumentType.MANUAL ? 15 : 6} value={formData.legalText} onChange={(e) => setFormData({ ...formData, legalText: e.target.value })} className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl focus:border-indigo-500 transition-all outline-none font-serif text-sm leading-relaxed text-slate-800 font-bold" placeholder={settings?.language === 'fr' ? 'Rédigez le contenu ici...' : settings?.language === 'pt' ? 'Redija o conteúdo aqui...' : 'Redacte el contenido aquí...'} />
                                 </div>
 
                                 {/* <SignaturePad onSave={setSignature} onClear={() => setSignature(null)} /> */}
@@ -860,8 +860,8 @@ const Generator: React.FC<GeneratorProps> = ({ settings }) => {
                                         companyAlias: settings?.companyAlias,
                                         shareLabel: settings?.shareLabel,
                                         shareValue: settings?.shareValue
-                                    })} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"><FileDown className="w-5 h-5" /> {tg?.generatePdf || 'Generar PDF'}</button>
-                                    <button type="button" onClick={() => handleBluetoothPrint(formData)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all"><Printer className="w-5 h-5" /> {tg?.printTicket || 'Imprimir Ticket'}</button>
+                                    })} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"><FileDown className="w-5 h-5" /> {settings?.language === 'fr' ? 'Générer PDF' : settings?.language === 'pt' ? 'Gerar PDF' : 'Generar PDF'}</button>
+                                    <button type="button" onClick={() => handleBluetoothPrint(formData)} className="flex-1 flex items-center justify-center gap-3 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all"><Printer className="w-5 h-5" /> {settings?.language === 'fr' ? 'Imprimer Ticket' : settings?.language === 'pt' ? 'Imprimir Ticket' : 'Imprimir Ticket'}</button>
                                 </div>
                             </div>
                         </div>

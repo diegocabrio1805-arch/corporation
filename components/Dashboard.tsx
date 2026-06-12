@@ -132,8 +132,16 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         (l.collectorId?.toLowerCase() === uidLower || (l as any).collector_id?.toLowerCase() === uidLower)
       );
       
-      const clientsMappedToLoans = new Set(assignedLoans.map(l => l.clientId || (l as any).client_id));
-      const clientsAddedByThisCollector = clientsSafe
+      // Filtrar clientes para excluir los ocultos o eliminados (igual que en Cartera)
+      const validClients = clientsSafe.filter(c => !c.isHidden && !c.deletedAt);
+      const validClientIdsSet = new Set(validClients.map(c => c.id));
+
+      const clientsMappedToLoans = new Set(
+        assignedLoans
+          .map(l => l.clientId || (l as any).client_id)
+          .filter(id => validClientIdsSet.has(id))
+      );
+      const clientsAddedByThisCollector = validClients
         .filter(c => c.addedBy?.toLowerCase() === uidLower)
         .map(c => c.id);
       
@@ -340,11 +348,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const dailyRevenueMap = new Map<string, number>();
     currentWeekLogs.forEach(l => {
       // Normalizar día
-      const d = formatLocalDate(l.date, state.settings.country, { weekday: 'short' }).replace('.', '').toLowerCase();
+      const d = new Intl.DateTimeFormat(state.settings.language || 'es', { weekday: 'short' }).format(new Date(l.date)).replace('.', '').toLowerCase();
       dailyRevenueMap.set(d, (dailyRevenueMap.get(d) || 0) + (l.amount || 0));
     });
 
-    const daysOrder = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    const daysOrder = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date(2023, 0, i + 2); // 2023-01-02 is Monday
+      return new Intl.DateTimeFormat(state.settings.language || 'es', { weekday: 'short' }).format(date).replace('.', '').toLowerCase();
+    });
     const dailyRevenue = daysOrder.map(day => {
       // Buscar keys que empiecen con el día (por si acaso 'miércoles' vs 'mié')
       const key = Array.from(dailyRevenueMap.keys()).find(k => k.startsWith(day));
@@ -431,7 +442,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       return logRecordedBy === auditCollector.toLowerCase();
     });
 
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const date = new Date(2023, i, 1);
+      const m = new Intl.DateTimeFormat(state.settings.language || 'es', { month: 'short' }).format(date).replace('.', '');
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    });
     const logsByMonth = new Array(12).fill(0);
     allCollectorLogs.forEach(l => {
       const m = new Date(l.date).getMonth();
@@ -475,10 +490,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const handleGenerateDeletedPaymentsPDF = () => {
     const collectorName = auditCollector === 'all' ? 'TODOS' : (Array.isArray(state.users) ? state.users : []).find(u => u.id.toLowerCase() === auditCollector.toLowerCase())?.name || 'DESCONOCIDO';
-    const start = new Date(auditStartDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(auditEndDate);
-    end.setHours(23, 59, 59, 999);
+    const [sYear, sMonth, sDay] = auditStartDate.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay, 0, 0, 0, 0);
+    const [eYear, eMonth, eDay] = auditEndDate.split('-').map(Number);
+    const end = new Date(eYear, eMonth - 1, eDay, 23, 59, 59, 999);
 
     const deletedLogs = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).filter(log => {
       if (log.type !== CollectionLogType.DELETED_PAYMENT) return false;
@@ -562,7 +577,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         ))}
       </div>
 
-      {/* AUDITORÍA DE RUTAS - Premium Table */}
+            {/* AUDITORÍA DE RUTAS - Premium Table */}
       {isAdmin && (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden flex flex-col transition-all">
           <div className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
@@ -903,18 +918,25 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                     let deletedType: 'PAGO_ELIMINADO' | 'CREDITO_ELIMINADO' | 'CLIENTE_ELIMINADO';
                     let extraInfo: string | null = null;
 
+                    const trans = (t as any).deletedHistory?.types || {};
+                    const transRoles = (getTranslation(state.settings.language) as any).roles || {};
+
                     if (parsed && parsed.tipo) {
                       // New JSON format
                       deletedType = parsed.tipo;
                       clientName = parsed.clienteNombre || 'Desconocido';
                       collName = parsed.cobradorNombre || 'Desconocido';
                       adminName = parsed.eliminadoPorNombre || 'Administrador';
+                      
+                      const freqMap: any = { 'Diario': trans.daily || 'Diario', 'Diaria': trans.daily || 'Diaria', 'Semanal': trans.weekly || 'Semanal', 'Quincenal': trans.biweekly || 'Quincenal', 'Mensual': trans.monthly || 'Mensual' };
+                      
                       if (parsed.tipo === 'PAGO_ELIMINADO' && parsed.fechaOriginalPago) {
-                        extraInfo = `Pago orig: ${new Date(parsed.fechaOriginalPago).toLocaleDateString()}`;
+                        extraInfo = `${trans.origPayment || 'Pago orig:'} ${new Date(parsed.fechaOriginalPago).toLocaleDateString()}`;
                       } else if (parsed.tipo === 'CREDITO_ELIMINADO') {
-                        extraInfo = `${parsed.cuotas} cuotas · ${parsed.frecuencia}`;
+                        const freqStr = freqMap[parsed.frecuencia] || parsed.frecuencia;
+                        extraInfo = `${parsed.cuotas} ${trans.quotas || 'cuotas'} · ${freqStr}`;
                       } else if (parsed.tipo === 'CLIENTE_ELIMINADO') {
-                        extraInfo = `${parsed.creditosEliminados} crédito(s) eliminado(s)`;
+                        extraInfo = `${parsed.creditosEliminados} ${trans.credit?.toLowerCase() || 'crédito'}s`;
                       }
                     } else {
                       // Legacy format
@@ -931,10 +953,15 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                       collName = (Array.isArray(state.users) ? state.users : []).find(u => u.id === log.collectorId)?.name || 'Desconocido';
                     }
 
+                    if (adminName.toUpperCase() === 'ADMINISTRADOR' || adminName.toUpperCase() === 'ADMIN') adminName = transRoles.admin || 'ADMINISTRADOR';
+                    if (adminName.toUpperCase() === 'GERENTE') adminName = transRoles.manager || 'GERENTE';
+                    if (collName.toUpperCase() === 'ADMINISTRADOR' || collName.toUpperCase() === 'ADMIN') collName = transRoles.admin || 'ADMINISTRADOR';
+                    if (collName.toUpperCase() === 'GERENTE') collName = transRoles.manager || 'GERENTE';
+
                     const typeBadge = {
-                      'PAGO_ELIMINADO':    { label: 'Monto Eliminado',   color: 'bg-orange-100 text-orange-700 border-orange-200' },
-                      'CREDITO_ELIMINADO': { label: 'Crédito Eliminado', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-                      'CLIENTE_ELIMINADO': { label: 'Cliente Eliminado', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+                      'PAGO_ELIMINADO':    { label: trans.payment || 'Monto Eliminado',   color: 'bg-orange-100 text-orange-700 border-orange-200' },
+                      'CREDITO_ELIMINADO': { label: trans.credit || 'Crédito Eliminado', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                      'CLIENTE_ELIMINADO': { label: trans.client || 'Cliente Eliminado', color: 'bg-rose-100 text-rose-700 border-rose-200' },
                     }[deletedType];
 
                     return (

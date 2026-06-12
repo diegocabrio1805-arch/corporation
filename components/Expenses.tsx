@@ -203,8 +203,8 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* HEADER Y CARGA DE CAPITAL */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 md:p-6 rounded-[2rem] border border-slate-100 shadow-sm text-center sm:text-left">
         <div className="w-full sm:w-auto">
-          <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter">{(t as any).capitalBlock?.title || 'Control de Capital'}</h2>
-          <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalBlock?.subtitle || 'Gestión de flujo de caja operativo'}</p>
+          <h2 className="text-xl md:text-2xl font-black text-slate-800 uppercase tracking-tighter">{state.settings.language === 'fr' ? 'CONTRÔLE DU CAPITAL' : state.settings.language === 'pt' ? 'CONTROLE DE CAPITAL' : 'CONTROL DE CAPITAL'}</h2>
+          <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{state.settings.language === 'fr' ? 'Gestion des flux de trésorerie opérationnels' : state.settings.language === 'pt' ? 'Gestão de fluxo de caixa operacional' : 'Gestión de flujo de caja operativo'}</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <button
@@ -212,14 +212,14 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             className="flex-1 sm:flex-none bg-slate-900 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-vault"></i>
-            {(t as any).capitalBlock?.loadCapitalBtn || 'CARGAR CAPITAL INICIAL'}
+            {state.settings.language === 'fr' ? 'CHARGER CAPITAL INITIAL' : state.settings.language === 'pt' ? 'CARREGAR CAPITAL INICIAL' : 'CARGAR CAPITAL INICIAL'}
           </button>
           <button
             onClick={() => setShowModal(true)}
             className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-minus-circle"></i>
-            {(t as any).capitalBlock?.expenseBtn || 'GASTO OPERATIVO'}
+            {state.settings.language === 'fr' ? 'DÉPENSE OPÉRATIONNELLE' : state.settings.language === 'pt' ? 'DESPESA OPERACIONAL' : 'GASTO OPERATIVO'}
           </button>
         </div>
       </div>
@@ -230,9 +230,9 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         {/* CUADRO 1: CAPITAL DE TRABAJO */}
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).capitalBlock?.workingCapital || 'Capital de Trabajo'}</p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Capital de Travail' : state.settings.language === 'pt' ? 'Capital de Giro' : 'Capital de Trabajo'}</p>
             <h3 className="text-2xl font-black text-slate-800 font-mono">{formatCurrency(state.initialCapital, state.settings)}</h3>
-            <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">{(t as any).capitalBlock?.mainFund || 'Fondo base inicial cargado'}</p>
+            <p className="text-[7px] font-bold text-slate-500 mt-2 uppercase">{state.settings.language === 'fr' ? 'Fonds de base initial chargé' : state.settings.language === 'pt' ? 'Fundo base inicial carregado' : 'Fondo base inicial cargado'}</p>
           </div>
           <i className="fa-solid fa-piggy-bank absolute -right-4 -bottom-4 text-6xl text-slate-50 group-hover:scale-110 transition-transform"></i>
         </div>
@@ -240,34 +240,34 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         {/* CUADRO 2: EFECTIVO EN CAJA (CON GANANCIAS Y DESCUENTOS) */}
         <div className="bg-slate-900 p-5 rounded-[2rem] shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">{(t as any).capitalBlock?.realCash || 'Efectivo Real en Caja'}</p>
+            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Trésorerie Réelle' : state.settings.language === 'pt' ? 'Dinheiro Real em Caixa' : 'Efectivo Real en Caja'}</p>
             <h3 className={`text-2xl font-black font-mono ${currentCashInHand >= 0 ? 'text-white' : 'text-red-400'}`}>
               {formatCurrency(currentCashInHand, state.settings)}
             </h3>
             <div className="mt-2 space-y-1">
               <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
-                <span>{(t as any).capitalBlock?.basePlusCollections || 'Base + Cobros:'}</span>
+                <span>{state.settings.language === 'fr' ? 'Base + Recouv.:' : state.settings.language === 'pt' ? 'Base + Cobranças:' : 'Base + Cobros:'}</span>
                 <span className="text-emerald-400">+{formatCurrency(state.initialCapital + collectedCash, state.settings)}</span>
               </div>
               <div className="flex justify-between text-[7px] font-bold uppercase text-slate-400">
-                <span>{(t as any).capitalBlock?.deliveredPlusExpenses || 'Entregado + Gastos:'}</span>
+                <span>{state.settings.language === 'fr' ? 'Livré + Dépenses:' : state.settings.language === 'pt' ? 'Entregue + Despesas:' : 'Entregado + Gastos:'}</span>
                 <span className="text-red-400">-{formatCurrency(lentCash + totalOperatingExpenses, state.settings)}</span>
               </div>
             </div>
           </div>
-          <div className="absolute top-2 right-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[6px] font-black border border-emerald-500/30 animate-pulse">EN VIVO</div>
+          <div className="absolute top-2 right-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-[6px] font-black border border-emerald-500/30 animate-pulse">{state.settings.language === 'fr' ? 'EN DIRECT' : state.settings.language === 'pt' ? 'AO VIVO' : 'EN VIVO'}</div>
         </div>
 
         {/* CUADRO 3: CRÉDITOS OTORGADOS */}
         <div className="bg-blue-600 p-5 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">{(t as any).capitalBlock?.creditsGranted || 'Créditos Otorgados'}</p>
+            <p className="text-[8px] font-black text-blue-200 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Crédits Accordés' : state.settings.language === 'pt' ? 'Créditos Concedidos' : 'Créditos Otorgados'}</p>
             <div className="flex items-end gap-2">
               <h3 className="text-3xl font-black">{totalLoansCount}</h3>
-              <span className="text-[8px] font-black mb-1 opacity-70 uppercase">{(t as any).capitalBlock?.operations || 'Operaciones'}</span>
+              <span className="text-[8px] font-black mb-1 opacity-70 uppercase">{state.settings.language === 'fr' ? 'Opérations' : state.settings.language === 'pt' ? 'Operações' : 'Operaciones'}</span>
             </div>
             <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-[8px] font-black text-blue-200 uppercase">{(t as any).capitalBlock?.projectedProfit || 'Utilidad Proyectada'}</p>
+              <p className="text-[8px] font-black text-blue-200 uppercase">{state.settings.language === 'fr' ? 'Bénéfice Projeté' : state.settings.language === 'pt' ? 'Lucro Projetado' : 'Utilidad Proyectada'}</p>
               <p className="text-lg font-black font-mono">+{formatCurrency(projectedTotalProfit, state.settings)}</p>
             </div>
           </div>
@@ -277,9 +277,9 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         {/* CUADRO 4: MORA CRÍTICA (+40 DÍAS) */}
         <div className="bg-rose-50 p-5 rounded-[2rem] border border-rose-100 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest mb-1">Mora Crítica (+40 d)</p>
+            <p className="text-[8px] font-black text-rose-600 uppercase tracking-widest mb-1">{state.settings.language === 'fr' ? 'Retard Critique (+40 j)' : state.settings.language === 'pt' ? 'Inadimplência Crítica (+40 d)' : 'Mora Crítica (+40 d)'}</p>
             <h3 className="text-2xl font-black text-rose-700 font-mono">{formatCurrency(criticalMoraBalance, state.settings)}</h3>
-            <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">{(t as any).capitalBlock?.highRiskCapital || 'Capital en alto riesgo de pérdida'}</p>
+            <p className="text-[7px] font-bold text-rose-400 mt-2 uppercase">{state.settings.language === 'fr' ? 'Capital à haut risque de perte' : state.settings.language === 'pt' ? 'Capital em alto risco de perda' : 'Capital en alto riesgo de pérdida'}</p>
           </div>
           <div className="absolute -right-2 top-2 w-12 h-12 bg-rose-200/30 rounded-full flex items-center justify-center animate-bounce">
             <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
@@ -294,26 +294,26 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div>
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
               <i className="fa-solid fa-chart-line text-blue-600"></i>
-              Balance Histórico de Créditos
+              {state.settings.language === 'fr' ? 'Bilan Historique des Crédits' : state.settings.language === 'pt' ? 'Balanço Histórico de Créditos' : 'Balance Histórico de Créditos'}
             </h3>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{(t as any).capitalBlock?.performanceAndArrears || 'Rendimiento proyectado y mora de los últimos 6 meses'}</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{state.settings.language === 'fr' ? 'Rendement projeté et retards des 6 derniers mois' : state.settings.language === 'pt' ? 'Rendimento projetado e inadimplência dos últimos 6 meses' : 'Rendimiento proyectado y mora de los últimos 6 meses'}</p>
           </div>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-black"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.profit || 'UTILIDAD'}</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'BÉNÉFICE' : state.settings.language === 'pt' ? 'LUCRO' : 'UTILIDAD'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.arrears || 'MORA'}</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'RETARD' : state.settings.language === 'pt' ? 'INADIMPLÊNCIA' : 'MORA'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.renewals || 'RENOVACIONES'}</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'RENOUVELLEMENTS' : state.settings.language === 'pt' ? 'RENOVAÇÕES' : 'RENOVACIONES'}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-indigo-400"></div>
-              <span className="text-[8px] font-black text-slate-500 uppercase">{(t as any).capitalBlock?.newCredits || 'C. NUEVOS'}</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'C. NOUVEAUX' : state.settings.language === 'pt' ? 'C. NOVOS' : 'C. NUEVOS'}</span>
             </div>
           </div>
         </div>
@@ -377,7 +377,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   padding: '1rem'
                 }}
                 formatter={(value: any, name: any) => {
-                  const isCount = name === "RENOVACIONES" || name === "CRÉDITOS NUEVOS";
+                  const isCount = ["RENOVACIONES", "RENOUVELLEMENTS", "RENOVAÇÕES", "CRÉDITOS NUEVOS", "CRÉDITS NOUVEAUX", "CRÉDITOS NOVOS"].includes(name as string);
                   return [isCount ? value : formatCurrency(Number(value), state.settings), name];
                 }}
                 labelFormatter={(label, items) => {
@@ -391,7 +391,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 stroke="transparent"
                 fill="transparent"
                 strokeWidth={0}
-                name={(t as any).capitalBlock?.newCreditsFull?.toUpperCase() || 'CRÉDITOS NUEVOS'}
+                name={state.settings.language === 'fr' ? 'CRÉDITS NOUVEAUX' : state.settings.language === 'pt' ? 'CRÉDITOS NOVOS' : 'CRÉDITOS NUEVOS'}
                 animationDuration={2500}
               />
               <Area
@@ -403,7 +403,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 strokeDasharray="4 2"
                 fillOpacity={1}
                 fill="url(#colorMora)"
-                name={(t as any).capitalBlock?.pendingArrears?.toUpperCase() || 'MORA PENDIENTE'}
+                name={state.settings.language === 'fr' ? 'RETARD EN ATTENTE' : state.settings.language === 'pt' ? 'INADIMPLÊNCIA PENDENTE' : 'MORA PENDIENTE'}
                 animationDuration={2500}
               />
               <Area
@@ -413,7 +413,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 stroke="transparent"
                 fill="transparent"
                 strokeWidth={0}
-                name={(t as any).capitalBlock?.renewals?.toUpperCase() || 'RENOVACIONES'}
+                name={state.settings.language === 'fr' ? 'RENOUVELLEMENTS' : state.settings.language === 'pt' ? 'RENOVAÇÕES' : 'RENOVACIONES'}
                 animationDuration={2500}
               />
               <Area
@@ -424,7 +424,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorUtility)"
-                name={(t as any).capitalBlock?.projectedProfit?.toUpperCase() || 'UTILIDAD PROYECTADA'}
+                name={state.settings.language === 'fr' ? 'BÉNÉFICE PROJETÉ' : state.settings.language === 'pt' ? 'LUCRO PROJETADO' : 'UTILIDAD PROYECTADA'}
                 animationDuration={2500}
               />
             </AreaChart>
@@ -438,10 +438,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div key={idx} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 text-center hover:bg-white hover:shadow-xl transition-all group">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-3">{month.name}</p>
             <div className="flex flex-col gap-2">
-              <p className="text-[14px] font-black text-slate-800 leading-tight">{month.creditos} {(t as any).capitalBlock?.totals || 'TOTALES'}</p>
+              <p className="text-[14px] font-black text-slate-800 leading-tight">{month.creditos} {state.settings.language === 'fr' ? 'TOTAUX' : state.settings.language === 'pt' ? 'TOTAIS' : 'TOTALES'}</p>
               <div className="flex flex-col items-center gap-1 mt-1">
-                <span className="text-[14px] font-black text-indigo-600 uppercase">{month.nuevos} {(t as any).capitalBlock?.newLabel || 'NUEVOS'}</span>
-                <span className="text-[14px] font-black text-emerald-700 uppercase">{month.renovaciones} {(t as any).capitalBlock?.renovLabel || 'RENOV.'}</span>
+                <span className="text-[14px] font-black text-indigo-600 uppercase">{month.nuevos} {state.settings.language === 'fr' ? 'NOUVEAUX' : state.settings.language === 'pt' ? 'NOVOS' : 'NUEVOS'}</span>
+                <span className="text-[14px] font-black text-emerald-700 uppercase">{month.renovaciones} {state.settings.language === 'fr' ? 'RENOUV.' : state.settings.language === 'pt' ? 'RENOV.' : 'RENOV.'}</span>
               </div>
             </div>
             <div className="mt-4 h-2 bg-slate-200/50 rounded-full overflow-hidden flex shadow-inner">
@@ -461,16 +461,16 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       {/* TABLA DE GASTOS / SALIDAS DE CAPITAL */}
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-50 bg-slate-50/30">
-          <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{(t as any).capitalBlock?.expensesHistory || 'Historial de Salidas (Gastos)'}</h3>
+          <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Historique des Sorties (Dépenses)' : state.settings.language === 'pt' ? 'Histórico de Saídas (Despesas)' : 'Historial de Salidas (Gastos)'}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[500px]">
             <thead className="bg-slate-50">
               <tr className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-5 py-4">{(t as any).capitalBlock?.desc || 'Descripción'}</th>
-                <th className="px-5 py-4">{(t as any).capitalBlock?.category || 'Categoría'}</th>
-                <th className="px-5 py-4">{(t as any).capitalBlock?.date || 'Fecha'}</th>
-                <th className="px-5 py-4">{(t as any).capitalBlock?.amount || 'Monto'}</th>
+                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Description' : state.settings.language === 'pt' ? 'Descrição' : 'Descripción'}</th>
+                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Catégorie' : state.settings.language === 'pt' ? 'Categoria' : 'Categoría'}</th>
+                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Date' : state.settings.language === 'pt' ? 'Data' : 'Fecha'}</th>
+                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Montant' : state.settings.language === 'pt' ? 'Valor' : 'Monto'}</th>
                 <th className="px-5 py-4 text-right">---</th>
               </tr>
             </thead>
@@ -480,7 +480,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center">
                       <i className="fa-solid fa-receipt text-3xl mb-3 opacity-10"></i>
-                      <p className="text-[10px] font-black uppercase tracking-widest">{(t as any).capitalBlock?.noExpenses || 'No hay gastos registrados'}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">{state.settings.language === 'fr' ? 'Aucune dépense enregistrée' : state.settings.language === 'pt' ? 'Nenhuma despesa registrada' : 'No hay gastos registrados'}</p>
                     </div>
                   </td>
                 </tr>
@@ -517,7 +517,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-sm overflow-hidden animate-scaleIn border border-white/20">
               <div className="p-6 bg-slate-900 text-white flex justify-between items-center sticky top-0 z-10">
-                <h3 className="text-lg font-black uppercase tracking-tighter">{(t as any).capitalBlock?.capitalBase || 'Base de Capital'}</h3>
+                <h3 className="text-lg font-black uppercase tracking-tighter">{state.settings.language === 'fr' ? 'Base de Capital' : state.settings.language === 'pt' ? 'Base de Capital' : 'Base de Capital'}</h3>
                 <button onClick={() => setShowCapitalModal(false)} className="w-8 h-8 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all">
                   <i className="fa-solid fa-xmark text-lg"></i>
                 </button>
@@ -527,7 +527,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   <div className="w-16 h-16 bg-slate-200 text-slate-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
                     <i className="fa-solid fa-money-bill-transfer text-2xl"></i>
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(t as any).capitalBlock?.setWorkingCapital || 'Establecer Capital de Trabajo'}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Définir le Capital de Travail' : state.settings.language === 'pt' ? 'Definir Capital de Giro' : 'Establecer Capital de Trabajo'}</p>
                 </div>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300">$</span>
@@ -541,10 +541,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 </div>
                 <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-[8px] font-bold text-blue-700 leading-relaxed uppercase">
                   <i className="fa-solid fa-circle-info mr-1"></i>
-                  Este monto es el fondo inicial con el que el sistema empezará a descontar los préstamos otorgados.
+                  {state.settings.language === 'fr' ? 'Ce montant est le fonds initial avec lequel le système commencera à déduire les prêts accordés.' : state.settings.language === 'pt' ? 'Este valor é o fundo inicial com o qual o sistema começará a descontar os empréstimos concedidos.' : 'Este monto es el fondo inicial con el que el sistema empezará a descontar los préstamos otorgados.'}
                 </div>
                 <button type="submit" className="w-full font-black py-5 bg-slate-900 text-white rounded-2xl shadow-xl uppercase text-xs tracking-widest active:scale-95 transition-all">
-                  ACTUALIZAR FONDO
+                  {state.settings.language === 'fr' ? 'METTRE À JOUR LE FONDS' : state.settings.language === 'pt' ? 'ATUALIZAR FUNDO' : 'ACTUALIZAR FONDO'}
                 </button>
               </form>
             </div>
@@ -558,14 +558,14 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-4 overflow-y-auto pt-10 md:pt-20">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-scaleIn flex flex-col border border-white/20">
               <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
-                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">{(t as any).capitalBlock?.registerExpense || 'Registrar Gasto'}</h3>
+                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter">{state.settings.language === 'fr' ? 'Enregistrer Dépense' : state.settings.language === 'pt' ? 'Registrar Despesa' : 'Registrar Gasto'}</h3>
                 <button onClick={() => setShowModal(false)} className="w-8 h-8 text-slate-400 hover:text-slate-600 active:scale-95 transition-all">
                   <i className="fa-solid fa-xmark text-xl"></i>
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-4 flex-1 overflow-y-auto bg-slate-50">
                 <div className="space-y-1.5">
-                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.expenseDesc || 'Descripción del Gasto'}</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Description de la Dépense' : state.settings.language === 'pt' ? 'Descrição da Despesa' : 'Descripción del Gasto'}</label>
                   <input
                     required
                     type="text"
@@ -575,7 +575,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.category || 'Categoría'}</label>
+                  <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Catégorie' : state.settings.language === 'pt' ? 'Categoria' : 'Categoría'}</label>
                   <select
                     required
                     value={formData.category}
@@ -589,7 +589,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.amountSign || 'Monto ($)'}</label>
+                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Montant ($)' : state.settings.language === 'pt' ? 'Valor ($)' : 'Monto ($)'}</label>
                     <input
                       required
                       type="number"
@@ -599,7 +599,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{(t as any).capitalBlock?.date || 'Fecha'}</label>
+                    <label className="block text-[8px] font-black text-slate-400 uppercase ml-1">{state.settings.language === 'fr' ? 'Date' : state.settings.language === 'pt' ? 'Data' : 'Fecha'}</label>
                     <input
                       required
                       type="date"
@@ -614,7 +614,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   type="submit"
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-4 rounded-xl shadow-lg shadow-red-500/20 transition-all active:scale-95 mt-4 uppercase text-[10px] tracking-widest"
                 >
-                  CONFIRMAR SALIDA
+                  {state.settings.language === 'fr' ? 'CONFIRMER LA SORTIE' : state.settings.language === 'pt' ? 'CONFIRMAR SAÍDA' : 'CONFIRMAR SALIDA'}
                 </button>
               </form>
             </div>

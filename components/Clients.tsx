@@ -113,8 +113,8 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
   const year = currentCalDate.getFullYear();
   const totalDays = daysInMonth(month, year);
   const startDay = firstDayOfMonth(month, year);
-  const monthNames = ((t as any).clients.registrationForm.calendar?.months) || ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-  const dayNames = ((t as any).clients.registrationForm.calendar?.days) || ["D", "L", "M", "M", "J", "V", "S"];
+  const monthNames = (((t as any).clients?.registrationForm || {}).calendar?.months) || ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  const dayNames = (((t as any).clients?.registrationForm || {}).calendar?.days) || ["D", "L", "M", "M", "J", "V", "S"];
   const days = [];
   for (let i = 0; i < startDay; i++) days.push(null);
   for (let i = 1; i <= totalDays; i++) days.push(i);
@@ -174,8 +174,9 @@ const GenericCalendar = ({ startDate, customHolidays, setDate, toggleHoliday, di
   );
 };
 
-const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean }) => {
+const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit = false, disabled = false, lang = 'es' }: { label: string, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', value: string, onFileChange: (e: React.ChangeEvent<HTMLInputElement>, field: 'profilePic' | 'documentPic' | 'housePic' | 'businessPic' | 'documentBackPic', forEdit: boolean) => void, onView?: (src: string) => void, forEdit?: boolean, disabled?: boolean, lang?: string }) => {
   const isPdf = value && value.startsWith('data:application/pdf');
+  const uploadLabel = lang === 'fr' ? 'Télécharger' : lang === 'pt' ? 'Enviar Imagem' : '';
 
   return (
     <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-50 grayscale' : ''}`}>
@@ -205,13 +206,13 @@ const PhotoUploadField = ({ label, field, value, onFileChange, onView, forEdit =
               </div>
             )}
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-              <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-lg">Ampliar</span>
+              <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-lg">{lang === 'fr' ? 'Agrandir' : lang === 'pt' ? 'Ampliar' : 'Ampliar'}</span>
             </div>
           </>
         ) : (
           <>
             <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-blue-500 transition-colors"></i>
-            <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">Subir Imagen</span>
+            <span className="text-[7px] font-black text-slate-500 uppercase mt-2 group-hover:text-blue-600">{uploadLabel}</span>
             <input
               type="file"
               accept="image/*"
@@ -691,9 +692,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         isRenewal: loan.isRenewal
       }));
 
-    // Merge and sort by date (most recent first)
+    // Merge and sort: primero por DIA (YYYY-MM-DD), luego CREDITO antes que pagos del mismo dia
     return [...logs, ...loanGrants]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => {
+        const dayA = (a.date || '').split('T')[0];
+        const dayB = (b.date || '').split('T')[0];
+        if (dayB > dayA) return 1;
+        if (dayA > dayB) return -1;
+        // Mismo dia: CREDITO (nuevo prestamo) aparece ARRIBA, luego pagos/renovaciones
+        if (a.itemType === 'loan' && b.itemType !== 'loan') return -1;
+        if (b.itemType === 'loan' && a.itemType !== 'loan') return 1;
+        // Mismo tipo: ordenar por timestamp exacto descendente
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
   }, [showLegajo, state.collectionLogs, state.loans]);
 
   const getClientMetrics = (client: Client) => {
@@ -1430,7 +1441,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               .replace('{saldo}', formatCurrency(remainingBalance, state.settings))
               .replace('{atraso}', daysOverdue.toString());
         } else {
-          msg = `Hola ${clientInLegajo.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysOverdue} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+          const defaultMsg = state.settings.language === 'fr' 
+            ? `Bonjour {cliente}, nous vous informons qu'aucun paiement n'a été enregistré aujourd'hui. Votre solde en attente est de {saldo} et vous avez {atraso} jours de retard. Veuillez vous mettre à jour pour éviter tout désagrément, merci`
+            : state.settings.language === 'pt'
+            ? `Olá {cliente}, informamos que nenhum pagamento foi registrado hoje. Seu saldo pendente é de {saldo} e você tem {atraso} dias de atraso. Por favor, atualize-se para evitar transtornos, obrigado`
+            : `Hola {cliente}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de {saldo} y cuentas con {atraso} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
+          msg = defaultMsg
+              .replace('{cliente}', clientInLegajo.name)
+              .replace('{saldo}', formatCurrency(remainingBalance, state.settings))
+              .replace('{atraso}', daysOverdue.toString());
         }
         
         setTimeout(() => {
@@ -1936,10 +1955,50 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         const targetPhone = (rawPhone.length === 10 && countryPrefix === '57')
           ? countryPrefix + rawPhone
           : (rawPhone.startsWith(countryPrefix) ? rawPhone : countryPrefix + rawPhone);
-        const formattedAmount = formatRawNumber(p, state.settings);
         const companyName = (state.settings.companyAlias || state.settings.companyName || 'LA EMPRESA').toUpperCase();
         const contactPhone = state.settings.contactPhone ? ` ${state.settings.contactPhone}` : '';
-        const msgText = `CLIENTE ${clientInLegajo.name.toUpperCase()} SE APROBO SU RENOVACION DE CREDITO ${state.settings.currencySymbol || '$'}${formattedAmount} A ${inst} CUOTAS CUALQUIER CONSULTA O DUDA DE SU MONTO COMUNICARSE CON ${companyName}${contactPhone}`;
+        const currSym = state.settings.currencySymbol || '$';
+
+        // Detectar si hay un log de RENOVACIÓN explícito reciente (última hora)
+        const now = Date.now();
+        const recentRenewalLog = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+          .filter(l => l.clientId === clientInLegajo.id && l.isRenewal && !l.deletedAt && !l.isOpening && l.type === CollectionLogType.PAYMENT)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+        const isRecentRenewal = recentRenewalLog && (now - new Date(recentRenewalLog.date).getTime() < 1000 * 60 * 60);
+
+        // Si no hay log de renovación explícito, calculamos el saldo pendiente de los créditos activos a cancelar
+        let renewalDeduction = 0;
+        if (isRecentRenewal) {
+           renewalDeduction = recentRenewalLog.amount || 0;
+        } else {
+           renewalDeduction = previousActiveLoans.reduce((acc, l) => {
+             const tPaid = (Array.isArray(state.collectionLogs) ? state.collectionLogs : [])
+               .filter(log => log.loanId === l.id && log.type === CollectionLogType.PAYMENT && !log.deletedAt && !log.isOpening)
+               .reduce((sum, log) => sum + (log.amount || 0), 0);
+             return acc + Math.max(0, l.totalAmount - tPaid);
+           }, 0);
+        }
+
+        const isRenewalMessage = previousActiveLoans.length > 0 || isRecentRenewal;
+        const efectivoEntregado = Math.max(0, p - renewalDeduction);
+        const fmtPrincipal = formatRawNumber(p, state.settings);
+        const fmtDeduccion = formatRawNumber(renewalDeduction, state.settings);
+        const fmtEfectivo = formatRawNumber(efectivoEntregado, state.settings);
+        let msgText;
+        if (isRenewalMessage && renewalDeduction > 0) {
+          msgText = state.settings.language === 'fr' 
+            ? `MESSAGE DE CONFIRMATION DE REMISE DE CRÉDIT CLIENT : ${clientInLegajo.name.toUpperCase()} CONFIRMATION DE RENOUVELLEMENT DE CRÉDIT ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SOLDE TOTAL ESPÈCES REMISES ${currSym}${fmtEfectivo} À ${inst} QUOTAS POUR TOUTE QUESTION OU DOUTE SUR VOTRE MONTANT, VEUILLEZ CONTACTER ${companyName}${contactPhone}`
+            : state.settings.language === 'pt'
+            ? `MENSAGEM DE CONFIRMAÇÃO DE ENTREGA DE CRÉDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMAÇÃO DE RENOVAÇÃO DE CRÉDITO ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SALDO TOTAL DINHEIRO ENTREGUE ${currSym}${fmtEfectivo} EM ${inst} PARCELAS QUALQUER DÚVIDA OU CONSULTA SOBRE SEU VALOR COMUNICAR-SE COM ${companyName}${contactPhone}`
+            : `MENSAJE DE CONFIRMACION DE ENTREGA DE CREDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMACION DE RENOVACION DE CREDITO ${currSym}${fmtPrincipal} - ${currSym}${fmtDeduccion} SALDO TOTAL EFECTIVO ENTREGADO ${currSym}${fmtEfectivo} A ${inst} CUOTAS CUALQUIER CONSULTA O DUDA DE SU MONTO COMUNICARSE CON ${companyName}${contactPhone}`;
+        } else {
+          msgText = state.settings.language === 'fr'
+            ? `MESSAGE DE CONFIRMATION DE REMISE DE CRÉDIT CLIENT : ${clientInLegajo.name.toUpperCase()} CONFIRMATION DE CRÉDIT ${currSym}${fmtPrincipal} TOTAL ESPÈCES REMISES ${currSym}${fmtEfectivo} À ${inst} QUOTAS POUR TOUTE QUESTION OU DOUTE SUR VOTRE MONTANT, VEUILLEZ CONTACTER ${companyName}${contactPhone}`
+            : state.settings.language === 'pt'
+            ? `MENSAGEM DE CONFIRMAÇÃO DE ENTREGA DE CRÉDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMAÇÃO DE CRÉDITO ${currSym}${fmtPrincipal} TOTAL DINHEIRO ENTREGUE ${currSym}${fmtEfectivo} EM ${inst} PARCELAS QUALQUER DÚVIDA OU CONSULTA SOBRE SEU VALOR COMUNICAR-SE COM ${companyName}${contactPhone}`
+            : `MENSAJE DE CONFIRMACION DE ENTREGA DE CREDITO CLIENTE: ${clientInLegajo.name.toUpperCase()} CONFIRMACION DE CREDITO ${currSym}${fmtPrincipal} TOTAL EFECTIVO ENTREGADO ${currSym}${fmtEfectivo} A ${inst} CUOTAS CUALQUIER CONSULTA O DUDA DE SU MONTO COMUNICARSE CON ${companyName}${contactPhone}`;
+        }
         const waUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(msgText)}`;
 
         // Navegar en la ventana pre-abierta (no bloqueada por popup blocker)
@@ -2024,15 +2083,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <thead>
               <tr>
                 <th>Registro</th>
-                <th>{((t as any).clients.list?.thClientId || 'Cliente / ID')}</th>
-                <th>{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
-                <th class="text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
-                <th class="text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
-                <th class="text-right">{((t as any).clients.list?.thCollected || 'Cobrado')}</th>
+                <th>{state.settings.language === 'fr' ? 'CLIENT / ID' : 'Cliente / ID'}</th>
+                <th>{state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'Teléfono'}</th>
+                <th class="text-right">{(((t as any).clients?.list || {})?.thApproved || 'Habilitado')}</th>
+                <th class="text-right">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</th>
+                <th class="text-right">{state.settings.language === 'fr' ? 'RECOUVRÉ' : 'Cobrado'}</th>
                 <th class="text-right">Saldo</th>
-                <th class="text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
+                <th class="text-center">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</th>
                 <th class="text-center">Pagadas</th>
-                <th class="text-center">{((t as any).clients.list?.thArrears || 'Atraso')}</th>
+                <th class="text-center">{(((t as any).clients?.list || {})?.thArrears || 'Atraso')}</th>
               </tr>
             </thead>
             <tbody>
@@ -2049,7 +2108,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <td class="text-center">${client._metrics.paidInstallments}</td>
                   <td class="text-center">
                     <span class="${client._metrics.daysOverdue > 0 ? 'mora-high' : 'mora-none'}">
-                      ${client._metrics.daysOverdue > 0 ? `${client._metrics.daysOverdue} DÍAS` : 'AL DÍA'}
+                      ${client._metrics.daysOverdue > 0 ? `${client._metrics.daysOverdue} {state.settings.language === 'fr' ? 'JOURS' : 'DÍAS'}` : 'AL DÍA'}
                     </span>
                   </td>
                 </tr>
@@ -2127,16 +2186,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(7);
-      doc.text(((t as any).clients.list?.thClientId || "CLIENTE / ID").toUpperCase(), margin + 2, y + 5.5);
-      doc.text("TELÉFONO", margin + 35, y + 5.5);
-      doc.text("HABILITADO", margin + 65, y + 5.5, { align: 'right' });
-      doc.text("V. CUOTA", margin + 85, y + 5.5, { align: 'right' });
-      doc.text("MONTO", margin + 105, y + 5.5, { align: 'right' });
-      doc.text("COBRADO", margin + 125, y + 5.5, { align: 'right' });
-      doc.text("SALDO", margin + 145, y + 5.5, { align: 'right' });
-      doc.text("CTAS", margin + 160, y + 5.5, { align: 'center' });
-      doc.text("PAG.", margin + 175, y + 5.5, { align: 'center' });
-      doc.text("MORA", margin + 188, y + 5.5, { align: 'center' });
+      doc.text(state.settings.language === 'fr' ? 'CLIENT / ID' : 'CLIENTE / ID', margin + 2, y + 5.5);
+      doc.text(state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'TELÉFONO', margin + 35, y + 5.5);
+      doc.text(state.settings.language === 'fr' ? 'APPROUVÉ' : 'HABILITADO', margin + 65, y + 5.5, { align: 'right' });
+      doc.text(state.settings.language === 'fr' ? 'V. MENS.' : 'V. CUOTA', margin + 85, y + 5.5, { align: 'right' });
+      doc.text(state.settings.language === 'fr' ? 'MONTANT' : 'MONTO', margin + 105, y + 5.5, { align: 'right' });
+      doc.text(state.settings.language === 'fr' ? 'RECOUVRÉ' : 'COBRADO', margin + 125, y + 5.5, { align: 'right' });
+      doc.text(state.settings.language === 'fr' ? 'SOLDE' : 'SALDO', margin + 145, y + 5.5, { align: 'right' });
+      doc.text(state.settings.language === 'fr' ? 'MENS.' : 'CTAS', margin + 160, y + 5.5, { align: 'center' });
+      doc.text(state.settings.language === 'fr' ? 'PAYÉ' : 'PAG.', margin + 175, y + 5.5, { align: 'center' });
+      doc.text(state.settings.language === 'fr' ? 'RETARD' : 'MORA', margin + 188, y + 5.5, { align: 'center' });
 
       y += 8;
       doc.setFont("helvetica", "normal");
@@ -2156,16 +2215,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           doc.setTextColor(255, 255, 255);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
-          doc.text(((t as any).clients.list?.thClientId || "CLIENTE / ID").toUpperCase(), margin + 2, y + 5.5);
-          doc.text("TELÉFONO", margin + 35, y + 5.5);
-          doc.text("HABILITADO", margin + 65, y + 5.5, { align: 'right' });
-          doc.text("V. CUOTA", margin + 85, y + 5.5, { align: 'right' });
-          doc.text("MONTO", margin + 105, y + 5.5, { align: 'right' });
-          doc.text("COBRADO", margin + 125, y + 5.5, { align: 'right' });
-          doc.text("SALDO", margin + 145, y + 5.5, { align: 'right' });
-          doc.text("CTAS", margin + 160, y + 5.5, { align: 'center' });
-          doc.text("PAG.", margin + 175, y + 5.5, { align: 'center' });
-          doc.text("MORA", margin + 188, y + 5.5, { align: 'center' });
+          doc.text(state.settings.language === 'fr' ? 'CLIENT / ID' : 'CLIENTE / ID', margin + 2, y + 5.5);
+          doc.text(state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'TELÉFONO', margin + 35, y + 5.5);
+          doc.text(state.settings.language === 'fr' ? 'APPROUVÉ' : 'HABILITADO', margin + 65, y + 5.5, { align: 'right' });
+          doc.text(state.settings.language === 'fr' ? 'V. MENS.' : 'V. CUOTA', margin + 85, y + 5.5, { align: 'right' });
+          doc.text(state.settings.language === 'fr' ? 'MONTANT' : 'MONTO', margin + 105, y + 5.5, { align: 'right' });
+          doc.text(state.settings.language === 'fr' ? 'RECOUVRÉ' : 'COBRADO', margin + 125, y + 5.5, { align: 'right' });
+          doc.text(state.settings.language === 'fr' ? 'SOLDE' : 'SALDO', margin + 145, y + 5.5, { align: 'right' });
+          doc.text(state.settings.language === 'fr' ? 'MENS.' : 'CTAS', margin + 160, y + 5.5, { align: 'center' });
+          doc.text(state.settings.language === 'fr' ? 'PAYÉ' : 'PAG.', margin + 175, y + 5.5, { align: 'center' });
+          doc.text(state.settings.language === 'fr' ? 'RETARD' : 'MORA', margin + 188, y + 5.5, { align: 'center' });
           y += 8;
           doc.setFont("helvetica", "normal");
           doc.setTextColor(30, 41, 59);
@@ -2293,13 +2352,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       <PullToRefresh onRefresh={async () => { if (onForceSync) await onForceSync(true, 'Actualizando clientes...', true); }}>
         <div className="space-y-4 md:space-y-6 pb-32 animate-fadeIn w-full px-1">
         <div className="bg-white p-2 rounded-2xl md:rounded-[2rem] border border-slate-200 shadow-sm flex flex-wrap items-center gap-1">
-          <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> {(t as any).clients.tabs.records}</button>
-          <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> {(t as any).clients.tabs.add}</button>
-          <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> {(t as any).clients.tabs.renewals}</button>
-          <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> {(t as any).clients.tabs.portfolio}</button>
-          <button onClick={() => setViewMode('finalizados')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'finalizados' ? 'bg-slate-500 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-flag-checkered"></i> {(t as any).clients.tabs.finished}</button>
+          <button onClick={() => setViewMode('nuevos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'nuevos' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-clipboard-list"></i> {((t as any).clients?.tabs || {}).records}</button>
+          <button onClick={() => setViewMode('gestion')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'gestion' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-user-plus"></i> {((t as any).clients?.tabs || {}).add}</button>
+          <button onClick={() => setViewMode('renovaciones')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'renovaciones' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-rotate"></i> {((t as any).clients?.tabs || {}).renewals}</button>
+          <button onClick={() => setViewMode('cartera')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'cartera' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-briefcase"></i> {((t as any).clients?.tabs || {}).portfolio}</button>
+          <button onClick={() => setViewMode('finalizados')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'finalizados' ? 'bg-slate-500 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-flag-checkered"></i> {((t as any).clients?.tabs || {}).finished}</button>
           {(isAdmin || isManager) && (
-            <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> {(t as any).clients.tabs.hidden}</button>
+            <button onClick={() => setViewMode('ocultos')} className={`flex-1 min-w-[120px] py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${viewMode === 'ocultos' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}><i className="fa-solid fa-eye-slash"></i> {((t as any).clients?.tabs || {}).hidden}</button>
           )}
         </div>
 
@@ -2307,7 +2366,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
             <h2 className="text-xl md:text-2xl font-black text-slate-950 uppercase tracking-tighter flex items-center gap-3">
               <i className={`fa-solid ${viewMode === 'gestion' ? 'fa-user-plus text-emerald-600' : viewMode === 'nuevos' ? 'fa-clipboard-list text-blue-600' : viewMode === 'renovaciones' ? 'fa-arrows-rotate text-orange-500' : viewMode === 'ocultos' ? 'fa-eye-slash text-red-600' : viewMode === 'finalizados' ? 'fa-flag-checkered text-slate-600' : 'fa-briefcase text-slate-950'}`}></i>
-              {viewMode === 'gestion' ? (t as any).clients.newClient : viewMode === 'nuevos' ? (t as any).clients.tabs.records : viewMode === 'renovaciones' ? (t as any).clients.tabs.renewals : viewMode === 'ocultos' ? (t as any).clients.tabs.hidden : viewMode === 'finalizados' ? (t as any).clients.tabs.finished : (t as any).clients.headers.generalPortfolio}
+              {viewMode === 'gestion' ? (t as any).clients.newClient : viewMode === 'nuevos' ? ((t as any).clients?.tabs || {}).records : viewMode === 'renovaciones' ? ((t as any).clients?.tabs || {}).renewals : viewMode === 'ocultos' ? ((t as any).clients?.tabs || {}).hidden : viewMode === 'finalizados' ? ((t as any).clients?.tabs || {}).finished : ((t as any).clients?.headers || {}).generalPortfolio}
             </h2>
 
             {viewMode === 'cartera' && isAdminOrManager && (
@@ -2316,25 +2375,25 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   onClick={handlePrintCartera}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-[9px] uppercase border border-slate-300 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <i className="fa-solid fa-print text-xs text-indigo-500"></i> {(t as any).clients.headers.print}
+                  <i className="fa-solid fa-print text-xs text-indigo-500"></i> {((t as any).clients?.headers || {}).print}
                 </button>
                 <button
                   onClick={handleExportPDF}
                   className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-[9px] uppercase border border-red-200 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <i className="fa-solid fa-file-pdf text-xs"></i> {(t as any).clients.headers.pdf}
+                  <i className="fa-solid fa-file-pdf text-xs"></i> {((t as any).clients?.headers || {}).pdf}
                 </button>
                 <button
                   onClick={() => setShowImportModal(true)}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[9px] uppercase border border-emerald-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <Upload className="h-3 w-3" /> {(t as any).clients.headers.importExcel}
+                  <Upload className="h-3 w-3" /> {((t as any).clients?.headers || {}).importExcel}
                 </button>
                 <button
                   onClick={() => exportClientsToExcel(carteraExcelData, state.loans)}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-[9px] uppercase border border-blue-500 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <Download className="h-3 w-3" /> {(t as any).clients.headers.export}
+                  <Download className="h-3 w-3" /> {((t as any).clients?.headers || {}).export}
                 </button>
               </div>
             )}
@@ -2348,7 +2407,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   onChange={(e) => setSelectedCollector(e.target.value)}
                   className="bg-transparent border-none outline-none text-[10px] font-black text-slate-700 uppercase cursor-pointer w-full"
                 >
-                  <option value="all">{(t as any).clients.headers.all}</option>
+                  <option value="all">{((t as any).clients?.headers || {}).all}</option>
                   {Array.isArray(collectors) && collectors.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -2372,7 +2431,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </div>
               </div>
             ) : (
-              <button onClick={() => setShowModal(true)} className="w-full sm:w-auto bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg active:scale-95 transition-all"><i className="fa-solid fa-user-plus mr-2"></i> {((t as any).clients.list?.newClient) || 'NUEVO CLIENTE'}</button>
+              <button onClick={() => setShowModal(true)} className="w-full sm:w-auto bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-[11px] uppercase shadow-lg active:scale-95 transition-all"><i className="fa-solid fa-user-plus mr-2"></i> {(((t as any).clients?.list || {})?.newClient) || 'NUEVO CLIENTE'}</button>
             )}
           </div>
         </div>
@@ -2393,7 +2452,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="space-y-4">
               <div className="px-4 py-2 flex flex-col md:flex-row justify-between items-center gap-2">
                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
-                  <i className="fa-solid fa-database mr-1"></i> {((t as any).clients.list?.total) || 'Total:'} <span className="text-slate-700 font-bold">{filteredClients.length}</span> <span className="mx-2 text-slate-300">|</span> <i className="fa-solid fa-eye mr-1"></i> {((t as any).clients.list?.viewing) || 'Viendo:'} <span className="text-slate-700 font-bold">{paginatedClients.length}</span>
+                  <i className="fa-solid fa-database mr-1"></i> {(((t as any).clients?.list || {})?.total) || 'Total:'} <span className="text-slate-700 font-bold">{filteredClients.length}</span> <span className="mx-2 text-slate-300">|</span> <i className="fa-solid fa-eye mr-1"></i> {(((t as any).clients?.list || {})?.viewing) || 'Viendo:'} <span className="text-slate-700 font-bold">{paginatedClients.length}</span>
                 </div>
               </div>
 
@@ -2431,14 +2490,14 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             )}
                           </p>
                         </div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{((t as any).clients.list?.balance) || 'Saldo'}</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{((t as any).clients.list?.installments) || 'Cuotas'}</p><p className="text-xs md:text-sm font-black text-slate-800">{m.totalInstallments}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{((t as any).clients.list?.paid) || 'Pagadas'}</p><p className="text-xs md:text-sm font-black text-emerald-700">{m.paidInstallments}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{((t as any).clients.list?.overdue) || 'Mora'}</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} {((t as any).clients.list?.days) || 'Días'}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{((t as any).clients.list?.credits) || 'Créditos'}</p><p className="text-xs md:text-sm font-black text-slate-800">{(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).length}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.balance) || 'Saldo'}</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.installments) || 'Cuotas'}</p><p className="text-xs md:text-sm font-black text-slate-800">{m.totalInstallments}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.paid) || 'Pagadas'}</p><p className="text-xs md:text-sm font-black text-emerald-700">{m.paidInstallments}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.overdue) || 'Mora'}</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} {(((t as any).clients?.list || {})?.days) || 'Días'}</p></div>
+                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.credits) || 'Créditos'}</p><p className="text-xs md:text-sm font-black text-slate-800">{(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).length}</p></div>
                       </div>
                       <div className="flex items-center gap-2 w-full md:w-auto">
-                        <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">{((t as any).clients.list?.dossier) || 'EXPEDIENTE'}</button>
+                        <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">{(((t as any).clients?.list || {})?.dossier) || 'EXPEDIENTE'}</button>
                       </div>
                     </div>
                   );
@@ -2481,18 +2540,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
-                      <th className="px-6 py-4">{((t as any).clients.list?.thRegDateFull || 'Fecha Alta')}</th>
-                      <th className="px-6 py-4">{((t as any).clients.list?.thClientId || 'Cliente / ID')}</th>
-                      <th className="px-6 py-4">{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCredit || 'Crédito')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thInterest || 'Interés')}</th>
+                      <th className="px-6 py-4">{state.settings.language === 'fr' ? 'DATE D\'OUVERTURE' : 'Fecha Alta'}</th>
+                      <th className="px-6 py-4">{state.settings.language === 'fr' ? 'CLIENT / ID' : 'Cliente / ID'}</th>
+                      <th className="px-6 py-4">{state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'Teléfono'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'CRÉDIT' : 'Crédito'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'INTÉRÊT' : 'Interés'}</th>
                       <th className="px-6 py-4 text-center">%</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCollected || 'Cobrado')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thInstallmentValue || 'Valor Cuota')}</th>
-                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thMora || 'Mora')}</th>
-                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'RECOUVRÉ' : 'Cobrado'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'VALEUR MENSUALITÉ' : 'Valor Cuota'}</th>
+                      <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'RETARD' : 'Mora'}</th>
+                      <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
@@ -2519,13 +2578,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-center text-blue-500">{client._metrics.activeLoan?.interestRate || 0}%</td>
                         <td className="px-6 py-4 text-right text-emerald-600 font-mono">{formatCurrency(client._metrics.totalPaid || 0, state.settings)}</td>
                         <td className="px-6 py-4 text-right font-mono">{formatCurrency(client._metrics.activeLoan?.installmentValue || 0, state.settings)}</td>
-                        <td className="px-6 py-4 text-center text-slate-500">{client._metrics.installmentsStr || '---'}</td>
+                        <td className="px-6 py-4 text-center text-slate-500">{client._metrics.installmentsStr ? client._metrics.installmentsStr.replace("cuotas", state.settings.language === "fr" ? "ÉCHÉANCES" : "cuotas") : "---"}</td>
                         <td className={`px-6 py-4 text-right font-mono ${client._metrics.daysOverdue > 0 ? 'text-red-600 animate-pulse' : 'text-slate-400'}`}>
                           {client._metrics.daysOverdue || 0} d
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{((t as any).clients.list?.btnView || 'VER')}</button>
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{(((t as any).clients?.list || {})?.btnView || 'VER')}</button>
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(client.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
@@ -2534,7 +2593,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </tr>
                     ))}
                     {nuevosExcelData.length === 0 && (
-                      <tr><td colSpan={12} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay registros para este periodo</td></tr>
+                      <tr><td colSpan={12} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">{state.settings.language === 'fr' ? 'AUCUN ENREGISTREMENT POUR CETTE PÉRIODE' : 'No hay registros para este periodo'}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2556,16 +2615,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest">
-                      <th className="px-6 py-4">{((t as any).clients.list?.thRenovDate || 'Fecha Renov.')}</th>
-                      <th className="px-6 py-4">{((t as any).clients.list?.thClient || 'Cliente')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCredit || 'Crédito')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thInterest || 'Interés')}</th>
+                      <th className="px-6 py-4">{(((t as any).clients?.list || {})?.thRenovDate || 'Fecha Renov.')}</th>
+                      <th className="px-6 py-4">{(((t as any).clients?.list || {})?.thClient || 'Cliente')}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'CRÉDIT' : 'Crédito'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'INTÉRÊT' : 'Interés'}</th>
                       <th className="px-6 py-4 text-center">%</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thCollected || 'Cobrado')}</th>
-                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.thArrears || 'Atraso')}</th>
-                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
+                      <th className="px-6 py-4 text-right">{state.settings.language === 'fr' ? 'RECOUVRÉ' : 'Cobrado'}</th>
+                      <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</th>
+                      <th className="px-6 py-4 text-right">{(((t as any).clients?.list || {})?.thArrears || 'Atraso')}</th>
+                      <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
@@ -2596,7 +2655,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-right font-mono text-red-600">{item._metrics.daysOverdue} d</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">{((t as any).clients.list?.btnDetail || 'DETALLE')}</button>
+                            <button onClick={() => setShowLegajo(item.id)} className="text-orange-600 hover:underline">{(((t as any).clients?.list || {})?.btnDetail || 'DETALLE')}</button>
                             {isAdminOrManager && (
                               <button onClick={() => handleToggleHideClient(item.id)} className="text-slate-400 hover:text-red-500 active:scale-90" title="Ocultar"><i className="fa-solid fa-eye-slash"></i></button>
                             )}
@@ -2633,29 +2692,34 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           onChange={(e) => setCarteraSortBy(e.target.value as any)}
                           className="bg-slate-800 text-white border border-slate-700 outline-none uppercase font-black cursor-pointer rounded-md px-1.5 py-0.5 text-[7px] max-w-[85px] hover:border-slate-500 transition-colors shadow-inner"
                         >
-                          <option value="registro">{(t as any).clients.table.record}</option>
+                          <option value="registro">{((t as any).clients?.table || {}).record}</option>
                           <option value="saldo">POR SALDO</option>
                           <option value="atraso">POR ATRASO</option>
                           <option value="renovaciones">POR RENOV.</option>
                         </select>
                       </th>
-                      <th className="px-6 py-4">{(t as any).clients.table.client}</th>
-                      <th className="px-6 py-4">{(t as any).clients.table.phone}</th>
-                      <th className="px-6 py-4 text-right">{(t as any).clients.table.approved}</th>
-                      <th className="px-6 py-4 text-right">{(t as any).clients.table.installment}</th>
-                      <th className="px-6 py-4 text-right">{(t as any).clients.table.amount}</th>
-                      <th className="px-6 py-4 text-right">{(t as any).clients.table.collected}</th>
-                      <th className="px-6 py-4 text-right">{(t as any).clients.table.currentBalance}</th>
-                      <th className="px-6 py-4 text-center">{(t as any).clients.table.installments}</th>
-                      <th className="px-6 py-4 text-center">{(t as any).clients.table.paid}</th>
-                      <th className="px-6 py-4 text-center">{(t as any).clients.table.delay}</th>
-                      <th className="px-6 py-4 text-center">{(t as any).clients.table.actions}</th>
+                      <th className="px-6 py-4">{((t as any).clients?.table || {}).client}</th>
+                      <th className="px-6 py-4">{((t as any).clients?.table || {}).phone}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients?.table || {}).approved}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients?.table || {}).installment}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients?.table || {}).amount}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients?.table || {}).collected}</th>
+                      <th className="px-6 py-4 text-right">{((t as any).clients?.table || {}).currentBalance}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients?.table || {}).installments}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients?.table || {}).paid}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients?.table || {}).delay}</th>
+                      <th className="px-6 py-4 text-center">{((t as any).clients?.table || {}).actions}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
-                    {(Array.isArray(carteraExcelData) ? carteraExcelData : []).slice(0, displayLimit).map(client => (
+                    {(Array.isArray(carteraExcelData) ? carteraExcelData : []).slice(0, displayLimit).map((client, idx) => (
                       <tr key={client.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 text-slate-500 uppercase">{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</td>
+                        <td className="px-6 py-4 text-slate-500 uppercase">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-slate-400 bg-slate-100 rounded px-1.5 py-0.5">{idx + 1}</span>
+                            <span>{client.createdAt ? new Date(client.createdAt).toLocaleDateString() : '---'}</span>
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
                             <span className="uppercase text-slate-900 font-bold">{client.name}</span>
@@ -2718,11 +2782,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
                     <tr className="bg-red-800 text-white text-[9px] font-black uppercase tracking-widest">
-                      <th className="px-6 py-4">{((t as any).clients.list?.thRegDateFull || 'Fecha Reg.')}</th>
-                      <th className="px-6 py-4">{((t as any).clients.list?.thClientId || 'Cliente / ID')}</th>
-                      <th className="px-6 py-4">{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
-                      <th className="px-6 py-4 text-right">{((t as any).clients.list?.balance || 'Saldo')}</th>
-                      <th className="px-6 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
+                      <th className="px-6 py-4">{(((t as any).clients?.list || {})?.thRegDateFull || 'Fecha Reg.')}</th>
+                      <th className="px-6 py-4">{state.settings.language === 'fr' ? 'CLIENT / ID' : 'Cliente / ID'}</th>
+                      <th className="px-6 py-4">{state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'Teléfono'}</th>
+                      <th className="px-6 py-4 text-right">{(((t as any).clients?.list || {})?.balance || 'Saldo')}</th>
+                      <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-bold text-[11px]">
@@ -2745,8 +2809,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <td className="px-6 py-4 text-right font-mono text-red-600">{formatCurrency(client._metrics.balance, state.settings)}</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{((t as any).clients.list?.btnView || 'VER')}</button>
-                            <button onClick={() => handleRestoreClient(client.id)} className="text-emerald-600 hover:underline" title="Restaurar"><i className="fa-solid fa-rotate-left"></i>{((t as any).clients.list?.btnRestore || 'RESTAURAR')}</button>
+                            <button onClick={() => setShowLegajo(client.id)} className="text-blue-500 hover:underline">{(((t as any).clients?.list || {})?.btnView || 'VER')}</button>
+                            <button onClick={() => handleRestoreClient(client.id)} className="text-emerald-600 hover:underline" title="Restaurar"><i className="fa-solid fa-rotate-left"></i>{(((t as any).clients?.list || {})?.btnRestore || 'RESTAURAR')}</button>
                             {isAdminOrManager && (
                               <button onClick={() => handlePermanentDeleteClient(client.id)} className="text-red-600 hover:underline" title="Eliminar"><i className="fa-solid fa-trash"></i> ELIMINAR</button>
                             )}
@@ -2755,7 +2819,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       </tr>
                     ))}
                     {ocultosExcelData.length === 0 && (
-                      <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">No hay clientes ocultos</td></tr>
+                      <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest">{state.settings.language === 'fr' ? 'AUCUN CLIENT CACHÉ' : 'No hay clientes ocultos'}</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2783,9 +2847,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                    <div className="flex items-center gap-3">
                      <i className="fa-solid fa-flag-checkered text-xl"></i>
                      <div>
-                       <p className="font-black text-sm uppercase tracking-tight">{((t as any).clients.list?.thFinished || 'Créditos Finalizados')}</p>
+                       <p className="font-black text-sm uppercase tracking-tight">{(((t as any).clients?.list || {})?.thFinished || 'Créditos Finalizados')}</p>
                        <p className="text-[9px] font-bold text-slate-200 uppercase tracking-widest">
-                          {finalizadosDate === finalizadosEndDate ? finalizadosDate : `${finalizadosDate} AL ${finalizadosEndDate}`} · {finalizadosData.length} CRÉDITO{finalizadosData.length !== 1 ? 'S' : ''}
+                          {finalizadosDate === finalizadosEndDate ? finalizadosDate : `${finalizadosDate} AL ${finalizadosEndDate}`} · {finalizadosData.length} {state.settings.language === 'fr' ? (finalizadosData.length !== 1 ? 'CRÉDITS' : 'CRÉDIT') : (finalizadosData.length !== 1 ? 'CRÉDITOS' : 'CRÉDITO')}
                         </p>
                      </div>
                    </div>
@@ -2794,23 +2858,34 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                    <table className="w-full text-left border-collapse min-w-[700px]">
                      <thead>
                        <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest">
-                         <th className="px-5 py-4 border-r border-white/10">{((t as any).clients.list?.thClient || 'Cliente')}</th>
-                         <th className="px-5 py-4 border-r border-white/10">{((t as any).clients.list?.thPhone || 'Teléfono')}</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.thFrequency || 'Frecuencia')}</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-right">{((t as any).clients.list?.thTotal || 'Total')}</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.thInstallments || 'Cuotas')}</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.credits || 'Créditos')}</th>
-                         <th className="px-5 py-4 border-r border-white/10 text-center">{((t as any).clients.list?.thState || 'Estado')}</th>
-                         <th className="px-5 py-4 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th>
+                         <th className="px-5 py-4 border-r border-white/10">{(((t as any).clients?.list || {})?.thClient || 'Cliente')}</th>
+                         <th className="px-5 py-4 border-r border-white/10">{state.settings.language === 'fr' ? 'TÉLÉPHONE' : 'Teléfono'}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{(((t as any).clients?.list || {})?.thFrequency || 'Frecuencia')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-right">{(((t as any).clients?.list || {})?.thApproved || 'Habilitado')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-right">{state.settings.language === 'fr' ? 'MONTANT' : 'Total'}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{(((t as any).clients?.list || {})?.credits || 'Créditos')}</th>
+                         <th className="px-5 py-4 border-r border-white/10 text-center">{(((t as any).clients?.list || {})?.thState || 'Estado')}</th>
+                         <th className="px-5 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-slate-100">
                        {finalizadosData.map(({ loan, client }) => {
                          const DIAS = ['DOMINGOS','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADOS'];
                          const startDate = new Date(loan.createdAt.split('T')[0] + 'T00:00:00');
-                         const diaSemana = DIAS[startDate.getDay()];
-                         const freqLabel = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) ? 'DIARIO (L-S)' : loan.frequency === Frequency.DAILY_MF ? 'DIARIO (L-V)' : loan.frequency === Frequency.WEEKLY ? `SEMANAL · ${diaSemana}` : loan.frequency === Frequency.BIWEEKLY ? 'QUINCENAL' : 'MENSUAL';
+                         const FR_DIAS = ["DIMANCHES","LUNDIS","MARDIS","MERCREDIS","JEUDIS","VENDREDIS","SAMEDIS"];
+                            const diaSemana = DIAS[startDate.getDay()];
+                         const isFr = state.settings.language === 'fr';
+                         const isPt = state.settings.language === 'pt';
+                         const freqLabel = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any)
+                           ? (isFr ? 'QUOTIDIEN (L-S)' : isPt ? 'DIÁRIO (L-S)' : 'DIARIO (L-S)')
+                           : loan.frequency === Frequency.DAILY_MF
+                           ? (isFr ? 'QUOTIDIEN (L-V)' : isPt ? 'DIÁRIO (L-V)' : 'DIARIO (L-V)')
+                           : loan.frequency === Frequency.WEEKLY
+                           ? (isFr ? `HEBDOMADAIRE · ${FR_DIAS[startDate.getDay()]}` : `SEMANAL · ${diaSemana}`)
+                           : loan.frequency === Frequency.BIWEEKLY
+                           ? (isFr ? 'BIMENSUEL' : isPt ? 'QUINZENAL' : 'QUINCENAL')
+                           : (isFr ? 'MENSUEL' : isPt ? 'MENSAL' : 'MENSUAL');
                          const freqColor = (loan.frequency === Frequency.DAILY || loan.frequency === 'Diaria' as any) ? 'text-amber-600' : loan.frequency === Frequency.DAILY_MF ? 'text-emerald-600' : loan.frequency === Frequency.WEEKLY ? 'text-violet-600' : 'text-blue-600';
                          const totalCredits = (Array.isArray(state.loans) ? state.loans : []).filter(l => {
                             if (l.clientId !== client.id) return false;
@@ -2839,7 +2914,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                              <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-700">{formatCurrency(loan.principal, state.settings)}</td>
                              <td className="px-5 py-4 border-r border-slate-100 text-right font-mono font-black text-slate-900">{formatCurrency(loan.totalAmount, state.settings)}</td>
                              <td className="px-5 py-4 border-r border-slate-100 text-center">
-                               <span className="bg-slate-200 text-slate-700 font-black text-[9px] px-3 py-1 rounded-lg uppercase">{loan.totalInstallments} CUOTAS</span>
+                               <span className="bg-slate-200 text-slate-700 font-black text-[9px] px-3 py-1 rounded-lg uppercase">{loan.totalInstallments} {state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'CUOTAS'}</span>
                              </td>
                              <td className="px-5 py-4 border-r border-slate-100 text-center">
                                <span className={`font-black text-[10px] px-3 py-1 rounded-lg ${
@@ -2847,16 +2922,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                  totalCredits >= 3 ? 'bg-blue-100 text-blue-800 border border-blue-200' :
                                  'bg-slate-100 text-slate-600 border border-slate-200'
                                }`}>
-                                  {totalCredits} {((t as any).clients.list?.thFinished || 'CRÉD. FINALIZADOS')}
+                                  {totalCredits} {(((t as any).clients?.list || {})?.thFinished || 'CRÉD. FINALIZADOS')}
                                </span>
                              </td>
                              <td className="px-5 py-4 border-r border-slate-100 text-center">
                                <span className={`font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-wider ${hasActiveLoan ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
-                                 {hasActiveLoan ? ((t as any).clients.list?.btnActive ? '● ' + (t as any).clients.list.btnActive : '● ACTIVO') : '● INACTIVO'}
+                                 {hasActiveLoan ? (((t as any).clients?.list || {})?.btnActive ? '● ' + ((t as any).clients?.list || {}).btnActive : '● ACTIVO') : (state.settings.language === 'fr' ? '● INACTIF' : '● INACTIVO')}
                                </span>
                              </td>
                              <td className="px-5 py-4 text-center">
-                               <button onClick={() => setShowLegajo(client.id)} className="text-orange-600 hover:underline">{((t as any).clients.list?.btnDetail || 'DETALLE')}</button>
+                               <button onClick={() => setShowLegajo(client.id)} className="text-orange-600 hover:underline">{(((t as any).clients?.list || {})?.btnDetail || 'DETALLE')}</button>
                              </td>
                            </tr>
                          );
@@ -2875,111 +2950,111 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[150] p-2 overflow-hidden pt-4 md:pt-10">
               <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[98vh] flex flex-col animate-scaleIn border border-white/20">
                 <div className="p-4 md:p-5 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-white/10 sticky top-0 z-20">
-                  <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{(t as any).clients.registrationForm.title}</h3><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">{(t as any).clients.registrationForm.subtitle}</p></div>
+                  <div><h3 className="text-base md:text-lg font-black uppercase tracking-tighter">{((t as any).clients?.registrationForm || {}).title}</h3><p className="text-[7px] md:text-[8px] font-bold text-slate-400 uppercase tracking-widest">{((t as any).clients?.registrationForm || {}).subtitle}</p></div>
                   <button onClick={() => setShowModal(false)} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
                 </div>
                 <form onSubmit={handleSubmitNewClient} className="flex-1 overflow-y-auto p-3 md:p-5 space-y-6 bg-slate-50 mobile-scroll-container">
                   <div className="space-y-3">
-                    <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{(t as any).clients.registrationForm.sec1}</h4>
+                    <h4 className="text-[9px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{((t as any).clients?.registrationForm || {}).sec1}</h4>
                     <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.name}</div><input required type="text" value={clientData.name} onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.documentId}</div><input required type="text" value={clientData.documentId} onChange={(e: any) => setClientData({ ...clientData, documentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.nationality}</div><input type="text" value={clientData.nationality} onChange={(e: any) => setClientData({ ...clientData, nationality: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.birthDate}</div><input type="date" value={clientData.birthDate} onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).name}</div><input required type="text" value={clientData.name} onChange={(e: any) => setClientData({ ...clientData, name: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).documentId}</div><input required type="text" value={clientData.documentId} onChange={(e: any) => setClientData({ ...clientData, documentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).nationality}</div><input type="text" value={clientData.nationality} onChange={(e: any) => setClientData({ ...clientData, nationality: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).birthDate}</div><input type="date" value={clientData.birthDate} onChange={(e: any) => setClientData({ ...clientData, birthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
                       <div className="flex border-b border-slate-200">
-                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.maritalStatus}</div>
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).maritalStatus}</div>
                         <select value={clientData.maritalStatus} onChange={(e: any) => setClientData({ ...clientData, maritalStatus: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
-                          <option value="">{(t as any).clients.registrationForm.select}</option>
-                          <option value="soltero">{(t as any).clients.registrationForm.single}</option>
-                          <option value="casado">{(t as any).clients.registrationForm.married}</option>
-                          <option value="divorciado">{(t as any).clients.registrationForm.divorced}</option>
-                          <option value="viudo">{(t as any).clients.registrationForm.widowed}</option>
+                          <option value="">{((t as any).clients?.registrationForm || {}).select}</option>
+                          <option value="soltero">{((t as any).clients?.registrationForm || {}).single}</option>
+                          <option value="casado">{((t as any).clients?.registrationForm || {}).married}</option>
+                          <option value="divorciado">{((t as any).clients?.registrationForm || {}).divorced}</option>
+                          <option value="viudo">{((t as any).clients?.registrationForm || {}).widowed}</option>
                         </select>
                       </div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.profession}</div><input type="text" value={clientData.profession} onChange={(e: any) => setClientData({ ...clientData, profession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.whatsapp1}</div><input required type="tel" value={clientData.phone} onChange={(e: any) => setClientData({ ...clientData, phone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.whatsapp2}</div><input type="tel" value={clientData.secondaryPhone} onChange={(e: any) => setClientData({ ...clientData, secondaryPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).profession}</div><input type="text" value={clientData.profession} onChange={(e: any) => setClientData({ ...clientData, profession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).whatsapp1}</div><input required type="tel" value={clientData.phone} onChange={(e: any) => setClientData({ ...clientData, phone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).whatsapp2}</div><input type="tel" value={clientData.secondaryPhone} onChange={(e: any) => setClientData({ ...clientData, secondaryPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
                       <div className="flex border-b border-slate-200 md:col-span-2">
-                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.email}</div>
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).email}</div>
                         <input type="email" value={clientData.email} onChange={(e: any) => setClientData({ ...clientData, email: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" />
                       </div>
                       <div className="flex border-b border-slate-200 md:col-span-2">
                         <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">
-                          {(t as any).clients.registrationForm.classifType}
-                          <button type="button" onClick={() => alert((t as any).clients.registrationForm.classificationTips || "TIPS CLASIFICACIÓN CLIENTE...")} className="ml-1 text-blue-400"><Info size={10} /></button>
+                          {((t as any).clients?.registrationForm || {}).classifType}
+                          <button type="button" onClick={() => alert(((t as any).clients?.registrationForm || {}).classificationTips || "TIPS CLASIFICACIÓN CLIENTE...")} className="ml-1 text-blue-400"><Info size={10} /></button>
                         </div>
                         <select
                           value={clientData.clientTypeCode}
                           onChange={(e: any) => setClientData({ ...clientData, clientTypeCode: e.target.value })}
                           className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none cursor-pointer"
                         >
-                          {((t as any).clients.registrationForm.bancaClientTypes || BANCA_CLIENT_TYPES).map((typeItem: any) => (
+                          {(((t as any).clients?.registrationForm || {}).bancaClientTypes || BANCA_CLIENT_TYPES).map((typeItem: any) => (
                             <option key={typeItem.code} value={typeItem.code} className="bg-slate-900">{typeItem.code} - {typeItem.label}</option>
                           ))}
                         </select>
                       </div>
                       <div className="flex col-span-1 md:col-span-2">
-                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.clientType}</div>
-                        <input type="text" placeholder={(t as any).clients.registrationForm.clientTypePlaceholder} value={clientData.clientType} onChange={(e: any) => setClientData({ ...clientData, clientType: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" />
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).clientType}</div>
+                        <input type="text" placeholder={((t as any).clients?.registrationForm || {}).clientTypePlaceholder} value={clientData.clientType} onChange={(e: any) => setClientData({ ...clientData, clientType: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" />
                       </div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.partCity}</div><input type="text" value={clientData.particularCity} onChange={(e: any) => setClientData({ ...clientData, particularCity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.partStreetMain}</div><input type="text" value={clientData.particularStreetMain} onChange={(e: any) => setClientData({ ...clientData, particularStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.partStreetSec}</div><input type="text" value={clientData.particularStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, particularStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.houseNumber}</div><input type="text" value={clientData.houseNumber} onChange={(e: any) => setClientData({ ...clientData, houseNumber: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex col-span-1 md:col-span-2"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.partNeighborhood}</div><input type="text" value={clientData.particularNeighborhood} onChange={(e: any) => setClientData({ ...clientData, particularNeighborhood: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).partCity}</div><input type="text" value={clientData.particularCity} onChange={(e: any) => setClientData({ ...clientData, particularCity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).partStreetMain}</div><input type="text" value={clientData.particularStreetMain} onChange={(e: any) => setClientData({ ...clientData, particularStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).partStreetSec}</div><input type="text" value={clientData.particularStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, particularStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).houseNumber}</div><input type="text" value={clientData.houseNumber} onChange={(e: any) => setClientData({ ...clientData, houseNumber: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex col-span-1 md:col-span-2"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).partNeighborhood}</div><input type="text" value={clientData.particularNeighborhood} onChange={(e: any) => setClientData({ ...clientData, particularNeighborhood: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                     </div>
 
-                    <h4 className="text-[9px] font-black text-indigo-800 uppercase tracking-widest border-l-4 border-indigo-800 pl-2 mt-4">{(t as any).clients.registrationForm.sec2}</h4>
+                    <h4 className="text-[9px] font-black text-indigo-800 uppercase tracking-widest border-l-4 border-indigo-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec2}</h4>
                     <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workCompany}</div><input type="text" value={clientData.workCompany} onChange={(e: any) => setClientData({ ...clientData, workCompany: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workStreetMain}</div><input type="text" value={clientData.workStreetMain} onChange={(e: any) => setClientData({ ...clientData, workStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workStreetSec}</div><input type="text" value={clientData.workStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, workStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workCity}</div><input type="text" value={clientData.workCity} onChange={(e: any) => setClientData({ ...clientData, workCity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workPhone}</div><input type="tel" value={clientData.workPhone} onChange={(e: any) => setClientData({ ...clientData, workPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workNeighborhood}</div><input type="text" value={clientData.workNeighborhood} onChange={(e: any) => setClientData({ ...clientData, workNeighborhood: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workPosition}</div><input type="text" value={clientData.workPosition} onChange={(e: any) => setClientData({ ...clientData, workPosition: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workSector}</div><input type="text" value={clientData.workSector} onChange={(e: any) => setClientData({ ...clientData, workSector: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workAntiquity}</div><input type="text" value={clientData.workAntiquity} onChange={(e: any) => setClientData({ ...clientData, workAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.workIncome}</div><input type="number" value={clientData.workIncome} onChange={(e: any) => setClientData({ ...clientData, workIncome: Number(e.target.value) })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex col-span-1 md:col-span-2"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.coordinate}</div><input type="text" value={clientData.locationCoords} onChange={(e: any) => setClientData({ ...clientData, locationCoords: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workCompany}</div><input type="text" value={clientData.workCompany} onChange={(e: any) => setClientData({ ...clientData, workCompany: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workStreetMain}</div><input type="text" value={clientData.workStreetMain} onChange={(e: any) => setClientData({ ...clientData, workStreetMain: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workStreetSec}</div><input type="text" value={clientData.workStreetSecondary} onChange={(e: any) => setClientData({ ...clientData, workStreetSecondary: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workCity}</div><input type="text" value={clientData.workCity} onChange={(e: any) => setClientData({ ...clientData, workCity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workPhone}</div><input type="tel" value={clientData.workPhone} onChange={(e: any) => setClientData({ ...clientData, workPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workNeighborhood}</div><input type="text" value={clientData.workNeighborhood} onChange={(e: any) => setClientData({ ...clientData, workNeighborhood: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workPosition}</div><input type="text" value={clientData.workPosition} onChange={(e: any) => setClientData({ ...clientData, workPosition: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workSector}</div><input type="text" value={clientData.workSector} onChange={(e: any) => setClientData({ ...clientData, workSector: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workAntiquity}</div><input type="text" value={clientData.workAntiquity} onChange={(e: any) => setClientData({ ...clientData, workAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).workIncome}</div><input type="number" value={clientData.workIncome} onChange={(e: any) => setClientData({ ...clientData, workIncome: Number(e.target.value) })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex col-span-1 md:col-span-2"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).coordinate}</div><input type="text" value={clientData.locationCoords} onChange={(e: any) => setClientData({ ...clientData, locationCoords: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
                     </div>
 
-                    <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">{(t as any).clients.registrationForm.sec3}</h4>
+                    <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec3}</h4>
                     <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseName}</div><input type="text" value={clientData.spouseName} onChange={(e: any) => setClientData({ ...clientData, spouseName: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseDocumentId}</div><input type="text" value={clientData.spouseDocumentId} onChange={(e: any) => setClientData({ ...clientData, spouseDocumentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseBirthDate}</div><input type="date" value={clientData.spouseBirthDate} onChange={(e: any) => setClientData({ ...clientData, spouseBirthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseProfession}</div><input type="text" value={clientData.spouseProfession} onChange={(e: any) => setClientData({ ...clientData, spouseProfession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseWorkplace}</div><input type="text" value={clientData.spouseWorkplace} onChange={(e: any) => setClientData({ ...clientData, spouseWorkplace: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseWorkPhone}</div><input type="tel" value={clientData.spouseWorkPhone} onChange={(e: any) => setClientData({ ...clientData, spouseWorkPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseName}</div><input type="text" value={clientData.spouseName} onChange={(e: any) => setClientData({ ...clientData, spouseName: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseDocumentId}</div><input type="text" value={clientData.spouseDocumentId} onChange={(e: any) => setClientData({ ...clientData, spouseDocumentId: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseBirthDate}</div><input type="date" value={clientData.spouseBirthDate} onChange={(e: any) => setClientData({ ...clientData, spouseBirthDate: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseProfession}</div><input type="text" value={clientData.spouseProfession} onChange={(e: any) => setClientData({ ...clientData, spouseProfession: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseWorkplace}</div><input type="text" value={clientData.spouseWorkplace} onChange={(e: any) => setClientData({ ...clientData, spouseWorkplace: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseWorkPhone}</div><input type="tel" value={clientData.spouseWorkPhone} onChange={(e: any) => setClientData({ ...clientData, spouseWorkPhone: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" /></div>
                       <div className="flex md:col-span-2">
-                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.spouseIncome}</div>
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).spouseIncome}</div>
                         <input type="number" value={clientData.spouseIncome} onChange={(e: any) => setClientData({ ...clientData, spouseIncome: Number(e.target.value) })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white outline-none" />
                       </div>
                     </div>
 
-                    <h4 className="text-[9px] font-black text-orange-800 uppercase tracking-widest border-l-4 border-orange-800 pl-2 mt-4">{(t as any).clients.registrationForm.sec4}</h4>
+                    <h4 className="text-[9px] font-black text-orange-800 uppercase tracking-widest border-l-4 border-orange-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec4}</h4>
                     <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
                       <div className="flex border-b border-slate-200">
-                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.residenceType}</div>
+                        <div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).residenceType}</div>
                         <select value={clientData.residenceType} onChange={(e: any) => setClientData({ ...clientData, residenceType: e.target.value as any })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none">
-                          <option value="propia">{(t as any).clients.registrationForm.own}</option>
-                          <option value="alquilada">{(t as any).clients.registrationForm.rented}</option>
-                          <option value="familiar">{(t as any).clients.registrationForm.family}</option>
+                          <option value="propia">{((t as any).clients?.registrationForm || {}).own}</option>
+                          <option value="alquilada">{((t as any).clients?.registrationForm || {}).rented}</option>
+                          <option value="familiar">{((t as any).clients?.registrationForm || {}).family}</option>
                         </select>
                       </div>
-                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{(t as any).clients.registrationForm.residenceAntiquity}</div><input type="text" value={clientData.residenceAntiquity} onChange={(e: any) => setClientData({ ...clientData, residenceAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
+                      <div className="flex border-b border-slate-200"><div className="w-28 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{((t as any).clients?.registrationForm || {}).residenceAntiquity}</div><input type="text" value={clientData.residenceAntiquity} onChange={(e: any) => setClientData({ ...clientData, residenceAntiquity: e.target.value })} className="flex-1 px-3 py-3 text-xs font-bold bg-slate-800 text-white uppercase outline-none" /></div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                       <div className="space-y-2">
                         <button type="button" onClick={() => handleCaptureLocation('home')} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
                           {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-circle-check"></i>}
-                          {(t as any).clients.registrationForm.markHomeGps}
+                          {((t as any).clients?.registrationForm || {}).markHomeGps}
                         </button>
                         {clientData.location ? (
                           <div className="mt-2 space-y-1 animate-fadeIn">
-                            <div className="text-[7px] font-black text-emerald-600/70 uppercase tracking-widest text-center">{(t as any).clients.registrationForm.editLocation}</div>
+                            <div className="text-[7px] font-black text-emerald-600/70 uppercase tracking-widest text-center">{((t as any).clients?.registrationForm || {}).editLocation}</div>
                             <div 
                               onClick={() => {
                                 const input = window.prompt("Editar coordenadas CASA (lat, lng):", `${clientData.location?.lat}, ${clientData.location?.lng}`);
@@ -2997,10 +3072,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
                         ) : (
                           <div className="mt-2 space-y-1">
-                            <div className="text-[7px] font-black text-emerald-600/70 uppercase tracking-widest text-center">{(t as any).clients.registrationForm.manualCoords}</div>
+                            <div className="text-[7px] font-black text-emerald-600/70 uppercase tracking-widest text-center">{((t as any).clients?.registrationForm || {}).manualCoords}</div>
                             <div 
                               onClick={() => {
-                                const input = window.prompt("Ingresar coordenadas CASA (lat, lng):");
+                                const input = window.prompt((state.settings.language === 'fr' ? "Saisir coordonnées MAISON (lat, lng):" : "Ingresar coordenadas CASA (lat, lng):"));
                                 if (input) {
                                   const parts = input.split(',');
                                   if (parts.length >= 2) {
@@ -3010,7 +3085,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               }}
                               className="p-2 border border-dashed border-emerald-500/40 rounded-xl text-[10px] font-black text-emerald-600/90 uppercase text-center cursor-pointer hover:border-emerald-500/70 hover:text-emerald-700 hover:bg-emerald-600/10 transition-all block"
                             >
-                              <i className="fa-solid fa-keyboard mr-1"></i> {(t as any).clients.registrationForm.enter}
+                              <i className="fa-solid fa-keyboard mr-1"></i> {((t as any).clients?.registrationForm || {}).enter}
                             </div>
                           </div>
                         )}
@@ -3018,11 +3093,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="space-y-2">
                         <button type="button" onClick={() => handleCaptureLocation('domicilio')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-[9px] uppercase tracking-widest shadow-md hover:bg-blue-700 flex items-center justify-center gap-2 active:scale-95 transition-all">
                           {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>}
-                          {(t as any).clients.registrationForm.markBusinessGps}
+                          {((t as any).clients?.registrationForm || {}).markBusinessGps}
                         </button>
                         {clientData.domicilioLocation ? (
                           <div className="mt-2 space-y-1 animate-fadeIn">
-                            <div className="text-[7px] font-black text-blue-600/70 uppercase tracking-widest text-center">{(t as any).clients.registrationForm.editLocation}</div>
+                            <div className="text-[7px] font-black text-blue-600/70 uppercase tracking-widest text-center">{((t as any).clients?.registrationForm || {}).editLocation}</div>
                             <div 
                               onClick={() => {
                                 const input = window.prompt("Editar coordenadas NEGOCIO (lat, lng):", `${clientData.domicilioLocation?.lat}, ${clientData.domicilioLocation?.lng}`);
@@ -3040,10 +3115,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
                         ) : (
                           <div className="mt-2 space-y-1">
-                            <div className="text-[7px] font-black text-blue-600/70 uppercase tracking-widest text-center">{(t as any).clients.registrationForm.manualCoords}</div>
+                            <div className="text-[7px] font-black text-blue-600/70 uppercase tracking-widest text-center">{((t as any).clients?.registrationForm || {}).manualCoords}</div>
                             <div 
                               onClick={() => {
-                                const input = window.prompt("Ingresar coordenadas NEGOCIO (lat, lng):");
+                                const input = window.prompt((state.settings.language === 'fr' ? "Saisir coordonnées TRAVAIL (lat, lng):" : "Ingresar coordenadas NEGOCIO (lat, lng):"));
                                 if (input) {
                                   const parts = input.split(',');
                                   if (parts.length >= 2) {
@@ -3053,20 +3128,20 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               }}
                               className="p-2 border border-dashed border-blue-500/40 rounded-xl text-[10px] font-black text-blue-600/90 uppercase text-center cursor-pointer hover:border-blue-500/70 hover:text-blue-700 hover:bg-blue-600/10 transition-all block"
                             >
-                              <i className="fa-solid fa-keyboard mr-1"></i> {(t as any).clients.registrationForm.enter}
+                              <i className="fa-solid fa-keyboard mr-1"></i> {((t as any).clients?.registrationForm || {}).enter}
                             </div>
                           </div>
                         )}
                       </div>
 
                       <div className="space-y-3 pt-2 col-span-1 sm:col-span-2">
-                        <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">{(t as any).clients.registrationForm.sec5}</h4>
+                        <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">{((t as any).clients?.registrationForm || {}).sec5}</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-xl border border-slate-200">
-                          <PhotoUploadField label={(t as any).clients.registrationForm.picProfile || 'Perfil'} field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', clientData)} />
-                          <PhotoUploadField label={(t as any).clients.registrationForm.picDocument || 'Cédula'} field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', clientData)} />
-                          <PhotoUploadField label={(t as any).clients.registrationForm.picDocumentBack || 'Cédula Dorso'} field="documentBackPic" value={clientData.documentBackPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', clientData)} />
-                          <PhotoUploadField label={(t as any).clients.registrationForm.picHouse || 'Fachada'} field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', clientData)} />
-                          <PhotoUploadField label={(t as any).clients.registrationForm.picBusiness || 'Negocio'} field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', clientData)} />
+                          <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picProfile || 'Perfil'} field="profilePic" value={clientData.profilePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', clientData)} />
+                          <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picDocument || 'Cédula'} field="documentPic" value={clientData.documentPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', clientData)} />
+                          <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picDocumentBack || 'Cédula Dorso'} field="documentBackPic" value={clientData.documentBackPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', clientData)} />
+                          <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picHouse || 'Fachada'} field="housePic" value={clientData.housePic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', clientData)} />
+                          <PhotoUploadField lang={state.settings.language} label={((t as any).clients?.registrationForm || {}).picBusiness || 'Negocio'} field="businessPic" value={clientData.businessPic || ''} onFileChange={handleFileChange} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', clientData)} />
                         </div>
                       </div>
                     </div>
@@ -3074,36 +3149,36 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                   {addInitialLoan && (
                     <div className="space-y-6">
-                      <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">{(t as any).clients.registrationForm.sec6}</h4>
+                      <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest border-l-4 border-emerald-800 pl-2 mt-4">{((t as any).clients?.registrationForm || {}).sec6}</h4>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm grid grid-cols-2">
                             {/* 
                             <div className="flex border-b border-r border-slate-200 bg-slate-900 col-span-2"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Cód Vendedor</div><input type="text" value={initialLoan.sellerCode} onChange={(e: any) => setInitialLoan({ ...initialLoan, sellerCode: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
                             */}
-                            <div className="flex border-b border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{(t as any).clients.registrationForm.capital}</div><input type="text" value={initialLoan.principal} onChange={(e: any) => setInitialLoan({ ...initialLoan, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
-                            <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{(t as any).clients.registrationForm.interest}</div><input type="text" value={initialLoan.interestRate} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            <div className="flex border-b border-r border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{((t as any).clients?.registrationForm || {}).capital}</div><input type="text" value={initialLoan.principal} onChange={(e: any) => setInitialLoan({ ...initialLoan, principal: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{((t as any).clients?.registrationForm || {}).interest}</div><input type="text" value={initialLoan.interestRate} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
                             <div className="flex border-b border-r border-slate-200">
                               <div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">
-                                {(t as any).clients.registrationForm.operation}
-                                <button type="button" onClick={() => alert((t as any).clients.registrationForm.operationTips || "TIPS CLASIFICACIÓN CRÉDITO...")} className="ml-1 text-white/50"><Info size={10} /></button>
+                                {((t as any).clients?.registrationForm || {}).operation}
+                                <button type="button" onClick={() => alert(((t as any).clients?.registrationForm || {}).operationTips || "TIPS CLASIFICACIÓN CRÉDITO...")} className="ml-1 text-white/50"><Info size={10} /></button>
                               </div>
                               <select
                                 value={initialLoan.operationTypeCode}
                                 onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, operationTypeCode: e.target.value }))}
                                 className="flex-1 px-3 py-3 text-[10px] font-black bg-emerald-600 text-white outline-none cursor-pointer"
                               >
-                                {((t as any).clients.registrationForm.operationTypes || OPERATION_TYPES).map((o: any) => (
+                                {(((t as any).clients?.registrationForm || {}).operationTypes || OPERATION_TYPES).map((o: any) => (
                                   <option key={o.code} value={o.code} className="bg-emerald-700">{o.code} - {o.label}</option>
                                 ))}
                               </select>
                             </div>
-                            <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{(t as any).clients.registrationForm.installments}</div><input type="text" value={initialLoan.installments} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, installments: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
+                            <div className="flex border-b border-slate-200"><div className="w-20 bg-emerald-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{((t as any).clients?.registrationForm || {}).installments}</div><input type="text" value={initialLoan.installments} onChange={(e: any) => setInitialLoan((prev: any) => ({ ...prev, installments: e.target.value }))} className="flex-1 px-3 py-3 text-xs font-black bg-emerald-600 text-white outline-none" /></div>
                             {/* 
                             <div className="flex border-b border-r border-slate-200 bg-slate-900"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Monto Pagaré</div><input type="text" value={initialLoan.promissoryNoteAmount} onChange={(e: any) => setInitialLoan({ ...initialLoan, promissoryNoteAmount: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
                             <div className="flex border-b border-slate-200 bg-slate-900"><div className="w-20 bg-slate-950 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase border-r border-white/10 shrink-0">Vto Pagaré</div><input type="date" value={initialLoan.promissoryNoteExpiration} onChange={(e: any) => setInitialLoan({ ...initialLoan, promissoryNoteExpiration: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-slate-900 text-white outline-none" /></div>
                             */}
-                            <div className="flex"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{(t as any).clients.registrationForm.ends}</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{initialLoan.endDate ? formatDate(initialLoan.endDate).toUpperCase() : '---'}</div></div>
+                            <div className="flex"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{((t as any).clients?.registrationForm || {}).ends}</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{initialLoan.endDate ? formatDate(initialLoan.endDate).toUpperCase() : '---'}</div></div>
                             <div className="flex bg-slate-800 items-center justify-center p-1.5 border-l border-white/10">
                               <button 
                                 type="button" 
@@ -3117,7 +3192,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 }}
                                 className="bg-sky-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-lg w-full h-full shadow-sm transition-all hover:bg-sky-400 hover:shadow"
                               >
-                                {((t as any).clients.registrationForm.simulate || 'SIMULAR')}
+                                {(((t as any).clients?.registrationForm || {}).simulate || 'SIMULAR')}
                               </button>
                             </div>
                             {simulationResult && (
@@ -3130,11 +3205,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                 </div>
                                 <div className="flex space-x-6">
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{((t as any).clients.registrationForm.approxInstallment || 'Cuota Aprox.')}:</span>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{(((t as any).clients?.registrationForm || {}).approxInstallment || 'Cuota Aprox.')}:</span>
                                     <span className="text-sm font-black text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/20">₲ {simulationResult.installment.toLocaleString('es-PY', { maximumFractionDigits: 0 })}</span>
                                   </div>
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{((t as any).clients.registrationForm.totalAmount || 'Monto Total')}:</span>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{(((t as any).clients?.registrationForm || {}).totalAmount || 'Monto Total')}:</span>
                                     <span className="text-sm font-black text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/20">₲ {simulationResult.total.toLocaleString('es-PY', { maximumFractionDigits: 0 })}</span>
                                   </div>
                                 </div>
@@ -3143,7 +3218,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">{(t as any).clients.registrationForm.paymentTypeFreq}</label>
+                            <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">{((t as any).clients?.registrationForm || {}).paymentTypeFreq}</label>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                               {Object.values(Frequency).map((freq) => (
                                 <button
@@ -3152,7 +3227,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   onClick={() => setInitialLoan((prev: any) => ({ ...prev, frequency: freq }))}
                                   className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all border-2 ${initialLoan.frequency === freq ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 active:border-emerald-200'}`}
                                 >
-                                  {((t as any).clients.registrationForm.frequencies && (t as any).clients.registrationForm.frequencies[freq]) || freq}
+                                  {(((t as any).clients?.registrationForm || {}).frequencies && ((t as any).clients?.registrationForm || {}).frequencies[freq]) || freq}
                                 </button>
                               ))}
                             </div>
@@ -3160,18 +3235,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                           {isAdminOrManager && (
                             <div className="space-y-2">
-                              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">{(t as any).clients.registrationForm.assignCollector}</label>
+                              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest ml-1">{((t as any).clients?.registrationForm || {}).assignCollector}</label>
                               <select
                                 value={initialLoan.selectedCollectorId}
                                 onChange={e => setInitialLoan(prev => ({ ...prev, selectedCollectorId: e.target.value }))}
                                 className="w-full py-3 px-4 bg-white border-2 border-slate-300 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all uppercase"
                               >
-                                <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? ((t as any).clients.registrationForm.selectCollector || '-- SELECCIONAR COBRADOR --') : ((t as any).clients.registrationForm.meDefault || 'YO (POR DEFECTO)')}</option>
+                                <option value="">{currentUserId === '00000000-0000-0000-0000-000000000001' || currentUserId === 'b3716a78-fb4f-4918-8c0b-92004e3d63ec' ? (((t as any).clients?.registrationForm || {}).selectCollector || '-- SELECCIONAR COBRADOR --') : (((t as any).clients?.registrationForm || {}).meDefault || 'YO (POR DEFECTO)')}</option>
                                 {Array.isArray(collectors) && collectors.map(c => (
                                   <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                               </select>
-                              <p className="text-[7px] text-slate-400 font-bold uppercase pl-1">{(t as any).clients.registrationForm.collectorSelectDesc}</p>
+                              <p className="text-[7px] text-slate-400 font-bold uppercase pl-1">{((t as any).clients?.registrationForm || {}).collectorSelectDesc}</p>
                             </div>
                           )}
                         </div>
@@ -3193,9 +3268,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     >
                       {isSubmitting ? (
                         <span className="flex items-center justify-center gap-2">
-                          <i className="fa-solid fa-spinner animate-spin"></i> {(t as any).clients.registrationForm.processing}
+                          <i className="fa-solid fa-spinner animate-spin"></i> {((t as any).clients?.registrationForm || {}).processing}
                         </span>
-                      ) : ((t as any).clients.registrationForm.finishRegistration || 'FINALIZAR REGISTRO Y CRONOGRAMA')}
+                      ) : (((t as any).clients?.registrationForm || {}).finishRegistration || 'FINALIZAR REGISTRO Y CRONOGRAMA')}
                     </button>
                   </div>
                 </form>
@@ -3232,7 +3307,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border-2 border-white/10 overflow-hidden bg-white/5 shadow-xl shrink-0">{clientInLegajo.profilePic && <img src={clientInLegajo.profilePic} className="w-full h-full object-cover" />}</div>
                     <div className="min-w-0">
                       <h3 className="text-sm md:text-lg font-black uppercase tracking-tighter leading-tight truncate">{clientInLegajo.name}</h3>
-                      <p className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5 mt-0.5 truncate"><i className="fa-solid fa-location-dot"></i> {clientInLegajo.address}</p>
+                      <p className="text-[7px] md:text-[8px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5 mt-0.5 truncate"><i className="fa-solid fa-location-dot"></i> {clientInLegajo.address === 'A COMPLETAR' ? (state.settings.language === 'fr' ? 'À COMPLÉTER' : 'A COMPLETAR') : clientInLegajo.address}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -3245,19 +3320,19 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         >
                           {isSharing ? <i className="fa-solid fa-spinner animate-spin text-xs"></i> : <i className="fa-brands fa-whatsapp text-xs"></i>}
                           <span className="hidden xs:inline">{isSharing ? 'GENERANDO...' : 'COMPARTIR'}</span>
-                          {!isSharing && <span className="xs:hidden">ENVIAR</span>}
+                          {!isSharing && <span className="xs:hidden">{state.settings.language === 'fr' ? 'ENVOYER' : 'ENVIAR'}</span>}
                         </button>
                         {isAdminOrManager && (
                           <>
                             <button onClick={() => setActiveTab?.('settings')} className="px-3 py-2 bg-blue-600 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
                               <i className="fa-solid fa-building text-xs"></i>
-                              <span className="hidden sm:inline">EDITAR EMPRESA</span>
-                              <span className="sm:hidden text-[7px]">EMPRESA</span>
+                              <span className="hidden sm:inline">{state.settings.language === 'fr' ? 'ÉDITER ENTREPRISE' : 'EDITAR EMPRESA'}</span>
+                              <span className="sm:hidden text-[7px]">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</span>
                             </button>
                             <button onClick={handleOpenCustomNoPay} className="px-3 py-2 bg-amber-500 text-white rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-lg active:scale-95 transition-all">
                               <i className="fa-solid fa-comment-slash text-xs"></i>
-                              <span className="hidden sm:inline">EDITAR NO PAGO</span>
-                              <span className="sm:hidden text-[7px]">NO PAGO</span>
+                              <span className="hidden sm:inline">{state.settings.language === 'fr' ? 'ÉDITER NON-PAIEMENT' : 'EDITAR NO PAGO'}</span>
+                              <span className="sm:hidden text-[7px]">{state.settings.language === 'fr' ? 'NON-PAIEMENT' : 'NO PAGO'}</span>
                             </button>
                           </>
                         )}
@@ -3268,7 +3343,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         onClick={isEditingClient ? () => setIsEditingClient(false) : handleStartEdit}
                         className={`px-3 py-2 rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest transition-all ${isEditingClient ? 'bg-red-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
                       >
-                        {isEditingClient ? 'CANCELAR' : 'EDITAR'}
+                        {isEditingClient ? (state.settings.language === 'fr' ? 'ANNULER' : 'CANCELAR') : (state.settings.language === 'fr' ? 'ÉDITER' : 'EDITAR')}
                       </button>
                     )}
                     <button onClick={() => { setShowLegajo(null); setIsEditingClient(false); }} className="w-8 h-8 md:w-9 md:h-9 bg-white/10 text-white rounded-lg flex items-center justify-center hover:bg-red-600 transition-all shrink-0"><i className="fa-solid fa-xmark text-lg"></i></button>
@@ -3280,19 +3355,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <>
                       <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm flex flex-wrap items-center justify-center gap-4 animate-fadeIn">
                         <div className="flex items-center gap-2 border-r pr-4 border-slate-200">
-                          <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">MAPA GPS:</span>
-                          <button onClick={() => handleOpenMap(clientInLegajo.location)} className="px-4 py-2.5 bg-emerald-100 text-emerald-900 rounded-xl flex items-center gap-2 shadow-sm hover:bg-emerald-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-house"></i> CASA</button>
-                          <button onClick={() => handleOpenMap(clientInLegajo.domicilioLocation)} className="px-4 py-2.5 bg-blue-100 text-blue-900 rounded-xl flex items-center gap-2 shadow-sm hover:bg-blue-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-briefcase"></i> NEGOCIO</button>
+                          <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CARTE GPS:' : 'MAPA GPS:'}</span>
+                          <button onClick={() => handleOpenMap(clientInLegajo.location)} className="px-4 py-2.5 bg-emerald-100 text-emerald-900 rounded-xl flex items-center gap-2 shadow-sm hover:bg-emerald-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-house"></i> {state.settings.language === 'fr' ? 'MAISON' : 'CASA'}</button>
+                          <button onClick={() => handleOpenMap(clientInLegajo.domicilioLocation)} className="px-4 py-2.5 bg-blue-100 text-blue-900 rounded-xl flex items-center gap-2 shadow-sm hover:bg-blue-600 hover:text-white transition-all font-black text-[9px] uppercase"><i className="fa-solid fa-briefcase"></i> {state.settings.language === 'fr' ? 'TRAVAIL' : 'NEGOCIO'}</button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">CONTACTOS:</span>
+                          <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CONTACTS:' : 'CONTACTOS:'}</span>
                           <div className="flex flex-col gap-2">
                             <button
                               onClick={() => window.open(`https://wa.me/${clientInLegajo.phone.replace(/\D/g, '')}`, '_blank')}
                               className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg font-black text-[9px] flex items-center gap-2 border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
                             >
-                              <i className="fa-brands fa-whatsapp"></i> {clientInLegajo.phone}
-                            </button>
+                              <i className="fa-brands fa-whatsapp"></i> {clientInLegajo.phone === 'A COMPLETAR' ? (state.settings.language === 'fr' ? 'À COMPLÉTER' : 'A COMPLETAR') : clientInLegajo.phone}</button>
                             {clientInLegajo.secondaryPhone && (
                               <button
                                 onClick={() => window.open(`https://wa.me/${clientInLegajo.secondaryPhone?.replace(/\D/g, '')}`, '_blank')}
@@ -3306,29 +3380,30 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         {activeLoanInLegajo && (() => {
                           const DIAS_SEMANA = ['DOMINGOS', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADOS'];
                           const startDate = new Date(activeLoanInLegajo.createdAt.split('T')[0] + 'T00:00:00');
-                          const diaSemana = DIAS_SEMANA[startDate.getDay()];
+                          const FR_DIAS = ["DIMANCHES","LUNDIS","MARDIS","MERCREDIS","JEUDIS","VENDREDIS","SAMEDIS"];
+                            const diaSemana = DIAS_SEMANA[startDate.getDay()];
                           const freq = activeLoanInLegajo.frequency;
                           let texto = '';
                           let badgeClass = '';
                           let iconClass = '';
                           if (freq === Frequency.DAILY || freq === 'Diaria' as any) {
-                            texto = 'DIARIO · PAGO DE LUNES A SÁBADO';
+                            texto = state.settings.language === 'fr' ? 'QUOTIDIEN · PAIEMENT LUNDI AU SAMEDI' : 'DIARIO · PAGO DE LUNES A SÁBADO';
                             badgeClass = 'bg-amber-50 text-amber-800 border-amber-300';
                             iconClass = 'fa-sun';
                           } else if (freq === Frequency.DAILY_MF) {
-                            texto = 'DIARIO · PAGO DE LUNES A VIERNES';
+                            texto = state.settings.language === 'fr' ? 'QUOTIDIEN · PAIEMENT LUNDI AU VENDREDI' : 'DIARIO · PAGO DE LUNES A VIERNES';
                             badgeClass = 'bg-emerald-50 text-emerald-800 border-emerald-300';
                             iconClass = 'fa-calendar-day';
                           } else if (freq === Frequency.WEEKLY) {
-                            texto = `SEMANAL · PAGO LOS ${diaSemana}`;
+                            texto = state.settings.language === 'fr' ? `HEBDOMADAIRE · PAIEMENT LES ${FR_DIAS[startDate.getDay()]}` : `SEMANAL · PAGO LOS ${diaSemana}`;
                             badgeClass = 'bg-violet-50 text-violet-800 border-violet-300';
                             iconClass = 'fa-calendar-week';
                           } else if (freq === Frequency.BIWEEKLY) {
-                            texto = 'QUINCENAL';
+                            texto = state.settings.language === 'fr' ? 'BIMENSUEL' : 'QUINCENAL';
                             badgeClass = 'bg-blue-50 text-blue-800 border-blue-300';
                             iconClass = 'fa-calendar-days';
                           } else {
-                            texto = 'MENSUAL';
+                            texto = state.settings.language === 'fr' ? 'MENSUEL' : 'MENSUAL';
                             badgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
                             iconClass = 'fa-calendar';
                           }
@@ -3345,27 +3420,27 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         <div className="lg:col-span-3 space-y-4">
                           {activeLoanInLegajo ? (
                             <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden" ref={statementRef}>
-                              <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">Resumen Cuenta</h4><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-md uppercase border border-emerald-500/30">En curso</span></div>
+                              <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">{state.settings.language === 'fr' ? 'RÉSUMÉ DU COMPTE' : 'Resumen Cuenta'}</h4><span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-md uppercase border border-emerald-500/30">{state.settings.language === 'fr' ? 'EN COURS' : 'En curso'}</span></div>
                               <div className="overflow-x-auto">
                                 {(() => {
                                   const m = getClientMetrics(clientInLegajo!);
                                   return (
                                     <table className="w-full text-left border-collapse">
                                       <tbody className="divide-y divide-slate-800 text-slate-100 font-bold text-[10px] md:text-[11px]">
-                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 w-1/2 bg-slate-800/20">Monto Habilitado</td><td className="p-3 text-right font-black text-white">{formatCurrency(activeLoanInLegajo.principal, state.settings)}</td></tr>
+                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 w-1/2 bg-slate-800/20">{state.settings.language === 'fr' ? 'MONTANT APPROUVÉ' : 'Monto Habilitado'}</td><td className="p-3 text-right font-black text-white">{formatCurrency(activeLoanInLegajo.principal, state.settings)}</td></tr>
                                         {activeLoanInLegajo.interestRate > 0 && (
-                                          <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/10">Crédito Habilitado</td><td className="p-3 text-right font-black text-slate-300">{formatCurrency(activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
+                                          <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/10">{state.settings.language === 'fr' ? 'CRÉDIT APPROUVÉ' : 'Crédito Habilitado'}</td><td className="p-3 text-right font-black text-slate-300">{formatCurrency(activeLoanInLegajo.totalAmount, state.settings)}</td></tr>
                                         )}
-                                        <tr className="hover:bg-emerald-900/10 transition-colors"><td className="p-3 text-emerald-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-emerald-900/5">Abonado</td><td className="p-3 text-right font-black text-emerald-400">{formatCurrency(m.totalPaid, state.settings)}</td></tr>
-                                        <tr className="hover:bg-red-900/10 transition-colors"><td className="p-3 text-red-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-red-900/5">Saldo Pendiente</td><td className="p-3 text-right font-black text-red-400">{formatCurrency(m.balance, state.settings)}</td></tr>
-                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/20">Progreso Cuotas</td><td className="p-3 text-right font-black text-white">{m.installmentsStr}</td></tr>
+                                        <tr className="hover:bg-emerald-900/10 transition-colors"><td className="p-3 text-emerald-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-emerald-900/5">{state.settings.language === 'fr' ? 'PAYÉ' : 'Abonado'}</td><td className="p-3 text-right font-black text-emerald-400">{formatCurrency(m.totalPaid, state.settings)}</td></tr>
+                                        <tr className="hover:bg-red-900/10 transition-colors"><td className="p-3 text-red-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-red-900/5">{state.settings.language === 'fr' ? 'SOLDE RESTANT' : 'Saldo Pendiente'}</td><td className="p-3 text-right font-black text-red-400">{formatCurrency(m.balance, state.settings)}</td></tr>
+                                        <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-100 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-slate-800/20">{state.settings.language === 'fr' ? 'PROGRÈS ÉCHÉANCES' : 'Progreso Cuotas'}</td><td className="p-3 text-right font-black text-white">{m.installmentsStr}</td></tr>
                                         {/* 
                                         {(activeLoanInLegajo.sellerCode || clientInLegajo.sellerCode) && (
                                           <tr className="hover:bg-blue-900/10 transition-colors"><td className="p-3 text-blue-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800 bg-blue-900/5">Vendedor</td><td className="p-3 text-right font-black text-blue-300">{(activeLoanInLegajo.sellerCode || clientInLegajo.sellerCode)?.toUpperCase()}</td></tr>
                                         )}
                                         */}
                                         {activeLoanInLegajo.operationTypeCode && (
-                                          <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800">Cód Operación</td><td className="p-3 text-right font-black text-slate-400">{activeLoanInLegajo.operationTypeCode}</td></tr>
+                                          <tr className="hover:bg-slate-800/50 transition-colors"><td className="p-3 text-slate-400 font-black uppercase text-[8px] tracking-widest border-r border-slate-800">{state.settings.language === 'fr' ? 'CODE OPÉRATION' : 'Cód Operación'}</td><td className="p-3 text-right font-black text-slate-400">{activeLoanInLegajo.operationTypeCode}</td></tr>
                                         )}
                                         {/* 
                                         {!!activeLoanInLegajo.promissoryNoteAmount && (
@@ -3397,11 +3472,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           )}
 
                           <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
-                            <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">Historial Reciente</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
+                            <div className="p-3 bg-slate-800 border-b border-slate-700 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-100 uppercase tracking-widest">{state.settings.language === 'fr' ? 'HISTORIQUE RÉCENT' : 'Historial Reciente'}</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
                             <div className="max-h-[400px] overflow-y-auto mobile-scroll-container">
                               <table className="w-full text-[10px] border-collapse min-w-[350px]">
                                 <thead className="bg-slate-800 sticky top-0 font-black text-slate-100 border-b border-slate-700 uppercase tracking-widest">
-                                  <tr><th className="px-4 py-3 text-left">Fecha / Hora</th><th className="px-4 py-3 text-left">Concepto</th><th className="px-4 py-3 text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th><th className="px-4 py-3 text-center">{((t as any).clients.list?.thActions || 'Acciones')}</th></tr>
+                                  <tr><th className="px-4 py-3 text-left">{state.settings.language === 'fr' ? 'DATE / HEURE' : 'Fecha / Hora'}</th><th className="px-4 py-3 text-left">{state.settings.language === 'fr' ? 'CONCEPT' : 'Concepto'}</th><th className="px-4 py-3 text-right">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</th><th className="px-4 py-3 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 font-bold">
                                   {(Array.isArray(clientHistory) ? clientHistory : []).map((log) => {
@@ -3421,13 +3496,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                         <td className="px-4 py-3">
                                           <p className={`uppercase font-black text-[9px] ${isLoanGrant ? 'text-blue-400' :
                                             log.isOpening ? 'text-emerald-400' :
-                                              log.type === CollectionLogType.PAYMENT ? 'text-slate-300' :
-                                                'text-red-400'
+                                              log.isRenewal ? 'text-amber-400' :
+                                                log.type === CollectionLogType.PAYMENT ? 'text-slate-300' :
+                                                  'text-red-400'
                                             }`}>
-                                            {isLoanGrant ? 'CRÉDITO' :
-                                              log.isOpening ? 'Crédito Habilitado' :
-                                                log.type === CollectionLogType.PAYMENT ? 'Abono Recibido' :
-                                                  'Visita sin Pago'}
+                                            {isLoanGrant ? (state.settings.language === 'fr' ? 'CRÉDIT' : 'CRÉDITO') :
+                                              log.isOpening ? (state.settings.language === 'fr' ? 'Crédit Approuvé' : 'Crédito Habilitado') :
+                                                log.isRenewal ? (state.settings.language === 'fr' ? 'RENOUVELLEMENT' : state.settings.language === 'pt' ? 'RENOVAÇÃO' : 'RENOVACIÓN') :
+                                                  log.type === CollectionLogType.PAYMENT ? (state.settings.language === 'fr' ? 'Paiement Reçu' : 'Abono Recibido') :
+                                                    (state.settings.language === 'fr' ? 'Visite sans paiement' : state.settings.language === 'pt' ? 'Visita sem Pagamento' : 'Visita sin Pago')}
                                           </p>
                                         </td>
                                         <td className="px-4 py-3 text-right font-black font-mono text-xs text-white">
@@ -3467,32 +3544,32 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
-                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Información Personal</h4><i className="fa-solid fa-user-check text-slate-400"></i></div>
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'INFORMATIONS PERSONNELLES' : 'Información Personal'}</h4><i className="fa-solid fa-user-check text-slate-400"></i></div>
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
                                   <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nacionalidad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.nationality || clientInLegajo.raw_data?.["NACIONALIDAD"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.birthDate || clientInLegajo.raw_data?.["FECHA DE NACIMIENTO"] || clientInLegajo.raw_data?.["F. NAC."] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Estado Civil</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.maritalStatus || clientInLegajo.raw_data?.["ESTADO CIVIL"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.profession || clientInLegajo.raw_data?.["PROFESIÓN"] || clientInLegajo.raw_data?.["PROFESION"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Email</td><td className="p-2 text-slate-900 lowercase">{clientInLegajo.email || clientInLegajo.raw_data?.["EMAIL"] || clientInLegajo.raw_data?.["CORREO"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Clasific.</td><td className="p-2 uppercase text-indigo-700 font-black">{clientInLegajo.clientTypeCode || clientInLegajo.raw_data?.["CLASIFICACIÓN"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tipo Cliente</td><td className="p-2 uppercase text-blue-800 font-black">{clientInLegajo.clientType || clientInLegajo.raw_data?.["TIPO"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">{state.settings.language === 'fr' ? 'NATIONALITÉ' : 'Nacionalidad'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.nationality || clientInLegajo.raw_data?.["NACIONALIDAD"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'DATE DE NAISSANCE' : 'F. Nacimiento'}</td><td className="p-2 text-slate-900">{clientInLegajo.birthDate || clientInLegajo.raw_data?.["FECHA DE NACIMIENTO"] || clientInLegajo.raw_data?.["F. NAC."] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'ÉTAT CIVIL' : 'Estado Civil'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.maritalStatus || clientInLegajo.raw_data?.["ESTADO CIVIL"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'PROFESSION' : 'Profesión'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.profession || clientInLegajo.raw_data?.["PROFESIÓN"] || clientInLegajo.raw_data?.["PROFESION"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'E-MAIL' : 'Email'}</td><td className="p-2 text-slate-900 lowercase">{clientInLegajo.email || clientInLegajo.raw_data?.["EMAIL"] || clientInLegajo.raw_data?.["CORREO"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'CLASSIFIC.' : 'Clasific.'}</td><td className="p-2 uppercase text-indigo-700 font-black">{clientInLegajo.clientTypeCode || clientInLegajo.raw_data?.["CLASIFICACIÓN"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'TYPE CLIENT' : 'Tipo Cliente'}</td><td className="p-2 uppercase text-blue-800 font-black">{clientInLegajo.clientType || clientInLegajo.raw_data?.["TIPO"] || '---'}</td></tr>
                                   </tbody>
                                 </table>
                               </div>
                             </div>
 
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
-                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Historial Crediticio</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'HISTORIQUE DE CRÉDIT' : 'Historial Crediticio'}</h4><i className="fa-solid fa-clock-rotate-left text-slate-400"></i></div>
                               <div className="p-0 max-h-[220px] overflow-y-auto">
                                 <table className="w-full text-left border-collapse">
                                   <thead className="bg-slate-100 text-[7px] text-slate-500 uppercase sticky top-0">
                                     <tr>
-                                      <th className="p-2 border-b border-slate-200">Fecha</th>
-                                      <th className="p-2 border-b border-slate-200 text-right">{((t as any).clients.list?.thCredit || 'Crédito')}</th>
-                                      <th className="p-2 border-b border-slate-200 text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
-                                      <th className="p-2 border-b border-slate-200 text-center">Días de Mora</th>
+                                      <th className="p-2 border-b border-slate-200">{state.settings.language === 'fr' ? 'DATE' : 'Fecha'}</th>
+                                      <th className="p-2 border-b border-slate-200 text-right">{state.settings.language === 'fr' ? 'CRÉDIT' : 'Crédito'}</th>
+                                      <th className="p-2 border-b border-slate-200 text-right">{(((t as any).clients?.list || {})?.thApproved || 'Habilitado')}</th>
+                                      <th className="p-2 border-b border-slate-200 text-center">{state.settings.language === 'fr' ? 'JOURS DE RETARD' : 'Días de Mora'}</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
@@ -3546,7 +3623,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                           <td className="p-2 text-right text-emerald-700 font-mono align-middle">{formatCurrency(loan.totalAmount, state.settings)}</td>
                                           <td className="p-2 text-center align-middle">
                                             <span className={`text-[10px] font-black uppercase ${atraso > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                              {atraso} DÍAS
+                                              {atraso} {state.settings.language === 'fr' ? 'JOURS' : 'DÍAS'}
                                             </span>
                                           </td>
                                         </tr>
@@ -3561,29 +3638,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             </div>
 
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden col-span-1 md:col-span-2">
-                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Información de Vivienda y Laboral</h4><i className="fa-solid fa-house-laptop text-slate-400"></i></div>
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'INFORMATIONS RÉSIDENTIELLES ET PRO.' : 'Información de Vivienda y Laboral'}</h4><i className="fa-solid fa-house-laptop text-slate-400"></i></div>
                               <div className="p-0 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
                                 <div>
                                   <table className="w-full text-left border-collapse">
                                     <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Tipo Casa</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.residenceType || clientInLegajo.raw_data?.["TIPO CASA"] || '---'} ({clientInLegajo.residenceAntiquity || clientInLegajo.raw_data?.["ANTIGÜEDAD CASA"] || '---'})</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Particular - Ciudad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularCity || clientInLegajo.raw_data?.["CIUDAD"] || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Princ.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetMain || clientInLegajo.raw_data?.["DIRECCION"] || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Sec.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetSecondary || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Nro Casa</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.houseNumber || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Barrio Particular</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularNeighborhood || clientInLegajo.raw_data?.["BARRIO"] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">{state.settings.language === 'fr' ? 'TYPE MAISON' : 'Tipo Casa'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.residenceType || clientInLegajo.raw_data?.["TIPO CASA"] || '---'} ({clientInLegajo.residenceAntiquity || clientInLegajo.raw_data?.["ANTIGÜEDAD CASA"] || '---'})</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'RÉSIDENCE - VILLE' : 'Particular - Ciudad'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularCity || clientInLegajo.raw_data?.["CIUDAD"] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'RUE PRINCIPALE' : 'Calle Princ.'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetMain || clientInLegajo.raw_data?.["DIRECCION"] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'RUE SECONDAIRE' : 'Calle Sec.'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularStreetSecondary || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'N° MAISON' : 'Nro Casa'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.houseNumber || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'QUARTIER' : 'Barrio Particular'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.particularNeighborhood || clientInLegajo.raw_data?.["BARRIO"] || '---'}</td></tr>
                                     </tbody>
                                   </table>
                                 </div>
                                 <div className="border-t md:border-t-0">
                                   <table className="w-full text-left border-collapse">
                                     <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] w-1/3 border-r border-slate-100">Empresa</td><td className="p-2 uppercase text-indigo-900 font-black">{clientInLegajo.workCompany || clientInLegajo.raw_data?.["LUGAR DE TRABAJO"] || clientInLegajo.raw_data?.["EMPRESA"] || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Laboral - Ciudad</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.workCity || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Calle Laboral</td><td className="p-2 uppercase text-slate-900 shrink-0">{clientInLegajo.workStreetMain || clientInLegajo.raw_data?.["DIREC. TRAB."] || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Tel. Laboral</td><td className="p-2 text-indigo-700">{clientInLegajo.workPhone || clientInLegajo.raw_data?.["TELÉFONO TRABAJO"] || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Barrio Laboral</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.workNeighborhood || '---'}</td></tr>
-                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] border-r border-slate-100">Salario / Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.workIncome || clientInLegajo.raw_data?.["INGRESO MENSUAL"] || 0, state.settings)}</td></tr>
+                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] w-1/3 border-r border-slate-100">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</td><td className="p-2 uppercase text-indigo-900 font-black">{clientInLegajo.workCompany || clientInLegajo.raw_data?.["LUGAR DE TRABAJO"] || clientInLegajo.raw_data?.["EMPRESA"] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'TRAVAIL - VILLE' : 'Laboral - Ciudad'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.workCity || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'RUE TRAVAIL' : 'Calle Laboral'}</td><td className="p-2 uppercase text-slate-900 shrink-0">{clientInLegajo.workStreetMain || clientInLegajo.raw_data?.["DIREC. TRAB."] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'TÉL. TRAVAIL' : 'Tel. Laboral'}</td><td className="p-2 text-indigo-700">{clientInLegajo.workPhone || clientInLegajo.raw_data?.["TELÉFONO TRABAJO"] || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'QUARTIER TRAVAIL' : 'Barrio Laboral'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.workNeighborhood || '---'}</td></tr>
+                                      <tr><td className="p-2 bg-indigo-50/50 text-indigo-600 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'SALAIRE / REVENUS' : 'Salario / Ingresos'}</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.workIncome || clientInLegajo.raw_data?.["INGRESO MENSUAL"] || 0, state.settings)}</td></tr>
                                     </tbody>
                                   </table>
                                 </div>
@@ -3591,29 +3668,29 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             </div>
 
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
-                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Información del Cónyuge</h4><i className="fa-solid fa-heart text-red-400"></i></div>
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'INFORMATIONS DU CONJOINT' : 'Información del Cónyuge'}</h4><i className="fa-solid fa-heart text-red-400"></i></div>
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
                                   <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Nombre</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseName || clientInLegajo.raw_data?.["NOMBRE CÓNYUGE"] || clientInLegajo.raw_data?.["NOMBRE CONYUGE"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Cédula</td><td className="p-2 text-slate-900">{clientInLegajo.spouseDocumentId || clientInLegajo.raw_data?.["DOCUMENTO CÓNYUGE"] || clientInLegajo.raw_data?.["CEDULA CONYUGE"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">F. Nacimiento</td><td className="p-2 text-slate-900">{clientInLegajo.spouseBirthDate || clientInLegajo.raw_data?.["FECHA NACIMIENTO CÓNYUGE"] || clientInLegajo.raw_data?.["F. NAC. CÓNYUGE"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Profesión</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseProfession || clientInLegajo.raw_data?.["PROFESIÓN CÓNYUGE"] || clientInLegajo.raw_data?.["PROFESION CONYUGE"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Lugar Trab.</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseWorkplace || clientInLegajo.raw_data?.["LUGAR TRABAJO CÓNYUGE"] || '---'}</td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Ingresos</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.spouseIncome || clientInLegajo.raw_data?.["INGRESOS CÓNYUGE"] || 0, state.settings)}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">{state.settings.language === 'fr' ? 'NOM' : 'Nombre'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseName || clientInLegajo.raw_data?.["NOMBRE CÓNYUGE"] || clientInLegajo.raw_data?.["NOMBRE CONYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'}</td><td className="p-2 text-slate-900">{clientInLegajo.spouseDocumentId || clientInLegajo.raw_data?.["DOCUMENTO CÓNYUGE"] || clientInLegajo.raw_data?.["CEDULA CONYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'DATE DE NAISSANCE' : 'F. Nacimiento'}</td><td className="p-2 text-slate-900">{clientInLegajo.spouseBirthDate || clientInLegajo.raw_data?.["FECHA NACIMIENTO CÓNYUGE"] || clientInLegajo.raw_data?.["F. NAC. CÓNYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'PROFESSION' : 'Profesión'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseProfession || clientInLegajo.raw_data?.["PROFESIÓN CÓNYUGE"] || clientInLegajo.raw_data?.["PROFESION CONYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'LIEU DE TRAVAIL' : 'Lugar Trab.'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.spouseWorkplace || clientInLegajo.raw_data?.["LUGAR TRABAJO CÓNYUGE"] || '---'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'REVENUS' : 'Ingresos'}</td><td className="p-2 text-emerald-700 font-black">{formatCurrency(clientInLegajo.spouseIncome || clientInLegajo.raw_data?.["INGRESOS CÓNYUGE"] || 0, state.settings)}</td></tr>
                                   </tbody>
                                 </table>
                               </div>
                             </div>
 
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden">
-                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Referencias Personales</h4><i className="fa-solid fa-users text-blue-400"></i></div>
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center"><h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'RÉFÉRENCES PERSONNELLES' : 'Referencias Personales'}</h4><i className="fa-solid fa-users text-blue-400"></i></div>
                               <div className="p-0">
                                 <table className="w-full text-left border-collapse">
                                   <tbody className="divide-y divide-slate-100 text-[10px] font-bold">
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">Ref. 1</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.raw_data?.["REF 1 NOMBRE"] || '---'} <span className="text-blue-600 block text-[8px]">{clientInLegajo.raw_data?.["REF 1 TELÉFONO"] || clientInLegajo.raw_data?.["REF 1 TELEFONO"]}</span></td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Ref. 2</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.raw_data?.["REF 2 NOMBRE"] || '---'} <span className="text-blue-600 block text-[8px]">{clientInLegajo.raw_data?.["REF 2 TELÉFONO"] || clientInLegajo.raw_data?.["REF 2 TELEFONO"]}</span></td></tr>
-                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">Otras Notas</td><td className="p-2 text-slate-500 font-normal italic leading-tight">{clientInLegajo.raw_data?.["NOTAS"] || 'Sin observaciones adicionales.'}</td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] w-1/3 border-r border-slate-100">{state.settings.language === 'fr' ? 'RÉF. 1' : 'Ref. 1'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.raw_data?.["REF 1 NOMBRE"] || '---'} <span className="text-blue-600 block text-[8px]">{clientInLegajo.raw_data?.["REF 1 TELÉFONO"] || clientInLegajo.raw_data?.["REF 1 TELEFONO"]}</span></td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'RÉF. 2' : 'Ref. 2'}</td><td className="p-2 uppercase text-slate-900">{clientInLegajo.raw_data?.["REF 2 NOMBRE"] || '---'} <span className="text-blue-600 block text-[8px]">{clientInLegajo.raw_data?.["REF 2 TELÉFONO"] || clientInLegajo.raw_data?.["REF 2 TELEFONO"]}</span></td></tr>
+                                    <tr><td className="p-2 bg-slate-50/50 text-slate-500 uppercase text-[7px] border-r border-slate-100">{state.settings.language === 'fr' ? 'AUTRES NOTES' : 'Otras Notas'}</td><td className="p-2 text-slate-500 font-normal italic leading-tight">{clientInLegajo.raw_data?.["NOTAS"] || (state.settings.language === 'fr' ? 'Aucune observation supplémentaire.' : 'Sin observaciones adicionales.')}</td></tr>
                                   </tbody>
                                 </table>
                               </div>
@@ -3624,8 +3701,8 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                           {activeLoanInLegajo && (
                             <div className="bg-white rounded-2xl border border-slate-300 shadow-sm overflow-hidden animate-fadeIn">
                               <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                                <h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">Cronograma de Pagos</h4>
-                                <span className="text-[8px] font-bold text-slate-400 uppercase">{(Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).length} CUOTAS</span>
+                                <h4 className="text-[9px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'CALENDRIER DE PAIEMENT' : 'Cronograma de Pagos'}</h4>
+                                <span className="text-[8px] font-bold text-slate-400 uppercase">{(Array.isArray(activeLoanInLegajo.installments) ? activeLoanInLegajo.installments : []).length} {state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'CUOTAS'}</span>
                               </div>
                               <div className="max-h-[600px] overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 mobile-scroll-container bg-slate-50/30">
                                 {(() => {
@@ -3669,7 +3746,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                                 if (!inst || !inst.dueDate) return '---';
                                                 try {
                                                   const d = new Date(inst.dueDate.split('T')[0] + 'T00:00:00');
-                                                  return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase();
+                                                  return isNaN(d.getTime()) ? '---' : d.toLocaleDateString(state.settings.language === 'fr' ? 'fr-FR' : 'es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }).replace('.', '').toUpperCase();
                                                 } catch (e) {
                                                   return '---';
                                                 }
@@ -3692,9 +3769,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                         </div>
                         <div className="space-y-4">
                           <div className="bg-white p-4 rounded-2xl border border-slate-300 shadow-sm space-y-3">
-                            <h4 className="text-[9px] font-black text-slate-800 uppercase border-b border-slate-200 pb-1.5 tracking-widest">Fotos del Expediente</h4>
+                            <h4 className="text-[9px] font-black text-slate-800 uppercase border-b border-slate-200 pb-1.5 tracking-widest">{state.settings.language === 'fr' ? 'PHOTOS DU DOSSIER' : 'Fotos del Expediente'}</h4>
                             <div className="grid grid-cols-2 gap-2">
-                              {[{ key: 'profilePic', label: 'Perfil' }, { key: 'documentPic', label: 'Cédula' }, { key: 'documentBackPic', label: 'Cédula Dorso' }, { key: 'businessPic', label: 'Negocio' }, { key: 'housePic', label: 'Fachada' }].map((item: { key: string, label: string }) => {
+                              {[{ key: 'profilePic', label: state.settings.language === 'fr' ? 'Profil' : 'Perfil' }, { key: 'documentPic', label: state.settings.language === 'fr' ? 'Identité' : 'Cédula' }, { key: 'documentBackPic', label: state.settings.language === 'fr' ? 'Identité Verso' : 'Cédula Dorso' }, { key: 'businessPic', label: state.settings.language === 'fr' ? 'Travail' : 'Negocio' }, { key: 'housePic', label: state.settings.language === 'fr' ? 'Façade' : 'Fachada' }].map((item: { key: string, label: string }) => {
                                 // Buscar al cliente en tiempo real en el estado para obtener las fotos recién descargadas
                                 const liveClient = (Array.isArray(state.clients) ? state.clients : []).find(c => c.id === clientInLegajo.id) || clientInLegajo;
                                 const photoUrl = liveClient[item.key as keyof Client] as string;
@@ -3726,11 +3803,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             <div className="bg-white rounded-2xl border-2 border-emerald-200 shadow-lg overflow-hidden flex flex-col animate-fadeIn sticky bottom-4 z-10">
                               <div className="p-4 space-y-3 flex-1 bg-gradient-to-b from-white to-emerald-50/20">
                                 <div className="flex justify-between items-center">
-                                  <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">Gestión Rápida</h4>
-                                  {(() => { const m = getClientMetrics(clientInLegajo!); return (<span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase border ${m.daysOverdue > 0 ? 'bg-red-50 text-red-800 border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{m.daysOverdue > 0 ? `${m.daysOverdue} d mora` : 'Al Día'}</span>); })()}
+                                  <h4 className="text-[9px] font-black text-emerald-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'GESTION RAPIDE' : 'Gestión Rápida'}</h4>
+                                  {(() => { const m = getClientMetrics(clientInLegajo!); return (<span className={`px-2 py-0.5 rounded-md text-[7px] font-black uppercase border ${m.daysOverdue > 0 ? 'bg-red-50 text-red-800 border-red-200 animate-pulse' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{m.daysOverdue > 0 ? `${m.daysOverdue} ${state.settings.language === 'fr' ? 'j retard' : 'd mora'}` : (state.settings.language === 'fr' ? 'À Jour' : 'Al Día')}</span>); })()}
                                 </div>
                                 <div className="bg-white p-3 rounded-xl space-y-2 border border-emerald-200 shadow-inner">
-                                  <div className="flex justify-between items-center"><p className="text-[7px] font-black text-slate-700 uppercase">Valor Cuota</p><p className="text-base font-black text-blue-800 font-mono">{formatCurrency(activeLoanInLegajo.installmentValue, state.settings)}</p></div>
+                                  <div className="flex justify-between items-center"><p className="text-[7px] font-black text-slate-700 uppercase">{state.settings.language === 'fr' ? 'VALEUR MENSUALITÉ' : 'Valor Cuota'}</p><p className="text-base font-black text-blue-800 font-mono">{formatCurrency(activeLoanInLegajo.installmentValue, state.settings)}</p></div>
                                 </div>
                               </div>
                               <div className="p-3 bg-white border-t border-slate-200 grid grid-cols-2 gap-2">
@@ -3739,12 +3816,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   const isFullyPaid = m.balance <= 0.01;
                                   return (
                                     <>
-                                      <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">No Pago</button>
+                                      <button onClick={() => handleDossierAction(CollectionLogType.NO_PAGO)} className="py-2.5 bg-slate-50 border border-slate-300 rounded-lg font-black text-[8px] text-red-700 uppercase tracking-widest hover:bg-red-50 transition-all active:scale-95">{state.settings.language === 'fr' ? 'NON-PAIEMENT' : 'No Pago'}</button>
                                       <button
                                         onClick={isFullyPaid ? () => handleOpenRenewalModal(clientInLegajo) : handleOpenDossierPayment}
                                         className={`py-2.5 ${getRenewalButtonColor(m.maxDaysOverdue)} text-white rounded-lg font-black text-[8px] uppercase tracking-widest shadow-md transition-all active:scale-95`}
                                       >
-                                        {isFullyPaid ? 'Renovar Crédito' : 'Cobrar / Renovación'}
+                                        {isFullyPaid ? (state.settings.language === 'fr' ? 'RENOUVELER CRÉDIT' : 'Renovar Crédito') : (state.settings.language === 'fr' ? 'ENCAISSER / RENOUVELLEMENT' : 'Cobrar / Renovación')}
                                       </button>
                                     </>
                                   );
@@ -3752,7 +3829,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                               <div className="px-3 pb-3 bg-white">
                                 <button onClick={() => handleReprintLastReceipt()} className="w-full py-2.5 bg-slate-800 text-white rounded-lg font-black text-[8px] uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
-                                  <i className="fa-solid fa-print"></i> REIMPRIMIR ÚLTIMO RECIBO
+                                  <i className="fa-solid fa-print"></i> {state.settings.language === 'fr' ? 'RÉIMPRIMER DERNIER REÇU' : 'REIMPRIMIR ÚLTIMO RECIBO'}
                                 </button>
                               </div>
                             </div>
@@ -3763,57 +3840,57 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   ) : (
                     <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-300 shadow-sm max-w-5xl mx-auto space-y-10 animate-fadeIn pb-32 mobile-scroll-container">
                       <div className="flex justify-between items-center border-b border-slate-300 pb-3 sticky top-0 bg-white z-10">
-                        <h4 className="text-lg font-black text-slate-950 uppercase tracking-tighter">Modificar Expediente Completo</h4>
+                        <h4 className="text-lg font-black text-slate-950 uppercase tracking-tighter">{state.settings.language === 'fr' ? 'MODIFIER DOSSIER COMPLET' : state.settings.language === 'pt' ? 'MODIFICAR FICHA COMPLETA' : 'Modificar Expediente Completo'}</h4>
                       </div>
 
                       <div className="space-y-4">
-                        <h5 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">I. Datos del Cliente</h5>
+                        <h5 className="text-[10px] font-black text-blue-800 uppercase tracking-widest border-l-4 border-blue-800 pl-2">{state.settings.language === 'fr' ? 'I. DONNÉES DU CLIENT' : 'I. Datos del Cliente'}</h5>
                         <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nombre</div><input type="text" value={editClientFormData?.name} onChange={e => setEditClientFormData(prev => prev ? { ...prev, name: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cédula</div><input type="text" value={editClientFormData?.documentId} onChange={e => setEditClientFormData(prev => prev ? { ...prev, documentId: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-amber-500 uppercase flex items-center border-r border-white/10 shrink-0">Nro Operación</div><input type="text" placeholder="SOLO NÚMEROS" value={editClientFormData?.externalId || ''} onChange={e => setEditClientFormData(prev => prev ? { ...prev, externalId: e.target.value.replace(/\D/g, '') } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-amber-400 outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'NOM' : 'Nombre'}</div><input type="text" value={editClientFormData?.name} onChange={e => setEditClientFormData(prev => prev ? { ...prev, name: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'}</div><input type="text" value={editClientFormData?.documentId} onChange={e => setEditClientFormData(prev => prev ? { ...prev, documentId: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-amber-500 uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'N° OPÉRATION' : 'Nro Operación'}</div><input type="text" placeholder={state.settings.language === 'fr' ? 'CHIFFRES SEULEMENT' : state.settings.language === 'pt' ? 'SOMENTE NÚMEROS' : 'SOLO NÚMEROS'} value={editClientFormData?.externalId || ''} onChange={e => setEditClientFormData(prev => prev ? { ...prev, externalId: e.target.value.replace(/\D/g, '') } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-amber-400 outline-none`} /></div>
                           <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 1</div><input type="tel" value={editClientFormData?.phone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, phone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">WhatsApp 2</div><input type="tel" value={editClientFormData?.secondaryPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, secondaryPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Email</div><input type="email" value={editClientFormData?.email} onChange={e => setEditClientFormData(prev => prev ? { ...prev, email: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'E-MAIL' : 'Email'}</div><input type="email" value={editClientFormData?.email} onChange={e => setEditClientFormData(prev => prev ? { ...prev, email: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           {/* 
                           <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Vendedor</div><input type="text" value={editClientFormData?.sellerCode} onChange={e => setEditClientFormData(prev => prev ? { ...prev, sellerCode: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
                           */}
                           <div className="flex col-span-1 md:col-span-2 border-t border-slate-800">
-                            <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Dirección</div>
+                            <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ADRESSE' : 'Dirección'}</div>
                             <input type="text" value={editClientFormData?.address} onChange={e => setEditClientFormData(prev => prev ? { ...prev, address: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
                           </div>
                         </div>
 
                         <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm mt-2">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Particular Ciudad</div><input type="text" value={editClientFormData?.particularCity} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularCity: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Calle Princ.</div><input type="text" value={editClientFormData?.particularStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Barrio Part.</div><input type="text" value={editClientFormData?.particularNeighborhood} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Nro Casa</div><input type="text" value={editClientFormData?.houseNumber} onChange={e => setEditClientFormData(prev => prev ? { ...prev, houseNumber: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'DOMICILE VILLE' : 'Particular Ciudad'}</div><input type="text" value={editClientFormData?.particularCity} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularCity: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'RUE PRINCIPALE' : 'Calle Princ.'}</div><input type="text" value={editClientFormData?.particularStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'QUARTIER DOM.' : 'Barrio Part.'}</div><input type="text" value={editClientFormData?.particularNeighborhood} onChange={e => setEditClientFormData(prev => prev ? { ...prev, particularNeighborhood: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'N° MAISON' : 'Nro Casa'}</div><input type="text" value={editClientFormData?.houseNumber} onChange={e => setEditClientFormData(prev => prev ? { ...prev, houseNumber: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                         </div>
 
-                        <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest border-l-4 border-indigo-500 pl-2 mt-4">II. Datos Laborales</h5>
+                        <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest border-l-4 border-indigo-500 pl-2 mt-4">{state.settings.language === 'fr' ? 'II. DONNÉES PROFESSIONNELLES' : 'II. Datos Laborales'}</h5>
                         <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 shadow-sm">
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Empresa</div><input type="text" value={editClientFormData?.workCompany} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workCompany: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Cargo</div><input type="text" value={editClientFormData?.workPosition} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPosition: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
-                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Salario</div><input type="number" value={editClientFormData?.workIncome} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workIncome: Number(e.target.value) } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-emerald-400 outline-none`} /></div>
-                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Teléf. Laboral</div><input type="tel" value={editClientFormData?.workPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ENTREPRISE' : 'Empresa'}</div><input type="text" value={editClientFormData?.workCompany} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workCompany: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-indigo-400 uppercase outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'POSTE' : 'Cargo'}</div><input type="text" value={editClientFormData?.workPosition} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPosition: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} /></div>
+                          <div className="flex border-b md:border-r border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'SALAIRE' : 'Salario'}</div><input type="number" value={editClientFormData?.workIncome} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workIncome: Number(e.target.value) } : null)} className={`flex-1 px-3 py-3 text-xs font-black bg-slate-950 text-emerald-400 outline-none`} /></div>
+                          <div className="flex border-b border-slate-800"><div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'TÉL. TRAVAIL' : 'Teléf. Laboral'}</div><input type="tel" value={editClientFormData?.workPhone} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workPhone: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white outline-none`} /></div>
                           <div className="flex col-span-1 md:col-span-2">
-                            <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">Dirección Lab.</div>
+                            <div className="w-24 bg-slate-900 px-3 py-3 text-[7px] font-black text-white uppercase flex items-center border-r border-white/10 shrink-0">{state.settings.language === 'fr' ? 'ADRESSE TRAVAIL' : 'Dirección Lab.'}</div>
                             <input type="text" value={editClientFormData?.workStreetMain} onChange={e => setEditClientFormData(prev => prev ? { ...prev, workStreetMain: e.target.value } : null)} className={`flex-1 px-3 py-3 text-xs font-bold bg-slate-950 text-white uppercase outline-none`} />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-4">
-                            <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l-4 border-emerald-600 pl-2">II. Ubicación GPS</h5>
+                            <h5 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l-4 border-emerald-600 pl-2">{state.settings.language === 'fr' ? 'II. LOCALISATION GPS' : 'II. Ubicación GPS'}</h5>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-2">
                                 <button type="button" onClick={() => handleCaptureLocation('home', true)} className="w-full py-3 bg-emerald-600/20 text-emerald-400 rounded-xl font-black text-[8px] uppercase tracking-widest border border-emerald-600/30 flex items-center justify-center gap-2 hover:bg-emerald-600 hover:text-white transition-all">
-                                  {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-signal"></i>} Capturar Casa
+                                  {isCapturing && capturingType === 'home' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-house-signal"></i>} {state.settings.language === 'fr' ? 'CAPTURER MAISON' : 'Capturar Casa'}
                                 </button>
                                 {editClientFormData?.location ? (
                                   <div className="mt-2 space-y-1">
-                                    <div className="text-[7px] font-black text-emerald-500/70 uppercase tracking-widest text-center">Editar Ubicación</div>
+                                    <div className="text-[7px] font-black text-emerald-500/70 uppercase tracking-widest text-center">{state.settings.language === 'fr' ? 'ÉDITER LOCALISATION' : 'EDITAR UBICACIÓN'}</div>
                                     <div 
                                       onClick={() => {
                                         const input = window.prompt("Editar coordenadas CASA (lat, lng):", `${editClientFormData.location?.lat}, ${editClientFormData.location?.lng}`);
@@ -3831,7 +3908,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   </div>
                                 ) : (
                                   <div className="mt-2 space-y-1">
-                                    <div className="text-[7px] font-black text-emerald-500/70 uppercase tracking-widest text-center">Coordenadas Manuales</div>
+                                    <div className="text-[7px] font-black text-emerald-500/70 uppercase tracking-widest text-center">{state.settings.language === 'fr' ? 'COORDONNÉES MANUELLES' : state.settings.language === 'pt' ? 'COORDENADAS MANUAIS' : 'COORDENADAS MANUALES'}</div>
                                     <div 
                                       onClick={() => {
                                         const input = window.prompt("Ingresar coordenadas CASA (lat, lng):");
@@ -3844,18 +3921,18 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       }}
                                       className="p-2 border border-dashed border-emerald-500/40 rounded-lg text-[10px] font-black text-emerald-500/80 uppercase text-center cursor-pointer hover:border-emerald-500/60 hover:text-emerald-500 hover:bg-emerald-600/10 transition-all block"
                                     >
-                                      <i className="fa-solid fa-keyboard mr-1"></i> INGRESAR
+                                      <i className="fa-solid fa-keyboard mr-1"></i> {state.settings.language === 'fr' ? 'SAISIR' : state.settings.language === 'pt' ? 'INSERIR' : 'INGRESAR'}
                                     </div>
                                   </div>
                                 )}
                               </div>
                               <div className="space-y-2">
                                 <button type="button" onClick={() => handleCaptureLocation('domicilio', true)} className="w-full py-3 bg-blue-600/20 text-blue-400 rounded-xl font-black text-[8px] uppercase tracking-widest border border-blue-600/30 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition-all">
-                                  {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>} Capturar Negocio
+                                  {isCapturing && capturingType === 'domicilio' ? <i className="fa-solid fa-spinner animate-spin"></i> : <i className="fa-solid fa-briefcase"></i>} {state.settings.language === 'fr' ? 'CAPTURER TRAVAIL' : 'Capturar Negocio'}
                                 </button>
                                 {editClientFormData?.domicilioLocation ? (
                                   <div className="mt-2 space-y-1">
-                                    <div className="text-[7px] font-black text-blue-500/70 uppercase tracking-widest text-center">Editar Ubicación</div>
+                                    <div className="text-[7px] font-black text-blue-500/70 uppercase tracking-widest text-center">{state.settings.language === 'fr' ? 'ÉDITER LOCALISATION' : 'EDITAR UBICACIÓN'}</div>
                                     <div 
                                       onClick={() => {
                                         const input = window.prompt("Editar coordenadas NEGOCIO (lat, lng):", `${editClientFormData.domicilioLocation?.lat}, ${editClientFormData.domicilioLocation?.lng}`);
@@ -3873,7 +3950,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   </div>
                                 ) : (
                                   <div className="mt-2 space-y-1">
-                                    <div className="text-[7px] font-black text-blue-500/70 uppercase tracking-widest text-center">Coordenadas Manuales</div>
+                                    <div className="text-[7px] font-black text-blue-500/70 uppercase tracking-widest text-center">{state.settings.language === 'fr' ? 'COORDONNÉES MANUELLES' : state.settings.language === 'pt' ? 'COORDENADAS MANUAIS' : 'COORDENADAS MANUALES'}</div>
                                     <div 
                                       onClick={() => {
                                         const input = window.prompt("Ingresar coordenadas NEGOCIO (lat, lng):");
@@ -3886,7 +3963,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                       }}
                                       className="p-2 border border-dashed border-blue-500/40 rounded-lg text-[10px] font-black text-blue-500/80 uppercase text-center cursor-pointer hover:border-blue-500/60 hover:text-blue-500 hover:bg-blue-600/10 transition-all block"
                                     >
-                                      <i className="fa-solid fa-keyboard mr-1"></i> INGRESAR
+                                      <i className="fa-solid fa-keyboard mr-1"></i> {state.settings.language === 'fr' ? 'SAISIR' : state.settings.language === 'pt' ? 'INSERIR' : 'INGRESAR'}
                                     </div>
                                   </div>
                                 )}
@@ -3899,17 +3976,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               >
                                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${editClientFormData?.allowCollectorLocationUpdate ? 'left-5' : 'left-1'}`}></div>
                               </div>
-                              <span className="text-[8px] font-black text-slate-500 uppercase">Permitir a Cobrador actualizar GPS</span>
+                              <span className="text-[8px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'AUTORISER LE COLLECTEUR À METTRE À JOUR LE GPS' : state.settings.language === 'pt' ? 'PERMITIR COBRADOR ATUALIZAR GPS' : 'Permitir a Cobrador actualizar GPS'}</span>
                             </div>
 
                             <div className="space-y-4">
-                              <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">III. Documentación Fotográfica</h5>
+                              <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-l-4 border-slate-500 pl-2">{state.settings.language === 'fr' ? 'III. DOCUMENTATION PHOTOGRAPHIQUE' : 'III. Documentación Fotográfica'}</h5>
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 bg-white p-3 rounded-xl border border-slate-900/10">
-                                <PhotoUploadField label="Perfil" field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
-                                <PhotoUploadField label="Cédula" field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
-                                <PhotoUploadField label="Cédula Dorso" field="documentBackPic" value={editClientFormData?.documentBackPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', editClientFormData!)} />
-                                <PhotoUploadField label="Fachada" field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', editClientFormData!)} />
-                                <PhotoUploadField label="Negocio" field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', editClientFormData!)} />
+                                <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'PROFIL' : 'Perfil'} field="profilePic" value={editClientFormData?.profilePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Perfil', editClientFormData!)} />
+                                <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'IDENTITÉ' : 'Cédula'} field="documentPic" value={editClientFormData?.documentPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula', editClientFormData!)} />
+                                <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'IDENTITÉ VERSO' : 'Cédula Dorso'} field="documentBackPic" value={editClientFormData?.documentBackPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Cédula Dorso', editClientFormData!)} />
+                                <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'FAÇADE' : 'Fachada'} field="housePic" value={editClientFormData?.housePic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Fachada', editClientFormData!)} />
+                                <PhotoUploadField lang={state.settings.language} label={state.settings.language === 'fr' ? 'TRAVAIL' : 'Negocio'} field="businessPic" value={editClientFormData?.businessPic || ''} onFileChange={handleFileChange} forEdit={true} onView={(src) => handleViewPhotoAsPDF(src, 'Negocio', editClientFormData!)} />
                               </div>
                             </div>
 
@@ -3917,36 +3994,36 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
                           {isAdminOrManager && editLoanFormData && (
                             <div className="space-y-4">
-                              <h5 className="text-[10px] font-black text-orange-500 uppercase tracking-widest border-l-4 border-orange-500 pl-2">IV. Editar Crédito Activo</h5>
+                              <h5 className="text-[10px] font-black text-orange-500 uppercase tracking-widest border-l-4 border-orange-500 pl-2">{state.settings.language === 'fr' ? 'IV. ÉDITER CRÉDIT ACTIF' : 'IV. Editar Crédito Activo'}</h5>
                               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden grid grid-cols-2">
                                 <div className="flex border-b border-r border-slate-800 p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">Monto</label>
+                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</label>
                                   <input type="text" value={editLoanFormData.principal} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, principal: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
                                 </div>
                                 <div className="flex border-b border-slate-800 p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">Int %</label>
+                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'INT %' : 'Int %'}</label>
                                   <input type="text" value={editLoanFormData.interestRate} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, interestRate: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
                                 </div>
                                 <div className="flex border-r border-slate-800 p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">Cuotas</label>
+                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</label>
                                   <input type="text" value={editLoanFormData.totalInstallments} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, totalInstallments: e.target.value }))} className="flex-1 bg-transparent text-white font-black font-mono text-xs outline-none text-right" />
                                 </div>
                                 <div className="flex p-2 items-center gap-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">Inicio</label>
+                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'DÉBUT' : 'Inicio'}</label>
                                   <input type="date" value={editLoanFormData.createdAt ? editLoanFormData.createdAt.split('T')[0] : ''} onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, createdAt: e.target.value }))} className="flex-1 bg-transparent text-white font-black text-[9px] outline-none text-right uppercase" />
                                 </div>
                                 <div className="flex p-2 items-center gap-2 border-t border-slate-800 col-span-2">
-                                  <label className="text-[7px] font-black text-slate-500 uppercase">Frecuencia</label>
+                                  <label className="text-[7px] font-black text-slate-500 uppercase">{state.settings.language === 'fr' ? 'FRÉQUENCE' : 'Frecuencia'}</label>
                                   <select
                                     value={editLoanFormData.frequency}
                                     onChange={e => setEditLoanFormData((prev: any) => ({ ...prev, frequency: e.target.value }))}
                                     className="flex-1 bg-slate-900 text-white font-black text-[9px] outline-none text-right uppercase border-none focus:ring-0 cursor-pointer"
                                   >
-                                    {Object.values(Frequency).map(f => <option key={f} value={f} className="bg-white text-slate-800">{f}</option>)}
+                                    {Object.values(Frequency).map(f => <option key={f} value={f} className="bg-white text-slate-800">{state.settings.language === 'fr' ? (f === Frequency.DAILY || f === 'Diaria' ? 'QUOTIDIEN (L - S)' : f === Frequency.DAILY_MF ? 'QUOTIDIEN (L - V)' : f === Frequency.WEEKLY ? 'HEBDOMADAIRE' : f === Frequency.BIWEEKLY ? 'BIMENSUEL' : 'MENSUEL') : f}</option>)}
                                   </select>
                                 </div>
                               </div>
-                              <p className="text-[8px] text-orange-400 italic text-center opacity-80">* Editar estos valores recalculará todo el cronograma.</p>
+                              <p className="text-[8px] text-orange-400 italic text-center opacity-80">{state.settings.language === 'fr' ? '* L\'édition de ces valeurs recalculera tout le calendrier.' : '* Editar estos valores recalculará todo el cronograma.'}</p>
                             </div>
                           )}
                         </div>
@@ -3955,7 +4032,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                       <div className="pt-6 sticky bottom-0 bg-white/98 z-10 pb-4">
                         <button onClick={handleSaveEditedClient} className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
                           <i className="fa-solid fa-cloud-arrow-up"></i>
-                          {isCollector ? 'GUARDAR UBICACIONES' : 'GUARDAR TODOS LOS CAMBIOS'}
+                          {isCollector ? 'GUARDAR UBICACIONES' : (state.settings.language === 'fr' ? 'ENREGISTRER TOUS LES CHANGEMENTS' : 'GUARDAR TODOS LOS CAMBIOS')}
                         </button>
                       </div>
                     </div>
@@ -4010,16 +4087,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               onChange={(e: any) => setRenewForm({ ...renewForm, operationTypeCode: e.target.value })}
                               className="flex-1 px-3 py-3 text-[10px] font-black bg-blue-600 text-white outline-none cursor-pointer"
                             >
-                              {((t as any).clients.registrationForm.operationTypes || OPERATION_TYPES).map((o: any) => (
+                              {(((t as any).clients?.registrationForm || {}).operationTypes || OPERATION_TYPES).map((o: any) => (
                                 <option key={o.code} value={o.code} className="bg-blue-700">{o.code} - {o.label}</option>
                               ))}
                             </select>
                           </div>
                           <div className="flex border-b border-slate-200">
-                            <div className="w-20 bg-blue-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">Cuotas</div>
+                            <div className="w-20 bg-blue-700 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{state.settings.language === 'fr' ? 'ÉCHÉANCES' : 'Cuotas'}</div>
                             <input type="text" value={renewForm.installments} onChange={(e: any) => setRenewForm({ ...renewForm, installments: e.target.value })} className="flex-1 px-3 py-3 text-xs font-black bg-blue-600 text-white outline-none" />
                           </div>
-                          <div className="flex border-r border-slate-200"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{(t as any).clients.registrationForm.ends}</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{renewForm.endDate ? formatDate(renewForm.endDate).toUpperCase() : '---'}</div></div>
+                          <div className="flex border-r border-slate-200"><div className="w-20 bg-slate-900 px-3 py-3 text-[7px] font-black text-white flex items-center uppercase">{((t as any).clients?.registrationForm || {}).ends}</div><div className="flex-1 px-3 py-3 text-[9px] font-black bg-slate-800 text-white flex items-center">{renewForm.endDate ? formatDate(renewForm.endDate).toUpperCase() : '---'}</div></div>
                           <div className="flex bg-slate-800 items-center justify-center p-1.5 border-l border-white/10">
                             <button 
                               type="button" 
@@ -4033,7 +4110,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               }}
                               className="bg-sky-500 text-white text-[9px] font-black uppercase px-4 py-2 rounded-lg w-full h-full shadow-sm transition-all hover:bg-sky-400 hover:shadow"
                             >
-                              {((t as any).clients.registrationForm.simulate || 'SIMULAR')}
+                              {(((t as any).clients?.registrationForm || {}).simulate || 'SIMULAR')}
                             </button>
                           </div>
                           {renewSimulationResult && (
@@ -4046,11 +4123,11 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                               </div>
                               <div className="flex space-x-6">
                                 <div className="flex items-center space-x-2">
-                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{((t as any).clients.registrationForm.approxInstallment || 'Cuota Aprox.')}:</span>
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{(((t as any).clients?.registrationForm || {}).approxInstallment || 'Cuota Aprox.')}:</span>
                                   <span className="text-sm font-black text-blue-400 bg-blue-950/30 px-2 py-0.5 rounded border border-blue-500/20">₲ {renewSimulationResult.installment.toLocaleString('es-PY', { maximumFractionDigits: 0 })}</span>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{((t as any).clients.registrationForm.totalAmount || 'Monto Total')}:</span>
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{(((t as any).clients?.registrationForm || {}).totalAmount || 'Monto Total')}:</span>
                                   <span className="text-sm font-black text-blue-400 bg-blue-950/30 px-2 py-0.5 rounded border border-blue-500/20">₲ {renewSimulationResult.total.toLocaleString('es-PY', { maximumFractionDigits: 0 })}</span>
                                 </div>
                               </div>
@@ -4188,12 +4265,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
             <div className="fixed inset-0 bg-slate-900/98 flex items-start justify-center z-[200] p-4 pt-10 md:pt-20">
               <div className="bg-white rounded-[2rem] shadow-2xl w-full max-md overflow-hidden animate-scaleIn">
                 <div className="p-6 bg-amber-500 text-white flex justify-between items-center">
-                  <h3 className="text-lg font-black uppercase">Mensaje Personalizado Mora</h3>
+                  <h3 className="text-lg font-black uppercase">{state.settings.language === 'fr' ? 'Message Personnalisé de Retard' : state.settings.language === 'pt' ? 'Mensagem Personalizada de Atraso' : 'Mensaje Personalizado Mora'}</h3>
                   <button onClick={() => setShowCustomNoPayModal(false)}><i className="fa-solid fa-xmark text-xl"></i></button>
                 </div>
                 <div className="p-8 space-y-6">
-                  <textarea value={customNoPayText} onChange={e => setCustomNoPayText(e.target.value)} placeholder="Ej: Hola, registramos su mora. Favor pagar mañana sin falta..." className="w-full h-32 p-4 rounded-xl border border-slate-300 font-bold outline-none focus:ring-2 focus:ring-amber-500"></textarea>
-                  <button onClick={handleSaveCustomNoPay} className="w-full py-4 bg-amber-500 text-white rounded-xl font-black uppercase tracking-widest shadow-xl">GUARDAR MENSAJE</button>
+                  <textarea value={customNoPayText} onChange={e => setCustomNoPayText(e.target.value)} placeholder={state.settings.language === 'fr' ? 'Ex: Bonjour, nous avons enregistré votre retard. Veuillez payer demain sans faute...' : state.settings.language === 'pt' ? 'Ex: Olá, registramos seu atraso. Favor pagar amanhã sem falta...' : 'Ej: Hola, registramos su mora. Favor pagar mañana sin falta...'} className="w-full h-32 p-4 rounded-xl border border-slate-300 font-bold outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+                  <button onClick={handleSaveCustomNoPay} className="w-full py-4 bg-amber-500 text-white rounded-xl font-black uppercase tracking-widest shadow-xl">{state.settings.language === 'fr' ? 'ENREGISTRER LE MESSAGE' : state.settings.language === 'pt' ? 'SALVAR MENSAGEM' : 'GUARDAR MENSAJE'}</button>
                 </div>
               </div>
             </div>
@@ -4210,17 +4287,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <i className="fa-solid fa-sack-dollar"></i>
                   </div>
                   <div>
-                    <p className="text-sm font-black text-white uppercase tracking-widest mb-1">{new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</p>
+                    <p className="text-sm font-black text-white uppercase tracking-widest mb-1">{new Date().toLocaleDateString(state.settings.language === 'fr' ? 'fr-FR' : 'es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()}</p>
                     <h1 className="text-2xl font-black text-white tracking-tight uppercase leading-none">{clientInLegajo?.name}</h1>
                     <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{clientInLegajo?.phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''} / {clientInLegajo?.secondaryPhone?.replace(/(\d{3})(\d{4})(\d{4})/, '$1$2$3') || ''}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">ACTIVO</span>
+                  <span className="px-3 py-1 bg-[#10b981] text-white text-[9px] font-black rounded-lg uppercase tracking-wider">{state.settings.language === 'fr' ? 'ACTIF' : state.settings.language === 'pt' ? 'ATIVO' : 'ACTIVO'}</span>
                   <div className="text-right">
-                    <p className="text-xs font-black text-white uppercase tracking-widest">TOTAL: {formatCurrency(getClientMetrics(clientInLegajo!).totalCreditAmount || activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
-                    <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">ABONADO: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
-                    <p className="text-xs font-black text-red-500 uppercase tracking-widest">SALDO: {formatCurrency(getClientMetrics(clientInLegajo!).balance, state.settings)}</p>
+                    <p className="text-xs font-black text-white uppercase tracking-widest">{state.settings.language === 'fr' ? 'TOTAL' : 'TOTAL'}: {formatCurrency(getClientMetrics(clientInLegajo!).totalCreditAmount || activeLoanInLegajo?.totalAmount || 0, state.settings)}</p>
+                    <p className="text-xs font-black text-[#10b981] uppercase tracking-widest">{state.settings.language === 'fr' ? 'PAYÉ' : state.settings.language === 'pt' ? 'PAGO' : 'ABONADO'}: {formatCurrency(getClientMetrics(clientInLegajo!).totalPaid, state.settings)}</p>
+                    <p className="text-xs font-black text-red-500 uppercase tracking-widest">{state.settings.language === 'fr' ? 'SOLDE' : 'SALDO'}: {formatCurrency(getClientMetrics(clientInLegajo!).balance, state.settings)}</p>
                   </div>
                 </div>
               </div>
@@ -4228,7 +4305,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               <div className="bg-white p-6 space-y-4">
                 {/* INSTALLMENTS GRID */}
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">CRONOGRAMA - {(Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).length} CUOTAS</h3>
+                  <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">{state.settings.language === 'fr' ? 'CALENDRIER' : 'CRONOGRAMA'} - {(Array.isArray(activeLoanInLegajo?.installments) ? activeLoanInLegajo.installments : []).length} {state.settings.language === 'fr' ? 'QUOTAS' : state.settings.language === 'pt' ? 'PARCELAS' : 'CUOTAS'}</h3>
 
                   <div className="grid grid-cols-6 gap-2">
                     {(() => {
@@ -4261,7 +4338,7 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                                   if (!inst || !inst.dueDate) return '---';
                                   try {
                                     const d = new Date(inst.dueDate + 'T00:00:00');
-                                    return isNaN(d.getTime()) ? '---' : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'numeric' });
+                                    return isNaN(d.getTime()) ? '---' : d.toLocaleDateString(state.settings.language === 'fr' ? 'fr-FR' : 'es-ES', { day: 'numeric', month: 'numeric' });
                                   } catch (e) {
                                     return '---';
                                   }
@@ -4273,15 +4350,15 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                             </p>
                             {isPartial && (
                               <div className="flex flex-col gap-0.5">
-                                <p className="text-[8px] font-black text-emerald-600 uppercase leading-none whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
-                                <p className="text-[8px] font-black text-red-600 uppercase leading-none whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                                <p className="text-[8px] font-black text-emerald-600 uppercase leading-none whitespace-nowrap tracking-tight">✓ {state.settings.language === 'fr' ? 'Payé' : state.settings.language === 'pt' ? 'Pago' : 'Pagado'}: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
+                                <p className="text-[8px] font-black text-red-600 uppercase leading-none whitespace-nowrap tracking-tight">{state.settings.language === 'fr' ? 'En attente' : state.settings.language === 'pt' ? 'Pendente' : 'Pendiente'}: {formatCurrency(pendingAmount, state.settings)}</p>
                               </div>
                             )}
                             {isPaid && (
-                              <p className="text-[8px] font-black text-[#10b981] uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">✓ Pagado: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
+                              <p className="text-[8px] font-black text-[#10b981] uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">✓ {state.settings.language === 'fr' ? 'Payé' : state.settings.language === 'pt' ? 'Pago' : 'Pagado'}: {formatCurrency(amountPaidForThisOne, state.settings)}</p>
                             )}
                             {!isPaid && !isPartial && (
-                              <p className="text-[8px] font-black text-red-600 uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">Pendiente: {formatCurrency(pendingAmount, state.settings)}</p>
+                              <p className="text-[8px] font-black text-red-600 uppercase leading-none mt-0.5 whitespace-nowrap tracking-tight">{state.settings.language === 'fr' ? 'En attente' : state.settings.language === 'pt' ? 'Pendente' : 'Pendiente'}: {formatCurrency(pendingAmount, state.settings)}</p>
                             )}
                           </div>
                         );
@@ -4298,16 +4375,16 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                     <i className="fa-brands fa-whatsapp"></i>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">MARCA</p>
+                    <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">{state.settings.language === 'fr' ? 'MARQUE' : 'MARCA'}</p>
                     <p className="text-2xl font-black text-[#1e293b] tracking-tight leading-none mb-1">{state.settings.companyAlias || state.settings.companyName || 'ANEXO S.A'}</p>
-                    <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">SOPORTE DIRECTO</p>
+                    <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">{state.settings.language === 'fr' ? 'SUPPORT DIRECT' : state.settings.language === 'pt' ? 'SUPORTE DIRETO' : 'SOPORTE DIRECTO'}</p>
                     <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.contactPhone || '3333333333'}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">BANCO O FINANCIERA</p>
+                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest">{state.settings.language === 'fr' ? 'BANQUE OU FINANCIÈRE' : state.settings.language === 'pt' ? 'BANCO OU FINANCEIRA' : 'BANCO O FINANCIERA'}</p>
                   <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareLabel || 'BANCO FAMILIAR'}</p>
-                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">NUMERO DE CUENTA O ALIAS DE LA EMPRESA</p>
+                  <p className="text-[8px] font-black text-[#166534] uppercase tracking-widest mt-1">{state.settings.language === 'fr' ? 'NUMÉRO DE COMPTE OU ALIAS DE L\'ENTREPRISE' : state.settings.language === 'pt' ? 'NÚMERO DE CONTA OU ALIAS DA EMPRESA' : 'NUMERO DE CUENTA O ALIAS DE LA EMPRESA'}</p>
                   <p className="text-xl font-black text-[#1e293b] tracking-tight leading-none">{state.settings.shareValue || '3.770.096'}</p>
                 </div>
               </div>
@@ -4373,42 +4450,57 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
       </div>
     </PullToRefresh>
 
-      {showImportModal && (
-        // ... (existing modal content)
+      {showImportModal && (() => {
+        const lang = state.settings.language;
+        const isFrM = lang === 'fr';
+        const isPtM = lang === 'pt';
+        const im = {
+          close:           isFrM ? 'FERMER' : isPtM ? 'FECHAR' : 'CERRAR',
+          title:           isFrM ? 'IMPORTATION INTELLIGENTE' : isPtM ? 'IMPORTAÇÃO INTELIGENTE' : 'IMPORTACIÓN INTELIGENTE',
+          subtitle:        isFrM ? 'Reconnaissance universelle des en-têtes (ID, Montant, Intérêt, Échéances).' : isPtM ? 'Reconhecimento universal de cabeçalhos (ID, Valor, Juros, Parcelas).' : 'Reconocimiento universal de encabezados (ID, Monto, Interés, Cuotas).',
+          download:        isFrM ? 'TÉLÉCHARGER MODÈLE EXEMPLE' : isPtM ? 'BAIXAR PLANILHA MODELO' : 'DESCARGAR PLANTILLA MUESTRA',
+          selectCollector: isFrM ? 'SÉLECTIONNER COLLECTEUR / ROUTE' : isPtM ? 'SELECIONAR COBRADOR / ROTA' : 'SELECCIONAR COBRADOR / RUTA',
+          chooseCollector: isFrM ? '-- CHOISIR UN COLLECTEUR --' : isPtM ? '-- ESCOLHA UM COBRADOR --' : '-- ELIJA UN COBRADOR --',
+          analyzing:       isFrM ? 'Analyse en cours...' : isPtM ? 'Analisando...' : 'Analizando...',
+          uploadLine1:     isFrM ? 'TÉLÉCHARGER FICHIER EXCEL (XLSX, XLS),' : isPtM ? 'ENVIAR PLANILHA EXCEL (XLSX, XLS),' : 'SUBIR PLANILLA EXCEL (XLSX, XLS),',
+          uploadLine2:     isFrM ? 'XLSB OU FICHIER JSON' : isPtM ? 'XLSB OU ARQUIVO JSON' : 'XLSB o Archivo JSON',
+          cancel:          isFrM ? "ANNULER L'OPÉRATION" : isPtM ? 'CANCELAR OPERAÇÃO' : 'CANCELAR OPERACIÓN',
+        };
+        return (
         <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[99999] flex items-start justify-center pt-16 md:pt-24 px-4 animate-fadeIn">
           <div className="bg-white rounded-3xl p-8 border border-slate-200 w-full max-w-md shadow-2xl relative animate-scaleIn">
             <button 
               onClick={() => setShowImportModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-all font-black text-[10px] uppercase"
             >
-              Cerrar
+              {im.close}
             </button>
 
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl shadow-inner mx-auto">
               <Upload />
             </div>
 
-            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">Importación Inteligente</h3>
+            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">{im.title}</h3>
             <p className="text-slate-500 text-[9px] font-bold mb-6 uppercase tracking-widest text-center px-4">
-              Reconocimiento universal de encabezados (ID, Monto, Interés, Cuotas).
+              {im.subtitle}
             </p>
             
             <div className="space-y-4">
               <button 
-                onClick={() => downloadExcelTemplate()}
+                onClick={() => downloadExcelTemplate(lang)}
                 className="w-full py-3 bg-slate-100 text-slate-700 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-slate-200 transition-all uppercase tracking-widest border border-slate-200 shadow-sm"
               >
-                <Download size={14} /> Descargar Plantilla Muestra
+                <Download size={14} /> {im.download}
               </button>
 
               <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                <p className="text-[10px] font-black text-emerald-800 uppercase mb-2">Seleccionar Cobrador / Ruta</p>
+                <p className="text-[10px] font-black text-emerald-800 uppercase mb-2">{im.selectCollector}</p>
                 <select 
                   className="w-full bg-white border border-emerald-200 rounded-lg p-3 text-xs font-black text-emerald-900 outline-none focus:border-emerald-500 transition-all uppercase"
                   value={selectedCollectorForImport}
                   onChange={(e) => setSelectedCollectorForImport(e.target.value)}
                 >
-                  <option value="">-- ELIJA UN COBRADOR --</option>
+                  <option value="">{im.chooseCollector}</option>
                   {collectors.map(c => (
                     <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>
                   ))}
@@ -4426,12 +4518,12 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 {isProcessingExcel ? (
                   <div className="flex flex-col items-center gap-2">
                     <RefreshCcw className="animate-spin text-emerald-600" />
-                    <span className="text-[10px] font-black text-emerald-800 uppercase">Analizando...</span>
+                    <span className="text-[10px] font-black text-emerald-800 uppercase">{im.analyzing}</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-emerald-600">
                     <i className="fa-solid fa-file-upload text-3xl mb-2"></i>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-center">Subir Planilla EXCEL (XLSX, XLS),<br/> XLSB o Archivo JSON</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-center">{im.uploadLine1}<br/>{im.uploadLine2}</span>
                   </div>
                 )}
               </label>
@@ -4440,12 +4532,13 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 onClick={() => setShowImportModal(false)}
                 className="w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-xl transition-all"
               >
-                Cancelar Operación
+                {im.cancel}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {previewData && (
         <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[999999] flex items-center justify-center p-4 animate-fadeIn">
@@ -4546,10 +4639,10 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                   <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead className="bg-slate-900 text-white sticky top-0 z-10">
                       <tr>
-                        <th className="p-3 text-[9px] font-black uppercase text-left">{((t as any).clients.list?.thClient || 'Cliente')}</th>
-                        <th className="p-3 text-[9px] font-black uppercase text-right">{((t as any).clients.list?.thApproved || 'Habilitado')}</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-left">{(((t as any).clients?.list || {})?.thClient || 'Cliente')}</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">{(((t as any).clients?.list || {})?.thApproved || 'Habilitado')}</th>
                         <th className="p-3 text-[9px] font-black uppercase text-right">V. Cuota</th>
-                        <th className="p-3 text-[9px] font-black uppercase text-right">{((t as any).clients.list?.thAmount || 'Monto')}</th>
+                        <th className="p-3 text-[9px] font-black uppercase text-right">{state.settings.language === 'fr' ? 'MONTANT' : 'Monto'}</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Tot</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Pag</th>
                         <th className="p-3 text-[9px] font-black uppercase text-center">Pend</th>

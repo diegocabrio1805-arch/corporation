@@ -116,7 +116,87 @@ export const translations = {
           deletedBy: 'Eliminado Por',
           amount: 'Monto Anulado'
         },
+        
+        types: {
+          payment: 'Pago Eliminado',
+          credit: 'Crédito Eliminado',
+          client: 'Cliente Eliminado',
+          origPayment: 'Pago orig:',
+          quotas: 'cuotas',
+          daily: 'Diaria',
+          weekly: 'Semanal',
+          biweekly: 'Quincenal',
+          monthly: 'Mensual'
+        },
         empty: 'No se encontraron pagos eliminados en este rango de fechas.'
+      },
+      auditPDF: {
+        title: 'REPORTE AUDITOR GENERAL',
+        collector: 'COBRADOR:',
+        period: 'PERIODO AUDITADO:',
+        date: 'FECHA REPORTE:',
+        verdict: 'VEREDICTO',
+        verdictText: {
+          EXCELENTE: 'EXCELENTE',
+          BUENO: 'BUENO',
+          'MEDIANAMENTE BUENO': 'MEDIANAMENTE BUENO',
+          'MEDIANAMENTE MALO': 'MEDIANAMENTE MALO',
+          MALO: 'MALO',
+          REGULAR: 'REGULAR',
+          DEFICIENTE: 'DEFICIENTE'
+        },
+        kpi: {
+          revenue: 'RECAUDO TOTAL',
+          portfolio: 'CARTERA TOTAL',
+          paid: 'PAGARON',
+          new: 'NUEVOS',
+          coverage: 'COBERTURA'
+        },
+        analysis: {
+          title: 'ANÁLISIS DE RENDIMIENTO',
+          excellent: 'EXCELENTE: Aumento en base de clientes y recaudación. Gestión efectiva y crecimiento saludable.',
+          alert: 'ALERTA: Más clientes pero menos recaudación. Posible deterioro de cartera o créditos nuevos sin pago.',
+          stable: 'ESTABLE: Recaudación sube sin nuevos clientes. Buena recuperación, pero baja expansión.',
+          critical: 'CRÍTICO: Caída en clientes y recaudación. Requiere intervención inmediata.'
+        },
+        charts: {
+          daily: 'EVOLUCIÓN DIARIA (LUNES - SÁBADO)',
+          weekly: 'EVOLUCIÓN SEMANAL (PERIODO SELECCIONADO)',
+          monthly: 'HISTÓRICO MENSUAL',
+          period: 'PERIODO',
+          revenue: 'RECAUDO',
+          trend: 'TENDENCIA'
+        },
+        unpaid: {
+          title: 'CLIENTES SIN PAGO',
+          desc: 'Listado de clientes activos asignados que no registraron pagos en este periodo.',
+          client: 'CLIENTE',
+          lastPayment: 'ÚLTIMO PAGO',
+          overdue: 'MORA',
+          debt: 'SALDO DEUDA',
+          never: 'NUNCA',
+          days: 'días',
+          congrats: '¡Felicitaciones! Todos los clientes activos realizaron pagos.',
+          totalDebt: 'TOTAL CARTERA EN MORA (ESTE PERIODO):'
+        },
+        footer: 'Reporte Interno - Anexo Cobro',
+        page: 'Página'
+      },
+      deleted: {
+        title: 'AUDITORÍA DE PAGOS ELIMINADOS',
+        collector: 'COBRADOR FILTRADO: ',
+        period: 'PERIODO DE ELIMINACIÓN: ',
+        date: 'FECHA DE REPORTE: ',
+        table: {
+          date: 'FECHA ELIM.',
+          client: 'CLIENTE',
+          deletedBy: 'ELIMINADO POR',
+          original: 'COBRADOR ORIG.',
+          amount: 'MONTO'
+        },
+        empty: 'NO SE ENCONTRARON PAGOS ELIMINADOS EN ESTE PERIODO.',
+        total: 'TOTAL DINERO ANULADO:',
+        footer: 'Auditoría Interna de Seguridad - Anexo Cobro'
       }
     },
     loans: {
@@ -952,7 +1032,87 @@ export const translations = {
           deletedBy: 'Deleted By',
           amount: 'Canceled Amount'
         },
+        
+        types: {
+          payment: 'Deleted Payment',
+          credit: 'Deleted Credit',
+          client: 'Deleted Client',
+          origPayment: 'Orig payment:',
+          quotas: 'quotas',
+          daily: 'Daily',
+          weekly: 'Weekly',
+          biweekly: 'Biweekly',
+          monthly: 'Monthly'
+        },
         empty: 'No deleted payments found in this date range.'
+      },
+      auditPDF: {
+        title: 'GENERAL AUDITOR REPORT',
+        collector: 'COLLECTOR:',
+        period: 'AUDITED PERIOD:',
+        date: 'REPORT DATE:',
+        verdict: 'VERDICT',
+        verdictText: {
+          EXCELENTE: 'EXCELLENT',
+          BUENO: 'GOOD',
+          'MEDIANAMENTE BUENO': 'FAIRLY GOOD',
+          'MEDIANAMENTE MALO': 'FAIRLY BAD',
+          MALO: 'BAD',
+          REGULAR: 'REGULAR',
+          DEFICIENTE: 'DEFICIENT'
+        },
+        kpi: {
+          revenue: 'TOTAL REVENUE',
+          portfolio: 'TOTAL PORTFOLIO',
+          paid: 'PAID',
+          new: 'NEW',
+          coverage: 'COVERAGE'
+        },
+        analysis: {
+          title: 'PERFORMANCE ANALYSIS',
+          excellent: 'EXCELLENT: Increase in customer base and revenue.',
+          alert: 'ALERT: More customers but less revenue.',
+          stable: 'STABLE: Revenue up without new customers.',
+          critical: 'CRITICAL: Drop in customers and revenue.'
+        },
+        charts: {
+          daily: 'DAILY EVOLUTION',
+          weekly: 'WEEKLY EVOLUTION',
+          monthly: 'MONTHLY HISTORY',
+          period: 'PERIOD',
+          revenue: 'REVENUE',
+          trend: 'TREND'
+        },
+        unpaid: {
+          title: 'UNPAID CLIENTS',
+          desc: 'List of active clients.',
+          client: 'CLIENT',
+          lastPayment: 'LAST PAYMENT',
+          overdue: 'OVERDUE',
+          debt: 'DEBT BALANCE',
+          never: 'NEVER',
+          days: 'days',
+          congrats: 'Congratulations!',
+          totalDebt: 'TOTAL OVERDUE DEBT:'
+        },
+        footer: 'Internal Report - Anexo Cobro',
+        page: 'Page'
+      },
+      deleted: {
+        title: 'DELETED PAYMENTS AUDIT',
+        collector: 'FILTERED COLLECTOR: ',
+        period: 'DELETION PERIOD: ',
+        date: 'REPORT DATE: ',
+        table: {
+          date: 'DEL. DATE',
+          client: 'CLIENT',
+          deletedBy: 'DELETED BY',
+          original: 'ORIG. COLLECTOR',
+          amount: 'AMOUNT'
+        },
+        empty: 'NO DELETED PAYMENTS FOUND IN THIS PERIOD.',
+        total: 'TOTAL CANCELED MONEY:',
+        footer: 'Internal Security Audit - Anexo Cobro'
       }
     },
     loans: {
@@ -1788,7 +1948,87 @@ export const translations = {
           deletedBy: 'Supprimé Par',
           amount: 'Montant Annulé'
         },
+        
+        types: {
+          payment: 'Paiement Supprimé',
+          credit: 'Crédit Supprimé',
+          client: 'Client Supprimé',
+          origPayment: 'Paiement orig:',
+          quotas: 'quotas',
+          daily: 'Quotidien',
+          weekly: 'Hebdomadaire',
+          biweekly: 'Bimensuel',
+          monthly: 'Mensuel'
+        },
         empty: 'Aucun paiement supprimé trouvé dans cette plage de dates.'
+      },
+      auditPDF: {
+        title: 'RAPPORT D\'AUDITEUR GÉNÉRAL',
+        collector: 'COLLECTEUR: ',
+        period: 'PÉRIODE AUDITÉE:',
+        date: 'DATE DU RAPPORT:',
+        verdict: 'VERDICT',
+        verdictText: {
+          EXCELENTE: 'EXCELLENT',
+          BUENO: 'BON',
+          'MEDIANAMENTE BUENO': 'MOYENNEMENT BON',
+          'MEDIANAMENTE MALO': 'MOYENNEMENT MAUVAIS',
+          MALO: 'MAUVAIS',
+          REGULAR: 'RÉGULIER',
+          DEFICIENTE: 'DÉFICIENT'
+        },
+        kpi: {
+          revenue: 'REVENU TOTAL',
+          portfolio: 'PORTEFEUILLE',
+          paid: 'ONT PAYÉ',
+          new: 'NOUVEAUX',
+          coverage: 'COUVERTURE'
+        },
+        analysis: {
+          title: 'ANALYSE DE RENDEMENT',
+          excellent: 'EXCELLENT: Augmentation de la base de clients et des revenus.',
+          alert: 'ALERTE: Plus de clients mais moins de revenus.',
+          stable: 'STABLE: Les revenus augmentent sans nouveaux clients.',
+          critical: 'CRITIQUE: Baisse des clients et des revenus.'
+        },
+        charts: {
+          daily: 'ÉVOLUTION QUOTIDIENNE',
+          weekly: 'ÉVOLUTION HEBDOMADAIRE',
+          monthly: 'HISTORIQUE MENSUEL',
+          period: 'PÉRIODE',
+          revenue: 'REVENU',
+          trend: 'TENDANCE'
+        },
+        unpaid: {
+          title: 'CLIENTS SANS PAIEMENT',
+          desc: 'Liste des clients actifs assignés.',
+          client: 'CLIENT',
+          lastPayment: 'DERNIER PAIEMENT',
+          overdue: 'RETARD',
+          debt: 'SOLDE DETTE',
+          never: 'JAMAIS',
+          days: 'jours',
+          congrats: 'Félicitations!',
+          totalDebt: 'TOTAL DETTE EN RETARD:'
+        },
+        footer: 'Rapport Interne - Anexo Cobro',
+        page: 'Page'
+      },
+      deleted: {
+        title: 'AUDIT DES PAIEMENTS SUPPRIMÉS',
+        collector: 'COLLECTEUR FILTRÉ: ',
+        period: 'PÉRIODE DE SUPPRESSION: ',
+        date: 'DATE DU RAPPORT: ',
+        table: {
+          date: 'DATE SUPPR.',
+          client: 'CLIENT',
+          deletedBy: 'SUPPRIMÉ PAR',
+          original: 'COLLECTEUR ORIG.',
+          amount: 'MONTANT'
+        },
+        empty: 'AUCUN PAIEMENT SUPPRIMÉ TROUVÉ DANS CETTE PÉRIODE.',
+        total: 'TOTAL ARGENT ANNULÉ:',
+        footer: 'Audit Interne de Sécurité - Anexo Cobro'
       }
     },
     loans: {
@@ -2624,7 +2864,87 @@ export const translations = {
           deletedBy: 'Excluído Por',
           amount: 'Valor Anulado'
         },
+        
+        types: {
+          payment: 'Pagamento Excluído',
+          credit: 'Crédito Excluído',
+          client: 'Cliente Excluído',
+          origPayment: 'Pagamento orig:',
+          quotas: 'cotas',
+          daily: 'Diária',
+          weekly: 'Semanal',
+          biweekly: 'Quinzenal',
+          monthly: 'Mensal'
+        },
         empty: 'Nenhum pagamento excluído encontrado neste intervalo de datas.'
+      },
+      auditPDF: {
+        title: 'RELATÓRIO AUDITOR GERAL',
+        collector: 'COBRADOR:',
+        period: 'PERÍODO AUDITADO:',
+        date: 'DATA RELATÓRIO:',
+        verdict: 'VEREDICTO',
+        verdictText: {
+          EXCELENTE: 'EXCELENTE',
+          BUENO: 'BOM',
+          'MEDIANAMENTE BUENO': 'MEDIANAMENTE BOM',
+          'MEDIANAMENTE MALO': 'MEDIANAMENTE RUIM',
+          MALO: 'RUIM',
+          REGULAR: 'REGULAR',
+          DEFICIENTE: 'DEFICIENTE'
+        },
+        kpi: {
+          revenue: 'RECEITA TOTAL',
+          portfolio: 'CARTEIRA TOTAL',
+          paid: 'PAGARAM',
+          new: 'NOVOS',
+          coverage: 'COBERTURA'
+        },
+        analysis: {
+          title: 'ANÁLISE DE DESEMPENHO',
+          excellent: 'EXCELENTE: Aumento na base de clientes e arrecadação.',
+          alert: 'ALERTA: Mais clientes mas menos receita.',
+          stable: 'ESTÁVEL: Arrecadação sobe sem novos clientes.',
+          critical: 'CRÍTICO: Queda em clientes e receita.'
+        },
+        charts: {
+          daily: 'EVOLUÇÃO DIÁRIA',
+          weekly: 'EVOLUÇÃO SEMANAL',
+          monthly: 'HISTÓRICO MENSAL',
+          period: 'PERÍODO',
+          revenue: 'RECEITA',
+          trend: 'TENDÊNCIA'
+        },
+        unpaid: {
+          title: 'CLIENTES SEM PAGAMENTO',
+          desc: 'Lista de clientes ativos.',
+          client: 'CLIENTE',
+          lastPayment: 'ÚLTIMO PAG.',
+          overdue: 'ATRASO',
+          debt: 'SALDO DÍVIDA',
+          never: 'NUNCA',
+          days: 'dias',
+          congrats: 'Parabéns!',
+          totalDebt: 'TOTAL DÍVIDA EM ATRASO:'
+        },
+        footer: 'Relatório Interno - Anexo Cobro',
+        page: 'Página'
+      },
+      deleted: {
+        title: 'AUDITORIA DE PAGAMENTOS EXCLUÍDOS',
+        collector: 'COBRADOR FILTRADO: ',
+        period: 'PERÍODO DE EXCLUSÃO: ',
+        date: 'DATA DO RELATÓRIO: ',
+        table: {
+          date: 'DATA EXCLU.',
+          client: 'CLIENTE',
+          deletedBy: 'EXCLUÍDO POR',
+          original: 'COBRADOR ORIG.',
+          amount: 'VALOR'
+        },
+        empty: 'NENHUM PAGAMENTO EXCLUÍDO ENCONTRADO NESTE PERÍODO.',
+        total: 'TOTAL DINHEIRO CANCELADO:',
+        footer: 'Auditoria Interna de Segurança - Anexo Cobro'
       }
     },
     loans: {

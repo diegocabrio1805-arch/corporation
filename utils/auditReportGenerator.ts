@@ -331,6 +331,8 @@ export const generateDeletedPaymentsPDF = (data: any) => {
     const dateStr = new Date().toLocaleDateString();
     const { collectorName, startDate, endDate, logs, settings, users, clients } = data;
 
+    const lang = settings?.language || 'es';
+
     // --- HEADER ---
     doc.setFillColor(15, 23, 42); // Slate 900
     doc.rect(0, 0, 210, 40, 'F');
@@ -338,17 +340,21 @@ export const generateDeletedPaymentsPDF = (data: any) => {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('AUDITORÍA DE PAGOS ELIMINADOS', 105, 20, { align: 'center' });
+    const title = lang === 'fr' ? "AUDIT DES ÉLÉMENTS SUPPRIMÉS" : lang === 'pt' ? "AUDITORIA DE ITENS ELIMINADOS" : "AUDITORÍA DE PAGOS ELIMINADOS";
+    doc.text(title, 105, 20, { align: 'center' });
 
     // --- INFO DEL FILTRO ---
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`COBRADOR FILTRADO: ${collectorName.toUpperCase()}`, 20, 55);
+    const colLabel = lang === 'fr' ? "COLLECTEUR:" : lang === 'pt' ? "COBRADOR:" : "COBRADOR FILTRADO:";
+    doc.text(`${colLabel} ${collectorName.toUpperCase()}`, 20, 55);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`PERIODO DE ELIMINACIÓN: ${startDate} al ${endDate}`, 20, 62);
-    doc.text(`FECHA DE REPORTE: ${dateStr}`, 20, 67);
+    const perLabel = lang === 'fr' ? "PÉRIODE DE SUPPRESSION:" : lang === 'pt' ? "PERÍODO DE ELIMINAÇÃO:" : "PERIODO DE ELIMINACIÓN:";
+    doc.text(`${perLabel} ${startDate} al ${endDate}`, 20, 62);
+    const dateLabel = lang === 'fr' ? "DATE DU RAPPORT:" : lang === 'pt' ? "DATA DO RELATÓRIO:" : "FECHA DE REPORTE:";
+    doc.text(`${dateLabel} ${dateStr}`, 20, 67);
 
     // --- TABLA DE PAGOS ELIMINADOS ---
     doc.setDrawColor(203, 213, 225);
@@ -362,11 +368,19 @@ export const generateDeletedPaymentsPDF = (data: any) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
 
-    doc.text("FECHA ELIM.", 22, nextY + 5);
-    doc.text("CLIENTE", 55, nextY + 5);
-    doc.text("ELIMINADO POR", 110, nextY + 5);
-    doc.text("COBRADOR ORIG.", 145, nextY + 5);
-    doc.text("MONTO", 185, nextY + 5, { align: 'right' });
+    const thDate = lang === 'fr' ? "DATE SUPPR." : lang === 'pt' ? "DATA ELIM." : "FECHA ELIM.";
+    const thType = lang === 'fr' ? "TYPE" : "TIPO";
+    const thClient = lang === 'fr' ? "CLIENT" : "CLIENTE";
+    const thDeletedBy = lang === 'fr' ? "SUPPRIMÉ PAR" : "ELIMINADO POR";
+    const thOrig = lang === 'fr' ? "COLLECTEUR ORIG." : "COBRADOR ORIG.";
+    const thAmount = lang === 'fr' ? "MONTANT" : lang === 'pt' ? "MONTANTE" : "MONTO";
+
+    doc.text(thDate, 22, nextY + 5);
+    doc.text(thType, 45, nextY + 5);
+    doc.text(thClient, 70, nextY + 5);
+    doc.text(thDeletedBy, 120, nextY + 5);
+    doc.text(thOrig, 155, nextY + 5);
+    doc.text(thAmount, 190, nextY + 5, { align: 'right' });
 
     nextY += 12;
     doc.setFont('helvetica', 'normal');
@@ -376,7 +390,8 @@ export const generateDeletedPaymentsPDF = (data: any) => {
 
     if (!logs || logs.length === 0) {
         doc.setFont('helvetica', 'italic');
-        doc.text("NO SE ENCONTRARON PAGOS ELIMINADOS EN ESTE PERIODO.", 105, nextY, { align: 'center' });
+        const emptyMsg = lang === 'fr' ? "AUCUN ÉLÉMENT SUPPRIMÉ TROUVÉ DANS CETTE PÉRIODE." : lang === 'pt' ? "NENHUM ITEM ELIMINADO ENCONTRADO NESTE PERÍODO." : "NO SE ENCONTRARON ELEMENTOS ELIMINADOS EN ESTE PERIODO.";
+        doc.text(emptyMsg, 105, nextY, { align: 'center' });
     } else {
         logs.forEach((log: any, index: number) => {
             totalDeleted += (log.amount || 0);
@@ -388,11 +403,12 @@ export const generateDeletedPaymentsPDF = (data: any) => {
                 doc.rect(20, nextY, 170, 8, 'F');
                 doc.setTextColor(71, 85, 105);
                 doc.setFont('helvetica', 'bold');
-                doc.text("FECHA ELIM.", 22, nextY + 5);
-                doc.text("CLIENTE", 55, nextY + 5);
-                doc.text("ELIMINADO POR", 110, nextY + 5);
-                doc.text("COBRADOR ORIG.", 145, nextY + 5);
-                doc.text("MONTO", 185, nextY + 5, { align: 'right' });
+                doc.text(thDate, 22, nextY + 5);
+                doc.text(thType, 45, nextY + 5);
+                doc.text(thClient, 70, nextY + 5);
+                doc.text(thDeletedBy, 120, nextY + 5);
+                doc.text(thOrig, 155, nextY + 5);
+                doc.text(thAmount, 190, nextY + 5, { align: 'right' });
                 nextY += 12;
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(30, 41, 59);
@@ -404,14 +420,26 @@ export const generateDeletedPaymentsPDF = (data: any) => {
             }
 
             const elimDate = new Date(log.date).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
-            const clientName = clients?.find((c: any) => c.id === log.clientId)?.name || 'Desconocido';
+            const unknownText = lang === 'fr' ? 'Inconnu' : lang === 'en' ? 'Unknown' : lang === 'pt' ? 'Desconhecido' : 'Desconocido';
+            const clientName = clients?.find((c: any) => c.id === log.clientId)?.name || unknownText;
             const adminName = users?.find((u: any) => u.id === log.recordedBy)?.name || 'Admin';
-            const collName = users?.find((u: any) => u.id === log.collectorId)?.name || 'Desconocido';
+            const collName = users?.find((u: any) => u.id === log.collectorId)?.name || unknownText;
+
+            let actionType = 'ABONO';
+            try {
+                if (log.notes) {
+                    const parsed = JSON.parse(log.notes);
+                    if (parsed.tipo === 'CREDITO_ELIMINADO') actionType = 'CRÉDITO';
+                    else if (parsed.tipo === 'CLIENTE_ELIMINADO') actionType = 'CLIENTE';
+                    else if (parsed.tipo === 'PAGO_ELIMINADO') actionType = 'ABONO';
+                }
+            } catch(e) {}
 
             doc.text(elimDate, 22, nextY);
-            doc.text(clientName.length > 25 ? clientName.substring(0, 25) + '...' : clientName, 55, nextY);
-            doc.text(adminName.length > 15 ? adminName.substring(0, 15) + '...' : adminName, 110, nextY);
-            doc.text(collName.length > 15 ? collName.substring(0, 15) + '...' : collName, 145, nextY);
+            doc.text(actionType, 45, nextY);
+            doc.text(clientName.length > 25 ? clientName.substring(0, 25) + '...' : clientName, 70, nextY);
+            doc.text(adminName.length > 15 ? adminName.substring(0, 15) + '...' : adminName, 120, nextY);
+            doc.text(collName.length > 15 ? collName.substring(0, 15) + '...' : collName, 155, nextY);
             
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(239, 68, 68); // Red
@@ -430,7 +458,8 @@ export const generateDeletedPaymentsPDF = (data: any) => {
 
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text("TOTAL DINERO ANULADO:", 110, nextY);
+        const totalText = lang === 'fr' ? "ARGENT TOTAL ANNULÉ:" : lang === 'pt' ? "TOTAL DE DINHEIRO ANULADO:" : "TOTAL DINERO ANULADO:";
+        doc.text(totalText, 110, nextY);
         doc.setTextColor(239, 68, 68);
         doc.text(formatCurrency(totalDeleted, settings), 185, nextY, { align: 'right' });
     }
@@ -440,8 +469,10 @@ export const generateDeletedPaymentsPDF = (data: any) => {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(148, 163, 184);
-        doc.text("Auditoría Interna de Seguridad - Anexo Cobro", 105, 285, { align: 'center' });
-        doc.text(`Página ${i} de ${pageCount}`, 190, 285, { align: 'right' });
+        const footerText = lang === 'fr' ? "Audit de Sécurité Interne - Anexo Cobro" : lang === 'pt' ? "Auditoria Interna de Segurança - Anexo Cobro" : "Auditoría Interna de Seguridad - Anexo Cobro";
+        const pageText = lang === 'fr' ? 'Page' : lang === 'pt' ? 'Página' : 'Página';
+        doc.text(footerText, 105, 285, { align: 'center' });
+        doc.text(`${pageText} ${i} / ${pageCount}`, 190, 285, { align: 'right' });
     }
 
     doc.save(`PAGOS_ELIMINADOS_${collectorName.replace(/\s+/g, '_')}_${startDate}.pdf`);
