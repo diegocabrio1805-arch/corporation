@@ -16,7 +16,8 @@ interface MobileCollectorModeProps {
 }
 
 const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCollectionAttempt, onForceSync, activeLocation }) => {
-  const t = getTranslation((state.settings as any).language || 'es') as any;
+  const lang = (state.settings as any).language || 'es';
+  const t = getTranslation(lang) as any;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [amountInput, setAmountInput] = useState('');
@@ -474,16 +475,16 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
         {/* Cabecera Resumen LITE */}
         <div className="bg-slate-900 border border-emerald-900/30 rounded-3xl p-6 mb-6 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-          <h2 className="text-emerald-500 font-black tracking-widest text-[10px] uppercase mb-1">Ruta Móvil Activa</h2>
+          <h2 className="text-emerald-500 font-black tracking-widest text-[10px] uppercase mb-1">{lang === 'fr' ? 'Route Mobile Active' : lang === 'pt' ? 'Rota Móvel Ativa' : 'Ruta Móvil Activa'}</h2>
           <p className="text-3xl font-black text-white font-mono tracking-tighter">{(filteredClients.length)}</p>
-          <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">Deudores Asignados</p>
+          <p className="text-slate-400 text-[10px] uppercase font-bold tracking-widest">{lang === 'fr' ? 'Débiteurs Assignés' : lang === 'pt' ? 'Devedores Atribuídos' : 'Deudores Asignados'}</p>
         </div>
 
         {/* Buscador */}
         <div className="relative mb-6">
           <i className="fa-solid fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-500"></i>
           <input 
-             type="text" placeholder="Buscar Cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+             type="text" placeholder={lang === 'fr' ? 'Rechercher Client...' : lang === 'pt' ? 'Buscar Cliente...' : 'Buscar Cliente...'} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
              className="w-full bg-slate-900 border border-slate-800 text-white font-bold py-5 pl-14 pr-6 rounded-3xl outline-none focus:border-emerald-500 transition-all shadow-inner focus:shadow-[0_0_20px_rgba(16,185,129,0.1)]"
           />
         </div>
@@ -519,12 +520,12 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                     <>
                       {/* Selector de Método de Pago */}
                       <div className={`grid ${state.currentUser?.role === Role.ADMIN ? 'grid-cols-4' : 'grid-cols-3'} gap-1 mb-4 bg-slate-950 p-1 rounded-xl`}>
-                        <button onClick={() => setMethodInRoute('cash', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>EFECTIVO</button>
-                        <button onClick={() => setMethodInRoute('virtual', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>TRANSF.</button>
+                        <button onClick={() => setMethodInRoute('cash', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${!isVirtualProcessing && !isRenewalProcessing && !isQrProcessing ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500'}`}>{lang === 'fr' ? 'ESPÈCES' : lang === 'pt' ? 'DINHEIRO' : 'EFECTIVO'}</button>
+                        <button onClick={() => setMethodInRoute('virtual', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isVirtualProcessing ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500'}`}>{lang === 'fr' ? 'TRANSF.' : 'TRANSF.'}</button>
                         {state.currentUser?.role === Role.ADMIN && (
                           <button onClick={() => setMethodInRoute('qr', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isQrProcessing ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500'}`}>QR</button>
                         )}
-                        <button onClick={() => setMethodInRoute('renewal', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-500'}`}>RENOVAR</button>
+                        <button onClick={() => setMethodInRoute('renewal', loan)} className={`py-2.5 rounded-lg text-[8px] font-black uppercase transition-all ${isRenewalProcessing ? 'bg-amber-600 text-white shadow-md' : 'text-slate-500'}`}>{lang === 'fr' ? 'RENOUVELER' : lang === 'pt' ? 'RENOVAR' : 'RENOVAR'}</button>
                       </div>
 
                       {isWaitingForQrPayment ? (
@@ -597,10 +598,10 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                                >
                                  {isQrProcessing ? (
                                    <>
-                                     <i className="fa-solid fa-qrcode"></i> Generar QR de Cobro
+                                     <i className="fa-solid fa-qrcode"></i> {lang === 'fr' ? 'Générer QR de Paiement' : lang === 'pt' ? 'Gerar QR de Cobrança' : 'Generar QR de Cobro'}
                                    </>
                                  ) : (
-                                   'CONFIRMAR REGISTRO'
+                                   lang === 'fr' ? 'CONFIRMER REGISTRE' : lang === 'pt' ? 'CONFIRMAR REGISTRO' : 'CONFIRMAR REGISTRO'
                                  )}
                                </button>
                              ) : null}
@@ -611,23 +612,23 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
                     </>
                   ) : (
                     <div className="bg-slate-950 p-4 rounded-xl text-center mb-4">
-                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sin Créditos Activos</p>
-                       <p className="text-[8px] text-slate-600 mt-1 uppercase">Este cliente no posee deuda pendiente actualmente.</p>
-                       <button onClick={() => resetUI()} className="mt-3 w-full py-2 bg-slate-800 text-slate-400 rounded-lg text-[8px] font-black uppercase tracking-widest">Cerrar</button>
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{lang === 'fr' ? 'Aucun Crédit Actif' : lang === 'pt' ? 'Sem Créditos Ativos' : 'Sin Créditos Activos'}</p>
+                       <p className="text-[8px] text-slate-600 mt-1 uppercase">{lang === 'fr' ? 'Ce client n\'a aucune dette en attente.' : lang === 'pt' ? 'Este cliente não possui dívida pendente atualmente.' : 'Este cliente no posee deuda pendiente actualmente.'}</p>
+                       <button onClick={() => resetUI()} className="mt-3 w-full py-2 bg-slate-800 text-slate-400 rounded-lg text-[8px] font-black uppercase tracking-widest">{lang === 'fr' ? 'Fermer' : 'Cerrar'}</button>
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 gap-2 mt-2">
                      {loan && (
                        <>
-                         <button disabled={isProcessing} onClick={() => handleAction(client.id, CollectionLogType.NO_PAGO)} className="bg-red-900/30 text-red-400 border border-red-900/50 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black active:scale-95 text-center flex items-center justify-center">NO PAGO</button>
+                         <button disabled={isProcessing} onClick={() => handleAction(client.id, CollectionLogType.NO_PAGO)} className="bg-red-900/30 text-red-400 border border-red-900/50 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black active:scale-95 text-center flex items-center justify-center">{lang === 'fr' ? 'NON-PAIEMENT' : lang === 'pt' ? 'NÃO PAGO' : 'NO PAGO'}</button>
                          <button onClick={() => setShowHistoryFor(showHistoryFor === client.id ? null : client.id)} className="bg-slate-800 text-slate-300 border border-slate-700 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black active:scale-95 text-center flex items-center justify-center gap-1">
-                            <i className="fa-solid fa-clock-rotate-left"></i> {showHistoryFor === client.id ? 'OCULTAR' : 'HISTORIAL'}
+                            <i className="fa-solid fa-clock-rotate-left"></i> {showHistoryFor === client.id ? (lang === 'fr' ? 'CACHER' : 'OCULTAR') : (lang === 'fr' ? 'HISTORIQUE' : lang === 'pt' ? 'HISTÓRICO' : 'HISTORIAL')}
                          </button>
                        </>
                      )}
-                     <a href={client.domicilioLocation?.lat ? `https://www.google.com/maps/search/?api=1&query=${client.domicilioLocation.lat},${client.domicilioLocation.lng}` : `https://www.google.com/maps/search/?api=1&query=${client.address}`} target="_blank" rel="noreferrer" className="bg-blue-900/30 text-blue-400 border border-blue-900/50 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black flex items-center justify-center gap-1 active:scale-95 text-center px-1"><i className="fa-solid fa-house"></i> GPS CASA</a>
-                     <a href={client.location?.lat ? `https://www.google.com/maps/search/?api=1&query=${client.location.lat},${client.location.lng}` : `https://www.google.com/maps/search/?api=1&query=${client.workCity || ''} ${client.workStreetMain || ''}`} target="_blank" rel="noreferrer" className="bg-indigo-900/30 text-indigo-400 border border-indigo-900/50 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black flex items-center justify-center gap-1 active:scale-95 text-center px-1"><i className="fa-solid fa-briefcase"></i> GPS NEG.</a>
+                     <a href={client.domicilioLocation?.lat ? `https://www.google.com/maps/search/?api=1&query=${client.domicilioLocation.lat},${client.domicilioLocation.lng}` : `https://www.google.com/maps/search/?api=1&query=${client.address}`} target="_blank" rel="noreferrer" className="bg-blue-900/30 text-blue-400 border border-blue-900/50 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black flex items-center justify-center gap-1 active:scale-95 text-center px-1"><i className="fa-solid fa-house"></i> GPS {lang === 'fr' ? 'MAISON' : 'CASA'}</a>
+                     <a href={client.location?.lat ? `https://www.google.com/maps/search/?api=1&query=${client.location.lat},${client.location.lng}` : `https://www.google.com/maps/search/?api=1&query=${client.workCity || ''} ${client.workStreetMain || ''}`} target="_blank" rel="noreferrer" className="bg-indigo-900/30 text-indigo-400 border border-indigo-900/50 py-3 rounded-xl text-[8px] uppercase tracking-widest font-black flex items-center justify-center gap-1 active:scale-95 text-center px-1"><i className="fa-solid fa-briefcase"></i> GPS {lang === 'fr' ? 'TRAVAIL' : 'NEG.'}</a>
                   </div>
                 </div>
 
@@ -664,7 +665,7 @@ const MobileCollectorMode: React.FC<MobileCollectorModeProps> = ({ state, addCol
 
                 {!isSelected && (
                   <button onClick={() => handleOpenPayment(client.id, loan ? loan.installmentValue : 0)} className="w-full mt-4 bg-emerald-950/50 hover:bg-emerald-900 border border-emerald-900 text-emerald-500 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                    GESTIONAR
+                    {lang === 'fr' ? 'GÉRER' : lang === 'pt' ? 'GERENCIAR' : 'GESTIONAR'}
                   </button>
                 )}
               </div>
