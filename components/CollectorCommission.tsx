@@ -47,6 +47,37 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
   const [expenseNote, setExpenseNote] = useState<string>('');
   const [historyCommissionPercent, setHistoryCommissionPercent] = useState<number>(10);
+
+  // Salary Mode and inputs
+  const [paymentScheme, setPaymentScheme] = useState<'percent' | 'weekly' | 'monthly'>('percent');
+  const [weeklySalaryInput, setWeeklySalaryInput] = useState<number>(0);
+  const [monthlySalaryInput, setMonthlySalaryInput] = useState<number>(0);
+
+  const getActiveWorkingDaysInWeek = (
+    weekStart: Date,
+    weekEnd: Date,
+    rangeStartStr: string,
+    rangeEndStr: string
+  ) => {
+    const [rsYear, rsMonth, rsDay] = rangeStartStr.split('-').map(Number);
+    const rangeStart = new Date(rsYear, rsMonth - 1, rsDay, 0, 0, 0, 0);
+
+    const [reYear, reMonth, reDay] = rangeEndStr.split('-').map(Number);
+    const rangeEnd = new Date(reYear, reMonth - 1, reDay, 23, 59, 59, 999);
+
+    let count = 0;
+    for (let i = 0; i < 6; i++) {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + i);
+      day.setHours(12, 0, 0, 0);
+      
+      const time = day.getTime();
+      if (time >= rangeStart.getTime() && time <= rangeEnd.getTime()) {
+        count++;
+      }
+    }
+    return count;
+  };
   
   // Rango de fechas para el historial (por defecto últimos 30 días)
   const [historyStartDate, setHistoryStartDate] = useState<string>(() => {
@@ -306,11 +337,30 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
 
   const totalsFilteredHistory = useMemo(() => {
     const recaudo = filteredHistory.reduce((acc, curr) => acc + curr.Total, 0);
-    const comision = filteredHistory.reduce((acc, curr) => acc + (curr.Total * (historyCommissionPercent / 100)), 0);
+    
+    let comision = 0;
+    if (paymentScheme === 'weekly' || paymentScheme === 'monthly') {
+      const dailyRate = paymentScheme === 'weekly' 
+        ? Math.floor((weeklySalaryInput / 6) * 100) / 100
+        : Math.floor((monthlySalaryInput / 26) * 100) / 100;
+        
+      comision = filteredHistory.reduce((acc, week) => {
+        const workingDays = getActiveWorkingDaysInWeek(
+          week.weekStart, 
+          week.weekEnd, 
+          historyStartDate, 
+          historyEndDate
+        );
+        return acc + (workingDays * dailyRate);
+      }, 0);
+    } else {
+      comision = filteredHistory.reduce((acc, curr) => acc + (curr.Total * (historyCommissionPercent / 100)), 0);
+    }
+
     const colocacion = filteredColocacionHistory.reduce((acc, curr) => acc + curr.TotalNuevos + curr.TotalRenovados, 0);
     const balance = recaudo - colocacion;
     return { recaudo, colocacion, balance, comision };
-  }, [filteredHistory, filteredColocacionHistory, historyCommissionPercent]);
+  }, [filteredHistory, filteredColocacionHistory, historyCommissionPercent, paymentScheme, weeklySalaryInput, monthlySalaryInput, historyStartDate, historyEndDate]);
 
   const allCollectorsSummary = useMemo(() => {
     const eligibleUsers = (Array.isArray(state.users) ? state.users : []).filter(u =>
@@ -418,18 +468,36 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         
         // --- SECCIÓN RECAUDO ---
         wsData.push([{ v: 'RECAUDO DE CUOTAS', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "2563EB" } } } }]);
-        wsData.push(['Semana Del', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Total Semanal', `Comisión ${historyCommissionPercent}%`]);
+        
+        const paymentHeader = paymentScheme === 'weekly'
+          ? 'Sueldo Semanal'
+          : paymentScheme === 'monthly'
+            ? 'Sueldo Mensual'
+            : `Comisión ${historyCommissionPercent}%`;
+          
+        wsData.push(['Semana Del', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Total Semanal', paymentHeader]);
         
         // Formato de número: #,##0 para miles (Excel lo adapta según la región del usuario)
         const nFmt = '#,##0';
         const c = (v: number) => ({ v: Number(v) || 0, t: 'n', z: nFmt });
 
         filteredHistory.forEach(week => {
+          let payment = 0;
+          if (paymentScheme === 'weekly' || paymentScheme === 'monthly') {
+            const dailyRate = paymentScheme === 'weekly' 
+              ? Math.floor((weeklySalaryInput / 6) * 100) / 100
+              : Math.floor((monthlySalaryInput / 26) * 100) / 100;
+            const workingDays = getActiveWorkingDaysInWeek(week.weekStart, week.weekEnd, historyStartDate, historyEndDate);
+            payment = workingDays * dailyRate;
+          } else {
+            payment = week.Total * (historyCommissionPercent / 100);
+          }
+
           wsData.push([
             `${formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al ${formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}`,
             c(week.Lunes), c(week.Martes), c(week.Miércoles), c(week.Jueves), c(week.Viernes), c(week.Sábado),
             c(week.Total),
-            c(week.Total * (historyCommissionPercent / 100))
+            c(payment)
           ]);
         });
         
@@ -445,6 +513,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         wsData.push([{ v: 'BALANCE DE RUTA (RECAUDO VS COLOCACIÓN)', s: { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "475569" } } } }]);
         wsData.push(['Superávit/Déficit', totalsFilteredHistory.balance > 0 ? 'SUPERÁVIT (Mayor Recaudación)' : totalsFilteredHistory.balance < 0 ? 'DÉFICIT (Mayor Colocación)' : 'BALANCE NEUTRO']);
         wsData.push(['Diferencia Neta', c(totalsFilteredHistory.balance)]);
+        wsData.push(['Neto con Pago', c(totalsFilteredHistory.balance - totalsFilteredHistory.comision)]);
         wsData.push([]);
 
         // --- SECCIÓN COLOCACIÓN ---
@@ -1434,18 +1503,75 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     {isGeneratingImage ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-pdf"></i>} {(t as any).commissionBook?.historyModal?.exportPdf || 'PDF'}
                   </button>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{(t as any).commissionBook?.historyModal?.commissionPercent || 'Comisión %'}</span>
-                  <div className="flex items-center gap-1 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
-                    <input 
-                      type="number" 
-                      value={historyCommissionPercent} 
-                      onChange={(e) => setHistoryCommissionPercent(Number(e.target.value))} 
-                      className="w-12 bg-transparent text-right font-black text-white outline-none no-spinner" 
-                    />
-                    <span className="font-black text-slate-400">%</span>
+                
+                {/* Esquema de Pago Controls */}
+                <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+                  {/* Scheme 1: Pago % */}
+                  <div 
+                    onClick={() => setPaymentScheme('percent')} 
+                    className={`flex flex-col items-end cursor-pointer p-1.5 rounded-xl transition-all ${paymentScheme === 'percent' ? 'bg-blue-600/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'opacity-50 border border-transparent'}`}
+                  >
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago %</span>
+                    <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded border border-white/10">
+                      <input 
+                        type="number" 
+                        value={historyCommissionPercent} 
+                        onChange={(e) => {
+                          setHistoryCommissionPercent(Number(e.target.value));
+                          setPaymentScheme('percent');
+                        }} 
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-10 bg-transparent text-right font-black text-white outline-none no-spinner text-[10px]" 
+                      />
+                      <span className="font-black text-slate-400 text-[9px]">%</span>
+                    </div>
+                  </div>
+
+                  {/* Scheme 2: Pago Semanal */}
+                  <div 
+                    onClick={() => setPaymentScheme('weekly')} 
+                    className={`flex flex-col items-end cursor-pointer p-1.5 rounded-xl transition-all ${paymentScheme === 'weekly' ? 'bg-blue-600/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'opacity-50 border border-transparent'}`}
+                  >
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago Semanal</span>
+                    <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded border border-white/10">
+                      <span className="text-[9px] text-slate-400 font-black">$</span>
+                      <input 
+                        type="number" 
+                        value={weeklySalaryInput === 0 ? '' : weeklySalaryInput} 
+                        onChange={(e) => {
+                          setWeeklySalaryInput(Number(e.target.value));
+                          setPaymentScheme('weekly');
+                        }} 
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-14 bg-transparent text-right font-black text-white outline-none no-spinner text-[10px]" 
+                        placeholder="Semanal"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Scheme 3: Pago Mensual */}
+                  <div 
+                    onClick={() => setPaymentScheme('monthly')} 
+                    className={`flex flex-col items-end cursor-pointer p-1.5 rounded-xl transition-all ${paymentScheme === 'monthly' ? 'bg-blue-600/20 border border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]' : 'opacity-50 border border-transparent'}`}
+                  >
+                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pago Mensual</span>
+                    <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded border border-white/10">
+                      <span className="text-[9px] text-slate-400 font-black">$</span>
+                      <input 
+                        type="number" 
+                        value={monthlySalaryInput === 0 ? '' : monthlySalaryInput} 
+                        onChange={(e) => {
+                          setMonthlySalaryInput(Number(e.target.value));
+                          setPaymentScheme('monthly');
+                        }} 
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-14 bg-transparent text-right font-black text-white outline-none no-spinner text-[10px]" 
+                        placeholder="Mensual"
+                      />
+                    </div>
                   </div>
                 </div>
+
                 <button onClick={() => setShowCollectorHistoryId(null)} className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center hover:bg-white/20 transition-colors"><i className="fa-solid fa-xmark"></i></button>
               </div>
             </div>
@@ -1470,7 +1596,14 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.friday || 'Viernes'}</th>
                       <th className="px-4 py-4 text-right">{(t as any).commissionBook?.historyModal?.collection?.saturday || 'Sábado'}</th>
                       <th className="px-4 py-4 text-right text-blue-700 bg-blue-50">{(t as any).commissionBook?.historyModal?.collection?.weeklyTotal || 'Total Semanal'}</th>
-                      <th className="px-4 py-4 text-right text-emerald-700 bg-emerald-50 rounded-tr-xl">{(t as any).commissionBook?.historyModal?.collection?.commissionTitle || 'Comisión'} {historyCommissionPercent}%</th>
+                      <th className="px-4 py-4 text-right text-emerald-700 bg-emerald-50 rounded-tr-xl">
+                        {paymentScheme === 'weekly' 
+                          ? 'Sueldo Semanal' 
+                          : paymentScheme === 'monthly'
+                            ? 'Sueldo Mensual'
+                            : `${(t as any).commissionBook?.historyModal?.collection?.commissionTitle || 'Comisión'} ${historyCommissionPercent}%`
+                        }
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1486,7 +1619,15 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                         <td className="px-4 py-4 text-right font-mono">{week.Viernes > 0 ? formatCurrency(week.Viernes, state.settings) : '-'}</td>
                         <td className="px-4 py-4 text-right font-mono">{week.Sábado > 0 ? formatCurrency(week.Sábado, state.settings) : '-'}</td>
                         <td className="px-4 py-4 text-right font-mono text-blue-700 font-black bg-blue-50/30">{formatCurrency(week.Total, state.settings)}</td>
-                        <td className="px-4 py-4 text-right font-mono text-emerald-700 font-black bg-emerald-50/30">{formatCurrency(week.Total * (historyCommissionPercent / 100), state.settings)}</td>
+                        <td className="px-4 py-4 text-right font-mono text-emerald-700 font-black bg-emerald-50/30">
+                          {paymentScheme !== 'percent' ? (() => {
+                            const dailyRate = paymentScheme === 'weekly' 
+                              ? Math.floor((weeklySalaryInput / 6) * 100) / 100
+                              : Math.floor((monthlySalaryInput / 26) * 100) / 100;
+                            const workingDays = getActiveWorkingDaysInWeek(week.weekStart, week.weekEnd, historyStartDate, historyEndDate);
+                            return formatCurrency(workingDays * dailyRate, state.settings);
+                          })() : formatCurrency(week.Total * (historyCommissionPercent / 100), state.settings)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1522,11 +1663,25 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       </p>
                     </div>
                   </div>
-                  <div className="text-right mt-4 md:mt-0 bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">{(t as any).commissionBook?.historyModal?.balance?.netDifference || 'Diferencia Neta'}</p>
-                    <p className="text-3xl font-black font-mono">
-                      {totalsFilteredHistory.balance > 0 ? '+' : totalsFilteredHistory.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(totalsFilteredHistory.balance), state.settings)}
-                    </p>
+                  <div className="flex gap-4 items-center mt-4 md:mt-0">
+                    {/* Diferencia Neta */}
+                    <div className="text-right bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">{(t as any).commissionBook?.historyModal?.balance?.netDifference || 'Diferencia Neta'}</p>
+                      <p className="text-2xl font-black font-mono">
+                        {totalsFilteredHistory.balance > 0 ? '+' : totalsFilteredHistory.balance < 0 ? '-' : ''}{formatCurrency(Math.abs(totalsFilteredHistory.balance), state.settings)}
+                      </p>
+                    </div>
+
+                    {/* Neto con Pago */}
+                    <div className="text-right bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Neto con Pago</p>
+                      <p className="text-2xl font-black font-mono">
+                        {(() => {
+                          const netWithSalary = totalsFilteredHistory.balance - totalsFilteredHistory.comision;
+                          return `${netWithSalary > 0 ? '+' : netWithSalary < 0 ? '-' : ''}${formatCurrency(Math.abs(netWithSalary), state.settings)}`;
+                        })()}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
