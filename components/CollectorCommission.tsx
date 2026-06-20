@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { AppState, CollectionLogType, Role, LoanStatus, CollectionLog, PaymentStatus, CommissionBracket } from '../types';
-import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime } from '../utils/helpers';
+import { formatCurrency, getLocalDateStringForCountry, formatDate, getDaysOverdue, calculateTotalPaidFromLogs, formatRawNumber, formatLocalDate, formatLocalTime, getHolidayName } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
@@ -1653,29 +1653,53 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredHistory.map((week, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
-                        <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
-                          {formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}
-                        </td>
-                        <td className="px-4 py-4 text-right font-mono">{week.Lunes > 0 ? formatCurrency(week.Lunes, state.settings) : '-'}</td>
-                        <td className="px-4 py-4 text-right font-mono">{week.Martes > 0 ? formatCurrency(week.Martes, state.settings) : '-'}</td>
-                        <td className="px-4 py-4 text-right font-mono">{week.Miércoles > 0 ? formatCurrency(week.Miércoles, state.settings) : '-'}</td>
-                        <td className="px-4 py-4 text-right font-mono">{week.Jueves > 0 ? formatCurrency(week.Jueves, state.settings) : '-'}</td>
-                        <td className="px-4 py-4 text-right font-mono">{week.Viernes > 0 ? formatCurrency(week.Viernes, state.settings) : '-'}</td>
-                        <td className="px-4 py-4 text-right font-mono">{week.Sábado > 0 ? formatCurrency(week.Sábado, state.settings) : '-'}</td>
-                        <td className="px-4 py-4 text-right font-mono text-blue-700 font-black bg-blue-50/30">{formatCurrency(week.Total, state.settings)}</td>
-                        <td className="px-4 py-4 text-right font-mono text-emerald-700 font-black bg-emerald-50/30">
-                          {paymentScheme !== 'percent' ? (() => {
-                            const dailyRate = paymentScheme === 'weekly' 
-                              ? Math.floor((weeklySalaryInput / 6) * 100) / 100
-                              : Math.floor((monthlySalaryInput / 26) * 100) / 100;
-                            const workingDays = getActiveWorkingDaysInWeek(week.weekStart, week.weekEnd, historyStartDate, historyEndDate);
-                            return formatCurrency(workingDays * dailyRate, state.settings);
-                          })() : formatCurrency(week.Total * (historyCommissionPercent / 100), state.settings)}
-                        </td>
-                      </tr>
-                    ))}
+                      {filteredHistory.map((week, idx) => {
+                        // Calcular la fecha real de cada día de la semana para detectar feriados
+                        const country = state.settings.country || 'PY';
+                        const getDayDate = (offsetFromMonday: number) => {
+                          const d = new Date(week.weekStart);
+                          d.setDate(d.getDate() + offsetFromMonday);
+                          return d;
+                        };
+                        const renderDayCell = (amount: number, offsetFromMonday: number) => {
+                          if (amount > 0) {
+                            return <span className="font-mono">{formatCurrency(amount, state.settings)}</span>;
+                          }
+                          const dayDate = getDayDate(offsetFromMonday);
+                          const holidayName = getHolidayName(dayDate, country);
+                          if (holidayName) {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-300 rounded-lg px-1.5 py-0.5 leading-tight">
+                                <i className="fa-solid fa-flag text-[7px]"></i>{holidayName}
+                              </span>
+                            );
+                          }
+                          return <span className="text-slate-300">-</span>;
+                        };
+                        return (
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors text-xs font-bold text-slate-800">
+                          <td className="px-4 py-4 whitespace-nowrap text-[10px] uppercase text-slate-500">
+                            {formatLocalDate(week.weekStart.toISOString(), state.settings.country, {}, state.settings.language)} al {formatLocalDate(week.weekEnd.toISOString(), state.settings.country, {}, state.settings.language)}
+                          </td>
+                          <td className="px-4 py-4 text-right">{renderDayCell(week.Lunes, 0)}</td>
+                          <td className="px-4 py-4 text-right">{renderDayCell(week.Martes, 1)}</td>
+                          <td className="px-4 py-4 text-right">{renderDayCell(week.Miércoles, 2)}</td>
+                          <td className="px-4 py-4 text-right">{renderDayCell(week.Jueves, 3)}</td>
+                          <td className="px-4 py-4 text-right">{renderDayCell(week.Viernes, 4)}</td>
+                          <td className="px-4 py-4 text-right">{renderDayCell(week.Sábado, 5)}</td>
+                          <td className="px-4 py-4 text-right font-mono text-blue-700 font-black bg-blue-50/30">{formatCurrency(week.Total, state.settings)}</td>
+                          <td className="px-4 py-4 text-right font-mono text-emerald-700 font-black bg-emerald-50/30">
+                            {paymentScheme !== 'percent' ? (() => {
+                              const dailyRate = paymentScheme === 'weekly' 
+                                ? Math.floor((weeklySalaryInput / 6) * 100) / 100
+                                : Math.floor((monthlySalaryInput / 26) * 100) / 100;
+                              const workingDays = getActiveWorkingDaysInWeek(week.weekStart, week.weekEnd, historyStartDate, historyEndDate);
+                              return formatCurrency(workingDays * dailyRate, state.settings);
+                            })() : formatCurrency(week.Total * (historyCommissionPercent / 100), state.settings)}
+                          </td>
+                        </tr>
+                        );
+                      })}
                   </tbody>
                   <tfoot className="bg-blue-100/50">
                     <tr>

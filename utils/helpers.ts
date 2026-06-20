@@ -333,6 +333,339 @@ export const isHoliday = (date: Date | null | undefined, country: string, custom
   return false;
 };
 
+export const getHolidayName = (date: Date | null | undefined, country: string, customHolidays: string[] = []): string | null => {
+  if (!date || isNaN(date.getTime())) return null;
+
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const mmdd = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  const dateStr = date.toISOString().split('T')[0];
+
+  if (country === 'PY') {
+    const py: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '03-01': 'Día de los Héroes',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajador',
+      '05-14': 'Indep. Nacional',
+      '05-15': 'Día de la Madre',
+      '06-12': 'Paz del Chaco',
+      '08-15': 'Fundación Asunción',
+      '09-29': 'Victoria de Boquerón',
+      '12-08': 'Virgen de Caacupé',
+      '12-25': 'Navidad',
+    };
+    if (py[mmdd]) return py[mmdd];
+  }
+
+  if (country === 'CO') {
+    const co: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '01-06': 'Reyes Magos',
+      '03-24': 'San José',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '05-19': 'Ascensión del Señor',
+      '06-09': 'Corpus Christi',
+      '06-16': 'Sagrado Corazón',
+      '06-30': 'San Pedro y San Pablo',
+      '07-20': 'Día de Indep.',
+      '08-07': 'Batalla de Boyacá',
+      '08-18': 'Asunción Virgen',
+      '10-13': 'Día de la Raza',
+      '11-03': 'Todos los Santos',
+      '11-17': 'Indep. Cartagena',
+      '12-08': 'Inmaculada Concepción',
+      '12-25': 'Navidad',
+    };
+    if (co[mmdd]) return co[mmdd];
+  }
+
+  if (country === 'AR') {
+    const ar: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '03-24': 'Día de la Memoria',
+      '04-02': 'Malvinas',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajador',
+      '05-25': 'Revolución de Mayo',
+      '06-20': 'Día de la Bandera',
+      '07-09': 'Día Indep.',
+      '08-17': 'San Martín',
+      '10-12': 'Día de la Raza',
+      '11-20': 'Soberanía Nacional',
+      '12-08': 'Inmaculada Concepción',
+      '12-25': 'Navidad',
+    };
+    if (ar[mmdd]) return ar[mmdd];
+  }
+
+  if (country === 'MX') {
+    const mx: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '02-03': 'Constitución',
+      '03-17': 'Natalicio Juárez',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajador',
+      '09-16': 'Indep. México',
+      '11-17': 'Revolución Mexicana',
+      '12-25': 'Navidad',
+    };
+    if (mx[mmdd]) return mx[mmdd];
+  }
+
+  if (country === 'PE') {
+    const pe: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajador',
+      '06-29': 'San Pedro y San Pablo',
+      '07-28': 'Indep. Nacional',
+      '07-29': 'Indep. Nacional',
+      '08-30': 'Santa Rosa de Lima',
+      '10-08': 'Combate de Angamos',
+      '11-01': 'Todos los Santos',
+      '12-08': 'Inmaculada Concepción',
+      '12-25': 'Navidad',
+    };
+    if (pe[mmdd]) return pe[mmdd];
+  }
+
+  if (country === 'BR') {
+    const br: Record<string, string> = {
+      '01-01': 'Confraternização',
+      '04-18': 'Sexta-feira Santa',
+      '04-21': 'Tiradentes',
+      '05-01': 'Dia do Trabalho',
+      '06-19': 'Corpus Christi',
+      '09-07': 'Indep. do Brasil',
+      '10-12': 'N. Sra. Aparecida',
+      '11-02': 'Finados',
+      '11-15': 'Proclamação da Rep.',
+      '11-20': 'Consciência Negra',
+      '12-25': 'Natal',
+    };
+    if (br[mmdd]) return br[mmdd];
+  }
+
+  if (country === 'BO') {
+    const bo: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '02-02': 'Virgen de Candelaria',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '06-21': 'Año Nuevo Andino',
+      '08-02': 'Día de la Independencia',
+      '08-06': 'Indep. de Bolivia',
+      '10-12': 'Día de la Raza',
+      '11-02': 'Día de los Difuntos',
+      '12-25': 'Navidad',
+    };
+    if (bo[mmdd]) return bo[mmdd];
+  }
+
+  if (country === 'UY') {
+    const uy: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '01-06': 'Reyes Magos',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajador',
+      '05-18': 'Batalla de Las Piedras',
+      '06-19': 'Natalicio de Artigas',
+      '07-18': 'Jura de la Constitución',
+      '08-25': 'Indep. de Uruguay',
+      '10-12': 'Día de la Raza',
+      '11-02': 'Día de los Difuntos',
+      '12-25': 'Navidad',
+    };
+    if (uy[mmdd]) return uy[mmdd];
+  }
+
+  if (country === 'CL') {
+    const cl: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '05-21': 'Combate de Iquique',
+      '06-20': 'Día del Padre',
+      '07-16': 'Virgen del Carmen',
+      '08-15': 'Asunción Virgen',
+      '09-18': 'Indep. de Chile',
+      '09-19': 'Día de las Glorias',
+      '10-12': 'Día de la Raza',
+      '11-01': 'Día de los Santos',
+      '12-08': 'Inmaculada Concepción',
+      '12-25': 'Navidad',
+    };
+    if (cl[mmdd]) return cl[mmdd];
+  }
+
+  if (country === 'VE') {
+    const ve: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-19': 'Declaración Indep.',
+      '05-01': 'Día del Trabajador',
+      '06-24': 'Batalla de Carabobo',
+      '07-05': 'Indep. de Venezuela',
+      '07-24': 'Natalicio Bolívar',
+      '10-12': 'Día de la Resistencia',
+      '12-25': 'Navidad',
+    };
+    if (ve[mmdd]) return ve[mmdd];
+  }
+
+  if (country === 'GT') { // Guatemala
+    const gt: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '04-19': 'Sábado Santo',
+      '05-01': 'Día del Trabajo',
+      '06-30': 'Día del Ejército',
+      '08-15': 'Asunción Virgen',
+      '09-15': 'Indep. de Guatemala',
+      '10-12': 'Día de la Raza',
+      '10-20': 'Día de la Revolución',
+      '11-01': 'Día de los Santos',
+      '12-24': 'Nochebuena',
+      '12-25': 'Navidad',
+      '12-31': 'Fin de Año',
+    };
+    if (gt[mmdd]) return gt[mmdd];
+  }
+
+  if (country === 'SV') { // El Salvador
+    const sv: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '05-10': 'Día de la Madre',
+      '06-17': 'Día del Padre',
+      '08-01': 'Fiestas Agostinas',
+      '08-03': 'Fiestas Agostinas',
+      '08-05': 'Fiestas Agostinas',
+      '09-15': 'Indep. de El Salvador',
+      '11-02': 'Día de los Difuntos',
+      '12-25': 'Navidad',
+    };
+    if (sv[mmdd]) return sv[mmdd];
+  }
+
+  if (country === 'HN') { // Honduras
+    const hn: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-14': 'Día de las Américas',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '09-15': 'Indep. de Honduras',
+      '10-03': 'Francisco Morazán',
+      '10-12': 'Descubrimiento América',
+      '10-21': 'Ejército Honduras',
+      '12-25': 'Navidad',
+    };
+    if (hn[mmdd]) return hn[mmdd];
+  }
+
+  if (country === 'NI') { // Nicaragua
+    const ni: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '07-19': 'Revolución Sandinista',
+      '09-14': 'Batalla de San Jacinto',
+      '09-15': 'Indep. de Nicaragua',
+      '12-08': 'Inmaculada Concepción',
+      '12-25': 'Navidad',
+    };
+    if (ni[mmdd]) return ni[mmdd];
+  }
+
+  if (country === 'CR') { // Costa Rica
+    const cr: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '04-11': 'Juan Santamaría',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '07-25': 'Guanacaste',
+      '08-02': 'Virgen de los Ángeles',
+      '08-15': 'Día de la Madre',
+      '09-15': 'Indep. de Costa Rica',
+      '12-25': 'Navidad',
+    };
+    if (cr[mmdd]) return cr[mmdd];
+  }
+
+  if (country === 'PA') { // Panamá
+    const pa: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '01-09': 'Día de los Mártires',
+      '04-17': 'Jueves Santo',
+      '04-18': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '11-02': 'Día de los Difuntos',
+      '11-03': 'Separación de Colombia',
+      '11-04': 'Día de la Bandera',
+      '11-10': 'Primer Grito Indep.',
+      '11-28': 'Indep. de España',
+      '12-08': 'Madre de la Nación',
+      '12-25': 'Navidad',
+    };
+    if (pa[mmdd]) return pa[mmdd];
+  }
+
+  if (country === 'DO') { // Rep. Dominicana
+    const doRep: Record<string, string> = {
+      '01-01': 'Año Nuevo',
+      '01-06': 'Reyes Magos',
+      '01-21': 'Virgen de la Altagracia',
+      '01-26': 'Natalicio Duarte',
+      '02-27': 'Indep. Dominicana',
+      '04-14': 'Viernes Santo',
+      '05-01': 'Día del Trabajo',
+      '06-11': 'Corpus Christi',
+      '08-16': 'Restauración',
+      '09-24': 'Virgen de las Mercedes',
+      '11-06': 'Constitución',
+      '12-25': 'Navidad',
+    };
+    if (doRep[mmdd]) return doRep[mmdd];
+  }
+
+  if (country === 'BZ') { // Belice
+    const bz: Record<string, string> = {
+      '01-01': 'New Year\'s Day',
+      '03-09': 'Baron Bliss Day',
+      '04-18': 'Good Friday',
+      '04-21': 'Easter Monday',
+      '05-01': 'Labour Day',
+      '05-24': 'Commonwealth Day',
+      '09-10': 'St. George\'s Caye',
+      '09-21': 'Independence Day',
+      '10-12': 'Day of the Americas',
+      '11-19': 'Garifuna Settlement',
+      '12-25': 'Christmas Day',
+      '12-26': 'Boxing Day',
+    };
+    if (bz[mmdd]) return bz[mmdd];
+  }
+
+  // Feriados personalizados (sin nombre, mostrar genérico)
+  if (customHolidays && customHolidays.includes(dateStr)) return 'Feriado';
+
+  return null;
+};
+
+
+
 export const formatCurrency = (value: number | undefined, settings: AppSettings | undefined): string => {
   const currencySymbol = settings?.currencySymbol || '$';
   if (value === undefined || isNaN(value)) return `${currencySymbol}0`;
