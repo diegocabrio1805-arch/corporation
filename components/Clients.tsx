@@ -7,6 +7,21 @@ import html2canvas from 'html2canvas';
 import { Share } from '@capacitor/share';
 import PullToRefresh from './PullToRefresh';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+
+// Helper optimizado: abre WhatsApp sin delay ni bloqueo de popup
+const openWhatsApp = (phone: string, text: string, countryPrefix: string) => {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const targetPhone = (cleanPhone.length === 10 && countryPrefix === '57')
+    ? countryPrefix + cleanPhone
+    : (cleanPhone.startsWith(countryPrefix) ? cleanPhone : countryPrefix + cleanPhone);
+  const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
+  if (Capacitor.isNativePlatform()) {
+    CapApp.openUrl({ url: wpUrl }).catch(() => window.open(wpUrl, '_blank'));
+  } else {
+    window.open(wpUrl, '_blank');
+  }
+};
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Geolocation } from '@capacitor/geolocation';
 import { jsPDF } from 'jspdf';
@@ -1431,14 +1446,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
           console.warn("Auto-print failed:", err);
         }
 
-        // AUTOMATIZACIÓN TOTAL: Enviar por WhatsApp automáticamente
-        setTimeout(() => {
-          const phone = clientInLegajo.phone.replace(/\D/g, '');
-          const cleanReceipt = convertReceiptForWhatsApp(receiptText);
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57'; // Dynamic prefix fallback
-          const wpUrl = `https://wa.me/${(phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone)}?text=${encodeURIComponent("ticket")}`;
-          window.open(wpUrl, '_blank');
-        }, 2000);
+        // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
+        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+        openWhatsApp(clientInLegajo.phone, 'ticket', countryPrefix);
       } else if (type === CollectionLogType.NO_PAGO) {
         const metrics = getClientMetrics(clientInLegajo);
         const totalPaid = calculateTotalPaidFromLogs(activeLoanInLegajo, state.collectionLogs);
@@ -1463,12 +1473,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
               .replace('{atraso}', daysOverdue.toString());
         }
         
-        setTimeout(() => {
-          const phone = clientInLegajo.phone.replace(/\D/g, '');
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-        }, 2000);
+        // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
+        const countryPrefixNoPay = state.settings.country === 'PY' ? '595' : '57';
+        openWhatsApp(clientInLegajo.phone, msg, countryPrefixNoPay);
       }
     } catch (e) { console.error(e); } finally {
       setIsProcessingDossierAction(false);

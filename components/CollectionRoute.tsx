@@ -9,6 +9,21 @@ import PullToRefresh from './PullToRefresh';
 import { getFastLocation } from '../utils/gpsHelper';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+
+// Helper optimizado: abre WhatsApp sin delay ni bloqueo de popup
+const openWhatsApp = (phone: string, text: string, countryPrefix: string) => {
+  const cleanPhone = phone.replace(/\D/g, '');
+  const targetPhone = (cleanPhone.length === 10 && countryPrefix === '57')
+    ? countryPrefix + cleanPhone
+    : (cleanPhone.startsWith(countryPrefix) ? cleanPhone : countryPrefix + cleanPhone);
+  const wpUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
+  if (Capacitor.isNativePlatform()) {
+    CapApp.openUrl({ url: wpUrl }).catch(() => window.open(wpUrl, '_blank'));
+  } else {
+    window.open(wpUrl, '_blank');
+  }
+};
 import html2canvas from 'html2canvas';
 
 interface CollectionRouteProps {
@@ -482,13 +497,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           printText(receiptText).catch(e => console.error("Auto print failed:", e));
         });
         
-        // WhatsApp automático simplificado para encontrar el chat rápido conforme a solicitud
-        setTimeout(() => {
-          const phone = client.phone.replace(/\D/g, '');
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent('ticket')}`, '_blank');
-        }, 2000);
+        // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
+        const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
+        openWhatsApp(client.phone, 'ticket', countryPrefix);
       } else if (client && type === CollectionLogType.NO_PAGO) {
         const totalPaid = calculateTotalPaidFromLogs(loan, state.collectionLogs);
         const remainingBalance = Math.max(0, loan.totalAmount - totalPaid);
@@ -504,12 +515,9 @@ const CollectionRoute: React.FC<CollectionRouteProps> = ({ state, addCollectionA
           msg = `Hola ${client.name}, te informamos que hoy no se registró tu pago. Tu saldo pendiente es de ${formatCurrency(remainingBalance, state.settings)} y cuentas con ${daysOverdue} días de atraso. Por favor, ponte al día para evitar inconvenientes gracias`;
         }
         
-        setTimeout(() => {
-          const phone = client.phone.replace(/\D/g, '');
-          const countryPrefix = state.settings.country === 'PY' ? '595' : '57';
-          const targetPhone = (phone.length === 10 && countryPrefix === '57') ? countryPrefix + phone : (phone.startsWith(countryPrefix) ? phone : countryPrefix + phone);
-          window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-        }, 2000);
+        // WhatsApp optimizado: App.openUrl en nativo (sin delay, sin bloqueo de popup)
+        const countryPrefixNoPay = state.settings.country === 'PY' ? '595' : '57';
+        openWhatsApp(client.phone, msg, countryPrefixNoPay);
         resetUI();
       }
     } catch (e) {
