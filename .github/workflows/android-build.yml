@@ -26,7 +26,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Project
         run: npm run build
@@ -67,6 +67,16 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
+      - name: Build Android AAB (Play Store)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
       - name: Get Version from package.json
         id: package-version
         run: |
@@ -81,6 +91,10 @@ jobs:
           # Release APK (Optimized)
           if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
             cp android/app/build/outputs/apk/release/app-release.apk Anexo_Cobro_v${VERSION}_Optimized.apk
+          fi
+          # AAB (Play Store)
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab Anexo_Cobro_v${VERSION}_PlayStore.aab
           fi
           zip Anexo_Cobro_v${VERSION}_APK_Bundle.zip Anexo_Cobro_v${VERSION}_*.apk
 
@@ -101,6 +115,7 @@ jobs:
           files: |
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Optimized.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_PlayStore.aab
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_APK_Bundle.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -110,3 +125,9 @@ jobs:
         with:
           name: anexo-cobro-v${{ steps.package-version.outputs.version }}-debug
           path: Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
+
+      - name: Upload AAB Play Store (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: anexo-cobro-v${{ steps.package-version.outputs.version }}-playstore-aab
+          path: Anexo_Cobro_v${{ steps.package-version.outputs.version }}_PlayStore.aab

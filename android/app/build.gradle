@@ -7,8 +7,8 @@ android {
         applicationId "com.anexocobro.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 61164
-        versionName "6.1.164"
+        versionCode 61165
+        versionName "6.1.165"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
