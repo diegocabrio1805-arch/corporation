@@ -1719,15 +1719,18 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                     </div>
 
                     {/* Neto con Pago */}
-                    <div className="text-right bg-white/50 px-6 py-4 rounded-2xl border border-black/5 shadow-sm">
-                      <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Neto con Pago</p>
-                      <p className="text-2xl font-black font-mono">
-                        {(() => {
-                          const netWithSalary = totalsFilteredHistory.balance - totalsFilteredHistory.comision;
-                          return `${netWithSalary > 0 ? '+' : netWithSalary < 0 ? '-' : ''}${formatCurrency(Math.abs(netWithSalary), state.settings)}`;
-                        })()}
-                      </p>
-                    </div>
+                    {(() => {
+                      const netWithSalary = totalsFilteredHistory.balance - totalsFilteredHistory.comision;
+                      const isNegative = netWithSalary < 0;
+                      return (
+                        <div className={`text-right px-6 py-4 rounded-2xl border shadow-sm transition-colors ${isNegative ? 'bg-red-50 border-red-300' : 'bg-white/50 border-black/5'}`}>
+                          <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${isNegative ? 'text-red-500' : 'opacity-70'}`}>Neto con Pago</p>
+                          <p className={`text-2xl font-black font-mono ${isNegative ? 'text-red-600' : ''}`}>
+                            {`${netWithSalary > 0 ? '+' : netWithSalary < 0 ? '-' : ''}${formatCurrency(Math.abs(netWithSalary), state.settings)}`}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
