@@ -711,7 +711,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
         const gestor = state.users.find(u => u.id === log.recordedBy)?.name || '---';
         const medioPago = isNoPay ? 'No Pago' : log.isRenewal ? 'Liquid.' : log.isVirtual ? 'Transf.' : 'Efectivo';
         const isTransfer = log.isVirtual && !isNoPay;
-        const isLiked = isTransfer ? (likedLogs[log.id] ? '👍' : '-') : '-';
+        const isLiked = isTransfer ? (likedLogs[log.id] ? '✅' : '-') : '-';
 
         let fontColor = "FF000000"; // Black
         if (medioPago === 'Efectivo') fontColor = "FF166534"; // Green
@@ -1328,7 +1328,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                                 className="w-6 h-6 text-blue-500 hover:text-blue-600 hover:scale-125 active:scale-95 transition-all duration-200 flex items-center justify-center mx-auto cursor-pointer"
                                 title="Desmarcar"
                               >
-                                <i className="fa-solid fa-thumbs-up text-lg filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)]"></i>
+                                <i className="fa-solid fa-circle-check text-lg filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)]"></i>
                               </button>
                             ) : (
                               <button
