@@ -1161,10 +1161,17 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
 
       const sellerCode = COLLECTOR_SELLER_CODES[currentUserId] || '';
 
+      // FIX: Si el admin seleccionó un cobrador específico, el cliente queda registrado
+      // como si fuera de ese cobrador (addedBy = targetCollectorId), no del admin.
+      // Esto garantiza que aparezca en la tabla de colocación del cobrador correcto.
+      const clientAddedBy = (targetCollectorId && targetCollectorId !== currentUserId)
+        ? targetCollectorId
+        : currentUserId;
+
       const client: Client = {
         ...clientData,
         id: clientId,
-        addedBy: currentUserId,
+        addedBy: clientAddedBy,
         branchId: calculatedBranchId,
         sellerCode: clientData.sellerCode || sellerCode,
         isActive: true,
@@ -1192,7 +1199,9 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
         loan = {
           id: generateUUID(),
           clientId,
-          collectorId: initialLoan.selectedCollectorId || currentUserId,
+          // FIX: Usar targetCollectorId (ya resuelto arriba) para garantizar que el préstamo
+          // quede asignado al cobrador seleccionado, incluso si fue el admin quien lo creó.
+          collectorId: targetCollectorId,
           principal: p,
           interestRate: i,
           totalInstallments: inst,
@@ -2480,80 +2489,123 @@ const Clients: React.FC<ClientsProps> = ({ state, addClient, addLoan, updateClie
                 </div>
               </div>
 
-              <div className="space-y-3 w-full max-w-5xl mx-auto">
-                {paginatedClients.length === 0 && (
-                  <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                      <i className="fa-solid fa-users-slash text-slate-300 text-xl"></i>
+              <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest">
+                        <th className="px-4 py-4 w-14"></th>
+                        <th className="px-6 py-4">{state.settings.language === 'fr' ? 'CLIENT / ID' : 'Cliente / ID'}</th>
+                        <th className="px-6 py-4 text-right">{(((t as any).clients?.list || {})?.balance) || 'Saldo'}</th>
+                        <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.installments) || 'Cuotas'}</th>
+                        <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.paid) || 'Pagadas'}</th>
+                        <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.overdue) || 'Mora'}</th>
+                        <th className="px-6 py-4 text-center">{(((t as any).clients?.list || {})?.credits) || 'Créditos'}</th>
+                        <th className="px-6 py-4 text-center">{state.settings.language === 'fr' ? 'ACTIONS' : 'Acciones'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedClients.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-6 py-20 text-center text-slate-400 uppercase tracking-widest text-xs font-black">
+                            <i className="fa-solid fa-users-slash text-3xl mb-3 block text-slate-300"></i>
+                            {(((t as any).clients?.list || {})?.empty) || 'Lista de clientes vacía'}
+                          </td>
+                        </tr>
+                      )}
+                      {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
+                        const m = clientMetricsMap[client.id] || getClientMetrics(client);
+                        return (
+                          <tr key={client.id} className="hover:bg-slate-50 transition-colors group">
+                            <td className="px-4 py-3">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
+                                {client.profilePic
+                                  ? <img src={client.profilePic} className="w-full h-full object-cover" />
+                                  : <i className="fa-solid fa-user text-slate-400 text-sm"></i>
+                                }
+                              </div>
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex flex-col">
+                                <span className="font-black text-slate-900 text-sm uppercase flex items-center gap-2">
+                                  {client.name}
+                                  {m.hasMultipleLoans && (
+                                    <span className="inline-flex items-center justify-center w-4 h-4 bg-orange-100 text-orange-600 rounded-full text-[9px] animate-pulse" title="Múltiples Préstamos Activos">
+                                      <i className="fa-solid fa-triangle-exclamation"></i>
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">
+                                  ID: {client.documentId}
+                                  {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])) && (
+                                    <span className="ml-2 text-blue-500">
+                                      | VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <span className={`font-black text-sm ${m.balance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {formatCurrency(m.balance, state.settings)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <span className="font-black text-sm text-slate-800">{m.totalInstallments}</span>
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <span className="font-black text-sm text-emerald-700">{m.paidInstallments}</span>
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <span className={`font-black text-sm ${m.daysOverdue > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                                {m.daysOverdue > 0 ? `${m.daysOverdue} ${(((t as any).clients?.list || {})?.days) || 'días'}` : 'Al día'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <span className="font-black text-sm text-slate-700">
+                                {(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).length}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3 text-center">
+                              <button
+                                onClick={() => setShowLegajo(client.id)}
+                                className="px-5 py-2 bg-blue-50 text-blue-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100"
+                              >
+                                {(((t as any).clients?.list || {})?.dossier) || 'EXPEDIENTE'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* CONTROLES DE PAGINACIÓN */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-4 py-5 border-t border-slate-100 bg-slate-50">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                    >
+                      <i className="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                        Página <span className="text-emerald-600 text-sm">{currentPage}</span> / {totalPages}
+                      </span>
                     </div>
-                    <p className="text-slate-400 font-black uppercase text-xs tracking-widest">Lista de clientes vacía</p>
-                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Cree un nuevo cliente para comenzar</p>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="w-10 h-10 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
+                    >
+                      <i className="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
                   </div>
                 )}
-                {(Array.isArray(paginatedClients) ? paginatedClients : []).map((client) => {
-                  const m = clientMetricsMap[client.id] || getClientMetrics(client);
-                  return (
-                    <div key={client.id} className="bg-white rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col md:flex-row items-center p-3 md:p-4 gap-3 md:gap-8 group relative">
-                      <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-slate-100 border-2 border-slate-200 overflow-hidden shrink-0 shadow-inner">{client.profilePic ? <img src={client.profilePic} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl md:text-2xl"><i className="fa-solid fa-user"></i></div>}</div>
-                      <div className="flex-1 w-full grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 items-center">
-                        <div>
-                          <h3 className="text-sm md:text-base font-black text-slate-950 uppercase tracking-tight truncate flex items-center gap-2">
-                            {client.name}
-                            {m.hasMultipleLoans && (
-                              <span className="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] animate-pulse" title="Múltiples Préstamos Activos">
-                                <i className="fa-solid fa-triangle-exclamation"></i>
-                              </span>
-                            )}
-                          </h3>
-                          <p className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase tracking-widest">
-                            ID: {client.documentId}
-                            {(client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])) && (
-                              <span className="ml-2 text-blue-600">
-                                | VEND: {client.sellerCode || (client.addedBy && COLLECTOR_SELLER_CODES[client.addedBy]) || (m.activeLoan?.collectorId && COLLECTOR_SELLER_CODES[m.activeLoan.collectorId])}
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.balance) || 'Saldo'}</p><p className={`text-xs md:text-sm font-black ${m.balance > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{formatCurrency(m.balance, state.settings)}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.installments) || 'Cuotas'}</p><p className="text-xs md:text-sm font-black text-slate-800">{m.totalInstallments}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.paid) || 'Pagadas'}</p><p className="text-xs md:text-sm font-black text-emerald-700">{m.paidInstallments}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.overdue) || 'Mora'}</p><p className={`text-xs md:text-sm font-black ${m.daysOverdue > 0 ? 'text-orange-700' : 'text-slate-500'}`}>{m.daysOverdue} {(((t as any).clients?.list || {})?.days) || 'Días'}</p></div>
-                        <div className="flex flex-col"><p className="text-[7px] md:text-[8px] font-black text-slate-600 uppercase mb-0.5 tracking-wider">{(((t as any).clients?.list || {})?.credits) || 'Créditos'}</p><p className="text-xs md:text-sm font-black text-slate-800">{(Array.isArray(state.loans) ? state.loans : []).filter(l => l.clientId === client.id).length}</p></div>
-                      </div>
-                      <div className="flex items-center gap-2 w-full md:w-auto">
-                        <button onClick={() => setShowLegajo(client.id)} className="flex-1 md:flex-none px-6 py-3 bg-blue-50 text-blue-800 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100">{(((t as any).clients?.list || {})?.dossier) || 'EXPEDIENTE'}</button>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
-
-              {/* CONTROLES DE PAGINACIÓN */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-4 py-6">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
-                  >
-                    <i className="fa-solid fa-chevron-left"></i>
-                  </button>
-
-                  <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
-                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                      Página <span className="text-emerald-600 text-base">{currentPage}</span> / {totalPages}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="w-12 h-12 bg-white border border-slate-200 rounded-xl text-slate-600 disabled:opacity-30 shadow-sm active:scale-95 transition-all flex items-center justify-center"
-                  >
-                    <i className="fa-solid fa-chevron-right"></i>
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>

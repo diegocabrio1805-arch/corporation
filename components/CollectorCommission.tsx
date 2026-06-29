@@ -7,6 +7,192 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from "jspdf";
 import * as XLSX from 'xlsx-js-style';
 
+// ── MINI DATE PICKER PERSONALIZADO ──────────────────────────────────────────
+const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTH_SHORT_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DAY_NAMES_ES   = ['Do','Lu','Ma','Mi','Ju','Vi','Sá'];
+
+const MiniDatePicker: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  label: string;
+  iconClass?: string;
+}> = ({ value, onChange, label }) => {
+  const [open, setOpen] = React.useState(false);
+  const [viewDate, setViewDate] = React.useState<Date>(() => {
+    const d = value ? new Date(value + 'T00:00:00') : new Date();
+    return isNaN(d.getTime()) ? new Date() : d;
+  });
+  // Mes adyacente sobre el que está el cursor (null = mes actual)
+  const [hoveredAdjMonth, setHoveredAdjMonth] = React.useState<number | null>(null);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setHoveredAdjMonth(null);
+      }
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  React.useEffect(() => {
+    if (value) {
+      const d = new Date(value + 'T00:00:00');
+      if (!isNaN(d.getTime())) setViewDate(d);
+    }
+  }, [value]);
+
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstWeekDay = new Date(year, month, 1).getDay();
+  const daysInMonth  = new Date(year, month + 1, 0).getDate();
+  const daysInPrev   = new Date(year, month, 0).getDate();
+
+  const cells: { day: number; month: number; year: number; isCurrentMonth: boolean }[] = [];
+  for (let i = firstWeekDay - 1; i >= 0; i--) {
+    const d = daysInPrev - i;
+    const m = month === 0 ? 11 : month - 1;
+    const y = month === 0 ? year - 1 : year;
+    cells.push({ day: d, month: m, year: y, isCurrentMonth: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, month, year, isCurrentMonth: true });
+  const remaining = 42 - cells.length;
+  for (let d = 1; d <= remaining; d++) {
+    const m = month === 11 ? 0 : month + 1;
+    const y = month === 11 ? year + 1 : year;
+    cells.push({ day: d, month: m, year: y, isCurrentMonth: false });
+  }
+
+  const selectedIso = value;
+  const toIso = (d: number, m: number, y: number) =>
+    `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+  const displayVal = value
+    ? (() => { const [y,m,d] = value.split('-'); return `${d}/${m}/${y}`; })()
+    : '--/--/----';
+
+  // El header muestra el mes actual O el mes adyacente en hover
+  const headerMonth = hoveredAdjMonth !== null ? hoveredAdjMonth : month;
+  const isShowingAdjacent = hoveredAdjMonth !== null && hoveredAdjMonth !== month;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <div className="flex flex-col cursor-pointer" onClick={() => setOpen(o => !o)}>
+        <span className="text-[7px] font-black text-slate-500 uppercase ml-1">{label}</span>
+        <span className="text-white text-xs font-black px-1 py-0.5">{displayVal}</span>
+      </div>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, zIndex: 9999,
+          background: '#1e2130', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: 16, padding: 14, minWidth: 248, boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+        }}>
+          {/* Header: muestra el mes actual siempre, y el mes adyacente en hover */}
+          <div style={{ marginBottom: 10 }}>
+            {/* Fila de navegación */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button type="button"
+                onClick={() => setViewDate(new Date(year, month - 1, 1))}
+                style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 8, width: 28, height: 28, color: '#94a3b8', cursor: 'pointer', fontSize: 14, fontWeight: 900 }}
+              >‹</button>
+              <span style={{ color: '#fff', fontWeight: 900, fontSize: 13, letterSpacing: 0.5 }}>
+                {MONTH_NAMES_ES[month]} {year}
+              </span>
+              <button type="button"
+                onClick={() => setViewDate(new Date(year, month + 1, 1))}
+                style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 8, width: 28, height: 28, color: '#94a3b8', cursor: 'pointer', fontSize: 14, fontWeight: 900 }}
+              >›</button>
+            </div>
+            {/* Indicador dinámico del mes adyacente */}
+            <div style={{
+              textAlign: 'center', marginTop: 4, height: 18,
+              transition: 'opacity 0.2s',
+              opacity: isShowingAdjacent ? 1 : 0
+            }}>
+              <span style={{
+                background: 'rgba(96,165,250,0.15)', border: '1px solid #60a5fa',
+                borderRadius: 20, padding: '2px 10px',
+                fontSize: 10, color: '#60a5fa', fontWeight: 900, letterSpacing: 1
+              }}>
+                {isShowingAdjacent ? `↗ ${MONTH_NAMES_ES[headerMonth]} ${hoveredAdjMonth !== null && hoveredAdjMonth < month ? year : (month === 11 ? year + 1 : year)}` : ''}
+              </span>
+            </div>
+          </div>
+
+          {/* Nombres de días */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+            {DAY_NAMES_ES.map(d => (
+              <div key={d} style={{ textAlign: 'center', fontSize: 9, fontWeight: 900, color: '#64748b', paddingBottom: 2 }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Grilla de días */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+            {cells.map((cell, idx) => {
+              const iso = toIso(cell.day, cell.month, cell.year);
+              const isSelected = iso === selectedIso;
+              const isAdjacentMonth = !cell.isCurrentMonth;
+              return (
+                <div
+                  key={idx}
+                  onClick={() => { onChange(iso); setOpen(false); setHoveredAdjMonth(null); }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = isSelected ? '#3b82f6' : 'rgba(255,255,255,0.1)';
+                    if (isAdjacentMonth) setHoveredAdjMonth(cell.month);
+                    else setHoveredAdjMonth(null);
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = isSelected ? '#3b82f6' : 'transparent';
+                    setHoveredAdjMonth(null);
+                  }}
+                  style={{
+                    textAlign: 'center', borderRadius: 8, padding: '4px 1px',
+                    cursor: 'pointer', position: 'relative',
+                    background: isSelected ? '#3b82f6' : 'transparent',
+                    color: isSelected ? '#fff' : isAdjacentMonth ? '#475569' : '#e2e8f0',
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2 }}>{cell.day}</div>
+                  {/* Etiqueta de mes visible siempre en días adyacentes */}
+                  {isAdjacentMonth && (
+                    <div style={{
+                      fontSize: 8, color: '#60a5fa', fontWeight: 900,
+                      lineHeight: 1, letterSpacing: 0.3
+                    }}>
+                      {MONTH_SHORT_ES[cell.month]}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+            <button type="button" onClick={() => { onChange(''); setOpen(false); }}
+              style={{ fontSize: 9, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+            >Borrar</button>
+            <button type="button" onClick={() => {
+              const today = new Date();
+              onChange(toIso(today.getDate(), today.getMonth(), today.getFullYear()));
+              setOpen(false);
+            }}
+              style={{ fontSize: 9, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+            >Hoy</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 interface CollectorCommissionProps {
   state: AppState;
   setCommissionPercentage: (percentage: number) => void;
@@ -306,24 +492,52 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
     const collectorLower = (showCollectorHistoryId || '').toLowerCase();
     const clients = Array.isArray(state.clients) ? state.clients : [];
 
+    // Pre-computar el managedBy del cobrador seleccionado (su gerente/admin)
+    const selectedCollectorUser = (Array.isArray(state.users) ? state.users : []).find(u => u.id === showCollectorHistoryId);
+    const collectorManagedBy = (selectedCollectorUser?.managedBy || (selectedCollectorUser as any)?.managed_by || '').toLowerCase();
+
     const collectorLoans = (Array.isArray(state.loans) ? state.loans : []).filter(loan => {
       if (loan.deletedAt) return false;
       const loanDate = new Date(loan.createdAt || (loan as any).date);
       if (loanDate < startOfLimitWeek || loanDate > endRange) return false;
       
-      const loanCollectorId = (loan.collectorId || (loan as any).collector_id || loan.branchId || '').toLowerCase();
+      // FIX: No usar branchId como fallback del collectorId
+      const loanCollectorId = (loan.collectorId || (loan as any).collector_id || '').toLowerCase();
       const lClientId = (loan.clientId || (loan as any).client_id || '').toLowerCase();
       const clientObj = clients.find(c => (c.id || '').toLowerCase() === lClientId);
       const clientAddedBy = (clientObj?.addedBy || (clientObj as any)?.added_by || '').toLowerCase();
       
-      const anyHistoricLoan = (Array.isArray(state.loans) ? state.loans : []).find(hl => 
-        ((hl.clientId || (hl as any).client_id || '').toLowerCase() === lClientId) && 
-        ((hl.collectorId || (hl as any).collector_id || '').toLowerCase() === collectorLower)
+      // Check 1: El préstamo está directamente asignado a este cobrador
+      if (loanCollectorId === collectorLower) return true;
+      
+      // Check 2: El cliente fue registrado por este cobrador
+      if (clientAddedBy === collectorLower) return true;
+      
+      // Check 3: El cliente tiene otro préstamo asignado a este cobrador
+      const allLoans = Array.isArray(state.loans) ? state.loans : [];
+      const clientIsOnCollectorRoute = allLoans.some(hl =>
+        !hl.deletedAt &&
+        ((hl.clientId || (hl as any).client_id || '').toLowerCase() === lClientId) &&
+        ((hl.collectorId || (hl as any).collector_id || '').toLowerCase() === collectorLower) &&
+        hl.id !== loan.id
       );
+      if (clientIsOnCollectorRoute) return true;
 
-      const logCollectorIdMatches = loanCollectorId === collectorLower || clientAddedBy === collectorLower || !!anyHistoricLoan;
-      return logCollectorIdMatches;
+      // Check 4: El préstamo fue creado por el manager del cobrador, Y el cliente
+      // tiene al menos un log de cobro registrado por este cobrador.
+      // Cubre el caso de clientes nuevos del admin asignados a la ruta de Derlis.
+      if (collectorManagedBy && loanCollectorId === collectorManagedBy) {
+        const hasCollectorLog = (Array.isArray(state.collectionLogs) ? state.collectionLogs : []).some(log =>
+          !log.deletedAt &&
+          (log.clientId || '').toLowerCase() === lClientId &&
+          (log.collectorId || (log as any).recorded_by || (log as any).recordedBy || '').toLowerCase() === collectorLower
+        );
+        if (hasCollectorLog) return true;
+      }
+      
+      return false;
     });
+
 
     type ColocacionOp = { amount: number, isRenewal: boolean, name: string };
     const weeksMap = new Map<string, { 
@@ -1284,8 +1498,8 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
               </div>
               <div className="flex flex-col lg:flex-row gap-3">
                 <div className="grid grid-cols-2 gap-2 bg-white/5 p-2 rounded-xl">
-                  <input type="date" value={excelStartDate} onChange={(e) => setExcelStartDate(e.target.value)} className="bg-white text-black rounded-lg py-1 px-3 text-[10px] font-black" />
-                  <input type="date" value={excelEndDate} onChange={(e) => setExcelEndDate(e.target.value)} className="bg-white text-black rounded-lg py-1 px-3 text-[10px] font-black" />
+                  <MiniDatePicker value={excelStartDate} onChange={setExcelStartDate} label="Desde" />
+                  <MiniDatePicker value={excelEndDate} onChange={setExcelEndDate} label="Hasta" />
                 </div>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
                   {['all', 'cash', 'virtual', 'renewal', 'nopay'].map(f => (
@@ -1524,54 +1738,27 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                       <p className="text-[10px] text-blue-400 font-bold uppercase">{state.users.find(u => u.id === showCollectorHistoryId)?.name || '---'}</p>
                    </div>
                    <div className="flex items-center gap-3 bg-slate-800 p-2 rounded-2xl border border-slate-700 shadow-inner">
-                      <div 
-                        className="flex items-center gap-3 px-3 cursor-pointer group"
-                        onClick={(e) => {
-                          const input = e.currentTarget.querySelector('input');
-                          if (input && 'showPicker' in input) {
-                            try { input.showPicker(); } catch(err) { input.focus(); }
-                          } else if (input) {
-                            input.focus();
-                          }
-                        }}
-                      >
-                         <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">{(t as any).commissionBook?.historyModal?.from || 'Desde'}</span>
-                            <input 
-                              type="date" 
-                              value={historyStartDate} 
-                              onChange={(e) => setHistoryStartDate(e.target.value)} 
-                              onClick={(e) => e.stopPropagation()}
-                              className="bg-transparent text-white rounded-lg py-0.5 px-1 text-xs font-black outline-none border-none focus:ring-0 hide-native-calendar cursor-pointer" 
-                            />
-                         </div>
-                         <i className="fa-solid fa-calendar-day text-blue-400 text-xl group-hover:scale-110 transition-transform"></i>
+                      {/* DATE PICKER PERSONALIZADO — muestra mes en días adyacentes */}
+                      <div className="flex items-center gap-3 px-3">
+                        <MiniDatePicker
+                          value={historyStartDate}
+                          onChange={setHistoryStartDate}
+                          label={(t as any).commissionBook?.historyModal?.from || 'Desde'}
+                          iconClass="fa-calendar-day"
+                        />
+                        <i className="fa-solid fa-calendar-day text-blue-400 text-xl"></i>
                       </div>
-                      
+
                       <div className="w-px h-6 bg-slate-700"></div>
-                      
-                      <div 
-                        className="flex items-center gap-3 px-3 cursor-pointer group"
-                        onClick={(e) => {
-                          const input = e.currentTarget.querySelector('input');
-                          if (input && 'showPicker' in input) {
-                            try { input.showPicker(); } catch(err) { input.focus(); }
-                          } else if (input) {
-                            input.focus();
-                          }
-                        }}
-                      >
-                         <div className="flex flex-col">
-                            <span className="text-[7px] font-black text-slate-500 uppercase ml-1">{(t as any).commissionBook?.historyModal?.to || 'Hasta'}</span>
-                            <input 
-                              type="date" 
-                              value={historyEndDate} 
-                              onChange={(e) => setHistoryEndDate(e.target.value)} 
-                              onClick={(e) => e.stopPropagation()}
-                              className="bg-transparent text-white rounded-lg py-0.5 px-1 text-xs font-black outline-none border-none focus:ring-0 hide-native-calendar cursor-pointer" 
-                            />
-                         </div>
-                         <i className="fa-solid fa-calendar-check text-emerald-400 text-xl group-hover:scale-110 transition-transform"></i>
+
+                      <div className="flex items-center gap-3 px-3">
+                        <MiniDatePicker
+                          value={historyEndDate}
+                          onChange={setHistoryEndDate}
+                          label={(t as any).commissionBook?.historyModal?.to || 'Hasta'}
+                          iconClass="fa-calendar-check"
+                        />
+                        <i className="fa-solid fa-calendar-check text-emerald-400 text-xl"></i>
                       </div>
                    </div>
                 </div>
