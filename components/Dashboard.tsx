@@ -743,47 +743,42 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const todayStr = today.toISOString().split('T')[0];
 
+    // 1. Nómina Mensual
     let totalSueldos = 0;
     (Array.isArray(state.users) ? state.users : []).forEach(user => {
       const cfg = user.payConfig;
-      if (cfg) {
-        if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
-        if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0);
+      if (cfg && cfg.scheme === 'monthly') {
+        totalSueldos += (cfg.monthly || 0);
       }
     });
 
+    // 2. Gastos Aislados
     let totalMonthGastos = 0;
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const existingExpenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.date.startsWith(currentMonthPrefix));
-    
-    const fuelHistory = state.settings?.fuelHistory || [];
-
-    const getFuelAmountForDay = (dateStr: string) => {
-      const record = fuelHistory.slice().reverse().find((h: any) => h.date <= dateStr);
-      return record ? Number(record.amount) : (state.settings?.defaultFuel || 0);
-    };
+    const isolatedExpenses = state.settings?.isolatedExpenses || [];
+    const autoProject = !!state.settings?.autoIsolatedFuelProjection;
+    const projectAmount = Number(state.settings?.isolatedProjectionAmount || 0);
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayDate = `${currentMonthPrefix}-${String(day).padStart(2, '0')}`;
-      const dayExpenses = existingExpenses.filter(e => e.date.startsWith(dayDate));
-      const realTotal = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
+      const dayExpenses = isolatedExpenses.filter((e: any) => e.date.startsWith(dayDate));
+      
+      const realTotal = dayExpenses.reduce((sum: number, e: any) => sum + e.amount, 0);
+      totalMonthGastos += realTotal;
 
-      let virtualTotal = 0;
-      if (dayDate <= todayStr) {
-        const [y, m, d] = dayDate.split('-').map(Number);
-        const dateObj = new Date(y, m - 1, d);
-        if (dateObj.getDay() !== 0) { 
-          const hasRealFuel = dayExpenses.some(e => e.description?.includes('COMBUSTIBLE'));
+      if (dayDate <= todayStr && autoProject) {
+        const dateObj = new Date(today.getFullYear(), today.getMonth(), day);
+        if (dateObj.getDay() !== 0) {
+          const hasRealFuel = dayExpenses.some((e: any) => e.description?.includes('COMBUSTIBLE'));
           if (!hasRealFuel) {
-            virtualTotal = getFuelAmountForDay(dayDate);
+            totalMonthGastos += projectAmount;
           }
         }
       }
-      totalMonthGastos += realTotal + (virtualTotal > 0 ? virtualTotal : 0);
     }
 
     return totalSueldos + totalMonthGastos;
-  }, [state.expenses, state.users, state.settings]);
+  }, [state.users, state.settings]);
 
 
   return (
@@ -980,61 +975,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
           <div className="p-5 space-y-5">
             {/* Grid de 6 cuadros (5 semanas + Último Registro) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch pb-2">
-              {weeklyData.weeks.map((week, wi) => (
-                <div key={wi} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
-                  <div className="overflow-x-auto flex-1 h-full">
-                    <table className="w-full text-sm border-collapse h-full">
-                      <thead>
-                        <tr style={{background: wi === 0 ? '#4f46e5' : wi === 1 ? '#475569' : wi === 2 ? '#64748b' : wi === 3 ? '#94a3b8' : '#cbd5e1'}}>
-                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
-                            {week.label}
-                            <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
-                          </th>
-                        </tr>
-                        <tr>
-                          <th style={{background:'#1e293b'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Día</th>
-                          <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10">💰 Recaudo</th>
-                          <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right border-r border-white/10 w-14">🔄 Renov.</th>
-                          <th style={{background:'#7c3aed'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right w-14">👤 Cli.N</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {week.days.map((d, i) => (
-                          <tr key={i} className={`border-b border-slate-100 transition-colors ${
-                            d.isFuture ? 'opacity-40' : d.isToday ? 'bg-amber-50 group hover:bg-slate-700' : 'group hover:bg-slate-700'
-                          }`}>
-                            <td className="px-3 py-1.5 font-bold text-xs border-r border-slate-100 group-hover:border-transparent transition-colors">
-                              <div className="flex items-center gap-2">
-                                {d.isToday && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>}
-                                <span className={d.isToday ? 'text-amber-700 group-hover:text-amber-300 transition-colors' : 'text-slate-700 group-hover:text-white transition-colors'}>{d.day}</span>
-                                <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-300 transition-colors">{d.dateStr}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-mono font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-emerald-600 group-hover:text-emerald-400 transition-colors">
-                              {d.isFuture ? '—' : formatCurrency(d.recaudo, state.settings)}
-                            </td>
-                            <td className="px-2 py-1.5 text-right font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-blue-600 group-hover:text-blue-400 transition-colors">
-                              {d.isFuture ? '—' : d.renovaciones}
-                            </td>
-                            <td className="px-2 py-1.5 text-right font-bold text-xs text-violet-600 group-hover:text-violet-400 transition-colors">
-                              {d.isFuture ? '—' : d.clientesNuevos}
-                            </td>
-                          </tr>
-                        ))}
-                        {/* Subtotal por semana */}
-                        <tr style={{background: wi === 0 ? '#f0fdf4' : '#f8fafc'}} className="border-t border-slate-200 mt-auto">
-                          <td className="px-3 py-2 font-black text-[10px] uppercase tracking-wider text-slate-500 border-r border-slate-200">Subtotal</td>
-                          <td className="px-3 py-2 text-right font-mono font-black text-xs border-r border-slate-200 text-emerald-700">{formatCurrency(week.totalRecaudo, state.settings)}</td>
-                          <td className="px-2 py-2 text-right font-black text-xs border-r border-slate-200 text-blue-700">{week.totalRenovaciones}</td>
-                          <td className="px-2 py-2 text-right font-black text-xs text-violet-700">{week.totalClientesNuevos}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-
-              {/* Tabla de Cobros de Hoy y Ayer (6to cuadro en la grilla) */}
+              {/* Tabla de Cobros de Hoy y Ayer (Ahora en el 1er cuadro de la grilla) */}
               <div className="border border-slate-100 rounded-xl shadow-sm bg-white w-full h-full flex flex-col overflow-hidden">
                 <div className="overflow-x-auto flex-1 h-full">
                   <table className="w-full text-sm border-collapse h-full">
@@ -1094,6 +1035,60 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                   </table>
                 </div>
               </div>
+
+              {weeklyData.weeks.map((week, wi) => (
+                <div key={wi} className="border border-slate-100 rounded-xl overflow-hidden shadow-sm bg-white w-full h-full flex flex-col">
+                  <div className="overflow-x-auto flex-1 h-full">
+                    <table className="w-full text-sm border-collapse h-full">
+                      <thead>
+                        <tr style={{background: wi === 0 ? '#4f46e5' : wi === 1 ? '#475569' : wi === 2 ? '#64748b' : wi === 3 ? '#94a3b8' : '#cbd5e1'}}>
+                          <th colSpan={4} className="px-3 py-2 text-white text-[10px] font-black uppercase tracking-widest text-left">
+                            {week.label}
+                            <span className="ml-2 opacity-60 font-normal normal-case text-[9px]">{week.rangeStr}</span>
+                          </th>
+                        </tr>
+                        <tr>
+                          <th style={{background:'#1e293b'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-left border-r border-white/10">Día</th>
+                          <th style={{background:'#059669'}} className="text-white text-[10px] font-black uppercase tracking-wider px-3 py-2 text-right border-r border-white/10">💰 Recaudo</th>
+                          <th style={{background:'#2563eb'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right border-r border-white/10 w-14">🔄 Renov.</th>
+                          <th style={{background:'#7c3aed'}} className="text-white text-[10px] font-black uppercase tracking-wider px-2 py-2 text-right w-14">👤 Cli.N</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {week.days.map((d, i) => (
+                          <tr key={i} className={`border-b border-slate-100 transition-colors ${
+                            d.isFuture ? 'opacity-40' : d.isToday ? 'bg-amber-50 group hover:bg-slate-700' : 'group hover:bg-slate-700'
+                          }`}>
+                            <td className="px-3 py-1.5 font-bold text-xs border-r border-slate-100 group-hover:border-transparent transition-colors">
+                              <div className="flex items-center gap-2">
+                                {d.isToday && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>}
+                                <span className={d.isToday ? 'text-amber-700 group-hover:text-amber-300 transition-colors' : 'text-slate-700 group-hover:text-white transition-colors'}>{d.day}</span>
+                                <span className="text-[10px] font-normal text-slate-400 group-hover:text-slate-300 transition-colors">{d.dateStr}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-mono font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-emerald-600 group-hover:text-emerald-400 transition-colors">
+                              {d.isFuture ? '—' : formatCurrency(d.recaudo, state.settings)}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-xs border-r border-slate-100 group-hover:border-transparent text-blue-600 group-hover:text-blue-400 transition-colors">
+                              {d.isFuture ? '—' : d.renovaciones}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-xs text-violet-600 group-hover:text-violet-400 transition-colors">
+                              {d.isFuture ? '—' : d.clientesNuevos}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Subtotal por semana */}
+                        <tr style={{background: wi === 0 ? '#f0fdf4' : '#f8fafc'}} className="border-t border-slate-200 mt-auto">
+                          <td className="px-3 py-2 font-black text-[10px] uppercase tracking-wider text-slate-500 border-r border-slate-200">Subtotal</td>
+                          <td className="px-3 py-2 text-right font-mono font-black text-xs border-r border-slate-200 text-emerald-700">{formatCurrency(week.totalRecaudo, state.settings)}</td>
+                          <td className="px-2 py-2 text-right font-black text-xs border-r border-slate-200 text-blue-700">{week.totalRenovaciones}</td>
+                          <td className="px-2 py-2 text-right font-black text-xs text-violet-700">{week.totalClientesNuevos}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Total global 5 semanas */}

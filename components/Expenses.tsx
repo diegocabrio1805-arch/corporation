@@ -5,6 +5,7 @@ import { formatCurrency, formatDate, getLocalDateStringForCountry, getDaysOverdu
 import { getTranslation } from '../utils/translations';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { ExpenseSpreadsheetModal } from './ExpenseSpreadsheetModal';
+import { IsolatedSpreadsheetModal } from './IsolatedSpreadsheetModal';
 
 interface ExpensesProps {
   state: AppState;
@@ -27,6 +28,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
 
   const [showModal, setShowModal] = useState(false);
   const [showSpreadsheetModal, setShowSpreadsheetModal] = useState(false);
+  const [showIsolatedSpreadsheetModal, setShowIsolatedSpreadsheetModal] = useState(false);
   const [showCapitalModal, setShowCapitalModal] = useState(false);
   const [initialCapitalForm, setInitialCapitalForm] = useState(state.initialCapital);
   const [selectedMonthDetail, setSelectedMonthDetail] = useState<{ month: number; year: number; name: string } | null>(null);
@@ -262,11 +264,11 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             {state.settings.language === 'fr' ? 'CHARGER CAPITAL INITIAL' : state.settings.language === 'pt' ? 'CARREGAR CAPITAL INICIAL' : 'CARGAR CAPITAL INICIAL'}
           </button>
           <button
-            onClick={() => setShowModal(true)}
-            className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+            onClick={() => setShowIsolatedSpreadsheetModal(true)}
+            className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            <i className="fa-solid fa-minus-circle"></i>
-            {state.settings.language === 'fr' ? 'DÉPENSE OPÉRATIONNELLE' : state.settings.language === 'pt' ? 'DESPESA OPERACIONAL' : 'GASTO OPERATIVO'}
+            <i className="fa-solid fa-file-excel"></i>
+            PLANILLA OPERATIVA
           </button>
         </div>
       </div>
@@ -794,6 +796,16 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           addExpense={addExpense}
           removeExpense={removeExpense}
           updateExpense={updateExpense}
+          updateSettings={updateSettings}
+        />
+      )}
+
+      {/* NUEVA PLANILLA AISLADA */}
+      {showIsolatedSpreadsheetModal && (
+        <IsolatedSpreadsheetModal 
+          state={state} 
+          onClose={() => setShowIsolatedSpreadsheetModal(false)} 
+          updateSettings={updateSettings}
         />
       )}
 

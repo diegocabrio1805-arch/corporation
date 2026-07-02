@@ -74,6 +74,19 @@ export interface AppSettings {
   // Fuel Configuration
   defaultFuel?: number;
   fuelHistory?: { date: string; amount: number }[];
+  
+  // Módulo de Planilla Aislada
+  isolatedExpenses?: IsolatedExpense[];
+  autoIsolatedFuelProjection?: boolean;
+  isolatedProjectionAmount?: number;
+}
+
+export interface IsolatedExpense {
+  id: string;
+  description: string;
+  category: ExpenseCategory;
+  amount: number;
+  date: string;
 }
 
 export interface PayConfig {

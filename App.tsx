@@ -351,7 +351,7 @@ const App: React.FC = () => {
             {activeTab === 'notifications' && <Notifications state={filteredState} />}
             {activeTab === 'expenses' && isPowerUser && (
               <Expenses 
-                state={filteredState} 
+                state={{ ...filteredState, expenses: state.expenses }} 
                 addExpense={addExpense} 
                 removeExpense={removeExpense} 
                 updateExpense={updateExpense}
