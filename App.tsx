@@ -364,7 +364,7 @@ const App: React.FC = () => {
                 }}
               />
             )}
-            {activeTab === 'commission' && isPowerUser && (
+            {activeTab === 'commission' && (
               <CollectorCommission 
                 state={filteredState} 
                 setCommissionPercentage={(p) => { 

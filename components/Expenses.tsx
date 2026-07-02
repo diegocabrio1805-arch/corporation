@@ -30,6 +30,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
   const [showCapitalModal, setShowCapitalModal] = useState(false);
   const [initialCapitalForm, setInitialCapitalForm] = useState(state.initialCapital);
   const [selectedMonthDetail, setSelectedMonthDetail] = useState<{ month: number; year: number; name: string } | null>(null);
+  const [optimisticFuel, setOptimisticFuel] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     description: '',
@@ -56,10 +57,22 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       .reduce((acc, l) => acc + (l.amount || 0), 0);
   }, [state.collectionLogs]);
 
+  const currentBranchId = state.currentUser ? (
+    (state.currentUser.role === 'ADMIN' || state.currentUser.role === 'MANAGER') 
+      ? state.currentUser.id 
+      : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
+  ) : 'none';
+  const activeSettings = currentBranchId && state.branchSettings ? (state.branchSettings[currentBranchId] || state.settings) : state.settings;
+
+  const branchExpenses = useMemo(() => {
+    if (!currentBranchId) return [];
+    return (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.branchId === currentBranchId);
+  }, [state.expenses, currentBranchId]);
+
   // 3. Gastos operativos totales
   const totalOperatingExpenses = useMemo(() => {
-    return (Array.isArray(state.expenses) ? state.expenses : []).reduce((acc, curr) => acc + curr.amount, 0);
-  }, [state.expenses]);
+    return branchExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [branchExpenses]);
 
   // 4. Caja Actual (Efectivo disponible)
   const currentCashInHand = state.initialCapital + collectedCash - lentCash - totalOperatingExpenses;
@@ -84,7 +97,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    return (Array.isArray(state.expenses) ? state.expenses : []).filter(e => {
+    return branchExpenses.filter(e => {
       const d = new Date(e.date);
       if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
         const desc = (e.description || '').toLowerCase();
@@ -92,7 +105,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       }
       return false;
     }).reduce((acc, curr) => acc + curr.amount, 0);
-  }, [state.expenses]);
+  }, [branchExpenses]);
 
   // 7. Balance Histórico (Rendimiento Operativo Diario - Últimos 180 días)
   const chartData = useMemo(() => {
@@ -523,7 +536,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {(Array.isArray(state.expenses) ? state.expenses : []).length === 0 ? (
+              {branchExpenses.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center">
@@ -533,7 +546,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                   </td>
                 </tr>
               ) : (
-                (Array.isArray(state.expenses) ? [...state.expenses] : []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
+                [...branchExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
                   <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors text-[11px] font-bold">
                     <td className="px-5 py-4 text-slate-800 uppercase truncate max-w-[150px]" title={exp.description || exp.category}>{exp.description || exp.category}</td>
                     <td className="px-5 py-4">
@@ -555,14 +568,14 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 ))
               )}
             </tbody>
-            {Array.isArray(state.expenses) && state.expenses.length > 0 && (
+            {branchExpenses.length > 0 && (
               <tfoot className="bg-red-50/50 border-t border-red-100">
                 <tr>
                   <td colSpan={3} className="px-5 py-4 text-right text-[10px] font-black text-red-800 uppercase tracking-widest">
                     {state.settings.language === 'fr' ? 'TOTAL DES DÉPENSES :' : state.settings.language === 'pt' ? 'DESPESA TOTAL :' : 'GASTO TOTAL :'}
                   </td>
                   <td colSpan={2} className="px-5 py-4 font-black font-mono text-red-700 text-sm">
-                    {formatCurrency(state.expenses.reduce((acc, curr) => acc + curr.amount, 0), state.settings)}
+                    {formatCurrency(branchExpenses.reduce((acc, curr) => acc + curr.amount, 0), state.settings)}
                   </td>
                 </tr>
               </tfoot>
@@ -627,7 +640,10 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                 <div className="flex gap-2 mb-2">
                     {(() => {
                       let totalSueldos = 0;
-                      (Array.isArray(state.users) ? state.users : []).forEach((u) => {
+                      const branchUsers = (Array.isArray(state.users) ? state.users : []).filter(u => 
+                        (u.managedBy || (u as any).managed_by || u.id) === currentBranchId
+                      );
+                      branchUsers.forEach((u) => {
                          const cfg = u.payConfig;
                          if (cfg) {
                             if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
@@ -635,7 +651,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                          }
                       });
 
-                      const fuelAmount = state.settings.defaultFuel || 0;
+                      const fuelAmount = activeSettings?.defaultFuel || 0;
                       const projectedFuel = (fuelAmount / 6) * 26;
                       const totalNominaConCombustible = totalSueldos + projectedFuel;
                       
@@ -655,7 +671,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                              <button
                               type="button"
                               onClick={() => {
-                                 const fuel = state.settings.defaultFuel || 0;
+                                 const fuel = activeSettings?.defaultFuel || 0;
                                  if (fuel > 0) {
                                    setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: fuel });
                                  } else {
@@ -665,8 +681,8 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                               className="flex-1 px-1 py-2 text-orange-700 hover:bg-orange-100 text-[8px] sm:text-[9px] font-black uppercase transition-colors text-center flex flex-col items-center justify-center gap-0.5"
                             >
                               <span className="flex items-center gap-1"><i className="fa-solid fa-gas-pump"></i> COMBUSTIBLE DIARIO</span>
-                              {state.settings.defaultFuel && state.settings.defaultFuel > 0 ? (
-                                <span className="text-[10px] font-mono text-orange-600 block leading-tight">{formatCurrency(state.settings.defaultFuel, state.settings)}</span>
+                              {(optimisticFuel !== null ? optimisticFuel : (activeSettings?.defaultFuel || 0)) > 0 ? (
+                                <span className="text-[10px] font-mono text-orange-600 block leading-tight">{formatCurrency(optimisticFuel !== null ? optimisticFuel : (activeSettings?.defaultFuel || 0), state.settings)}</span>
                               ) : (
                                 <span className="text-[10px] font-mono opacity-50 block leading-tight">Monto Libre</span>
                               )}
@@ -674,18 +690,25 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                             <button
                               type="button"
                               onClick={() => {
-                                const saved = (state.settings.defaultFuel || '').toString();
-                                const ans = window.prompt("Ingrese el monto diario para el combustible:", saved);
-                                if (ans !== null && !isNaN(Number(ans))) {
-                                  const newVal = Number(ans);
-                                  const today = new Date().toISOString().split('T')[0];
-                                  const newHistory = [...(state.settings.fuelHistory || []), { date: today, amount: newVal }];
-                                  
-                                  if (updateSettings) {
-                                    updateSettings({ ...state.settings, defaultFuel: newVal, fuelHistory: newHistory });
+                                try {
+                                  const saved = (optimisticFuel !== null ? optimisticFuel : (activeSettings?.defaultFuel || 0)).toString();
+                                  const ans = window.prompt("Ingrese el monto diario para el combustible (0 para Monto Libre):", saved);
+                                  if (ans !== null) {
+                                    const parsed = parseFloat(ans.trim());
+                                    const newVal = isNaN(parsed) ? 0 : parsed;
+                                    const today = new Date().toISOString().split('T')[0];
+                                    const newHistory = [...(activeSettings?.fuelHistory || []), { date: today, amount: newVal }];
+                                    
+                                    setOptimisticFuel(newVal);
+                                    
+                                    if (updateSettings) {
+                                      updateSettings({ ...activeSettings, defaultFuel: newVal, fuelHistory: newHistory }).catch(e => console.error("Error en updateSettings", e));
+                                    }
+                                    
+                                    setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: newVal });
                                   }
-                                  
-                                  setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: newVal });
+                                } catch (err: any) {
+                                  alert("Error al actualizar: " + err.message);
                                 }
                               }}
                               className="px-2 bg-orange-100 hover:bg-orange-200 text-orange-600 flex items-center justify-center transition-colors border-l border-orange-200"

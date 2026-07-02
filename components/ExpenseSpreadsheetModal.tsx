@@ -29,17 +29,23 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
     return days;
   }, [currentMonth]);
 
-  const existingExpenses = Array.isArray(state.expenses) ? state.expenses : [];
+  const currentBranchId = state.currentUser ? (
+    (state.currentUser.role === 'ADMIN' || state.currentUser.role === 'MANAGER') 
+      ? state.currentUser.id 
+      : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
+  ) : 'none';
+  const existingExpenses = (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.branchId === currentBranchId);
+  const activeSettings = currentBranchId && state.branchSettings ? (state.branchSettings[currentBranchId] || state.settings) : state.settings;
 
   // Lee el historial de combustible
   const fuelHistory = useMemo(() => {
-    return state.settings?.fuelHistory || [];
-  }, [state.settings]);
+    return activeSettings?.fuelHistory || [];
+  }, [activeSettings]);
 
   const getFuelAmountForDay = (dateStr: string) => {
     // Si no hay historial, usa defaultFuel
     if (fuelHistory.length === 0) {
-      return state.settings?.defaultFuel || 0;
+      return activeSettings?.defaultFuel || 0;
     }
     // Ordenar historial cronológicamente ascendente
     const sorted = [...fuelHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -75,7 +81,7 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
         key={`virtual-fuel-${dayDate}`}
         date={dayDate}
         amount={fuelAmount}
-        settings={state.settings}
+        settings={activeSettings}
         addExpense={addExpense}
       />
     );
@@ -104,7 +110,10 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
 
   const totalSueldos = useMemo(() => {
     let total = 0;
-    (Array.isArray(state.users) ? state.users : []).forEach(user => {
+    const branchUsers = (Array.isArray(state.users) ? state.users : []).filter(u => 
+      (u.managedBy || (u as any).managed_by || u.id) === currentBranchId
+    );
+    branchUsers.forEach(user => {
       const cfg = user.payConfig;
       if (cfg) {
         if (cfg.scheme === 'monthly') total += (cfg.monthly || 0);
@@ -112,7 +121,7 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
       }
     });
     return total;
-  }, [state.users]);
+  }, [state.users, currentBranchId]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm flex items-start justify-center z-[300] p-4 overflow-hidden pt-10 md:pt-10">
@@ -167,7 +176,7 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
                           key={exp.id} 
                           date={dayDate} 
                           expense={exp} 
-                          settings={state.settings} 
+                          settings={activeSettings} 
                           removeExpense={removeExpense}
                         />
                       ))}
@@ -182,14 +191,14 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
               <tfoot className="bg-slate-800 text-white z-10 sticky bottom-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                 <tr>
                   <td colSpan={3} className="px-4 py-3 border-r border-slate-700 text-[10px] font-black uppercase tracking-widest text-blue-300 text-right">
-                    Sueldos: <span className="font-mono text-[11px] ml-1">{formatCurrency(totalSueldos, state.settings)}</span>
+                    Sueldos: <span className="font-mono text-[11px] ml-1">{formatCurrency(totalSueldos, activeSettings)}</span>
                   </td>
                   <td className="px-4 py-3 border-r border-slate-700 text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                    Gastos: <span className="font-mono text-[11px] ml-1">{formatCurrency(totalMonthExpenses, state.settings)}</span>
+                    Gastos: <span className="font-mono text-[11px] ml-1">{formatCurrency(totalMonthExpenses, activeSettings)}</span>
                   </td>
                   <td className="px-2 py-3 font-black font-mono text-white bg-emerald-700 text-center flex flex-col items-center justify-center leading-tight">
                     <span className="text-[8px] uppercase tracking-widest text-emerald-200">TOTAL FINAL</span>
-                    <span className="text-[11px]">{formatCurrency(totalMonthExpenses + totalSueldos, state.settings)}</span>
+                    <span className="text-[11px]">{formatCurrency(totalMonthExpenses + totalSueldos, activeSettings)}</span>
                   </td>
                 </tr>
               </tfoot>
@@ -215,6 +224,20 @@ const VirtualFuelRow = ({ date, amount, settings, addExpense }: any) => {
       date: date + 'T12:00:00.000Z'
     };
     addExpense(newExp);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('¿Desea anular permanentemente la proyección de combustible para este día?')) {
+      setIsSaving(true);
+      const newExp: Expense = {
+        id: crypto.randomUUID(),
+        description: 'COMBUSTIBLE DIARIO (ANULADO)',
+        amount: 0,
+        category: ExpenseCategory.TRANSPORT,
+        date: date + 'T12:00:00.000Z'
+      };
+      addExpense(newExp);
+    }
   };
 
   return (
@@ -243,13 +266,23 @@ const VirtualFuelRow = ({ date, amount, settings, addExpense }: any) => {
         </div>
       </td>
       <td className="px-4 py-2 text-center">
-        <button 
-          onClick={handleSave}
-          disabled={isSaving}
-          className="w-full bg-white hover:bg-orange-100 text-orange-600 border border-orange-300 text-[9px] font-black uppercase tracking-widest py-1.5 rounded transition-colors"
-        >
-          {isSaving ? '...' : 'Fijar'}
-        </button>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex-1 bg-white hover:bg-orange-100 text-orange-600 border border-orange-300 text-[9px] font-black uppercase tracking-widest py-1.5 rounded transition-colors"
+          >
+            {isSaving ? '...' : 'Fijar'}
+          </button>
+          <button 
+            onClick={handleDelete}
+            disabled={isSaving}
+            title="Eliminar proyección para este día"
+            className="w-7 h-7 flex items-center justify-center bg-white hover:bg-red-50 text-red-400 hover:text-red-600 border border-red-200 rounded transition-colors"
+          >
+            <i className="fa-solid fa-trash-can text-[10px]"></i>
+          </button>
+        </div>
       </td>
     </tr>
   );

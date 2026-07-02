@@ -550,7 +550,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 'ADD_EXPENSE': { items: [], table: 'expenses', isDelete: false, mapper: (d) => ({
                     id: d.id, description: d.description, amount: d.amount, category: d.category,
                     date: d.date, branch_id: d.branchId, added_by: d.addedBy,
-                    deleted_at: d.deletedAt || null, updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString()
                 })},
                 'UPDATE_SETTINGS': { items: [], table: 'branch_settings', isDelete: false, mapper: (d) => ({ id: d.branchId, settings: d.settings, updated_at: new Date().toISOString() }) },
                 'DELETE_LOG': { items: [], table: 'collection_logs', isDelete: true, mapper: (d) => d },
@@ -680,6 +680,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                         try {
                             const payload = chunkItems.map(i => mapper(i.data));
                             const { error } = await withTimeout(supabase.from(table).upsert(payload), 15000);
+                            
                             if (error) {
                                 // Fallback a 1 por 1 si el chunk de 10 falla
                                 throw error;

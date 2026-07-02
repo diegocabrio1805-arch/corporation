@@ -117,7 +117,6 @@ export const useAppActions = (
     const branchId = internalGetBranchId(state.currentUser);
     setState(prev => ({ ...prev, settings: newSettings, branchSettings: { ...(prev.branchSettings || {}), [branchId]: newSettings } }));
     pushSettings(branchId, newSettings);
-    handleForceSync(false);
   };
 
   const addClient = async (client: Client, loan?: Loan) => {
