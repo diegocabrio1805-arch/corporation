@@ -1531,7 +1531,7 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   <tr className="text-[9px] font-black text-slate-500 uppercase border-b border-slate-200">
                     <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.date || 'Fecha'}</th>
                     <th className="px-5 py-4">{(t as any).commissionBook?.auditModal?.table?.client || 'Cliente'}</th>
-                    <th className="px-5 py-4 text-center font-bold text-blue-600">Confirmación</th>
+
                     <th className="px-5 py-4 text-center">{(t as any).commissionBook?.auditModal?.table?.method || 'Medio'}</th>
                     <th className="px-5 py-4 text-right">{(t as any).commissionBook?.auditModal?.table?.amount || 'Monto'}</th>
                     <th className="px-5 py-4 text-right text-blue-600">{(t as any).commissionBook?.auditModal?.table?.baseCommission || 'Comisión Base'}</th>
@@ -1543,36 +1543,31 @@ const CollectorCommission: React.FC<CollectorCommissionProps> = ({ state, setCom
                   {(Array.isArray(auditLogs) ? auditLogs : []).map((log) => {
                     const isNoPay = log.type === CollectionLogType.NO_PAGO;
                     const comm = (log.amount || 0) * (localCommissionPercent / 100);
-                    const isTransfer = log.isVirtual && !isNoPay;
                     return (
                       <tr key={log.id} className="hover:bg-slate-50 transition-colors text-[11px] font-bold">
                         <td className="px-5 py-3 whitespace-nowrap uppercase">{formatLocalDate(log.date, state.settings.country, {}, state.settings.language)} <span className="text-[8px] text-slate-400 ml-1">{formatLocalTime(log.date, state.settings.country, {}, state.settings.language)}</span></td>
                         <td className="px-5 py-3 uppercase font-black text-black">{log._clientName}</td>
+
                         <td className="px-5 py-3 text-center">
-                          {isTransfer ? (
-                            likedLogs[log.id] ? (
+                          {log.isVirtual && !isNoPay ? (
+                            isPowerUser ? (
                               <button
                                 onClick={() => toggleLikeLog(log.id)}
-                                className="w-6 h-6 text-blue-500 hover:text-blue-600 hover:scale-125 active:scale-95 transition-all duration-200 flex items-center justify-center mx-auto cursor-pointer"
-                                title="Desmarcar"
+                                title={likedLogs[log.id] ? 'Confirmado — Click para desmarcar' : 'Sin confirmar — Click para confirmar'}
+                                className={`px-2 py-0.5 rounded text-[7px] font-black uppercase transition-all duration-200 cursor-pointer border ${likedLogs[log.id] ? 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200' : 'bg-red-600 text-white border-red-500 hover:bg-red-700 shadow-[0_2px_6px_rgba(239,68,68,0.4)]'}`}
                               >
-                                <i className="fa-solid fa-circle-check text-lg filter drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)]"></i>
+                                {(t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.'}
                               </button>
                             ) : (
-                              <button
-                                onClick={() => toggleLikeLog(log.id)}
-                                className="w-5 h-5 bg-red-500 hover:bg-red-600 rounded-md shadow-[0_2px_6px_rgba(239,68,68,0.3)] hover:shadow-[0_4px_10px_rgba(239,68,68,0.5)] hover:scale-110 active:scale-95 transition-all duration-200 flex items-center justify-center mx-auto cursor-pointer border border-red-400"
-                                title="Marcar"
-                              />
+                              <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${likedLogs[log.id] ? 'bg-blue-100 text-blue-700' : 'bg-red-600 text-white'}`}>
+                                {(t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.'}
+                              </span>
                             )
                           ) : (
-                            <span className="text-slate-300">-</span>
+                            <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isNoPay ? 'bg-red-600 text-white' : log.isRenewal ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                              {isNoPay ? ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago') : log.isRenewal ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.') : ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo')}
+                            </span>
                           )}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${isNoPay ? 'bg-red-600 text-white' : log.isRenewal ? 'bg-amber-100 text-amber-700' : log.isVirtual ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                            {isNoPay ? ((t as any).commissionBook?.auditModal?.filters?.noPay || 'No Pago') : log.isRenewal ? ((t as any).commissionBook?.auditModal?.filters?.liquidation || 'Liquid.') : log.isVirtual ? ((t as any).commissionBook?.auditModal?.filters?.transfer || 'Transf.') : ((t as any).commissionBook?.auditModal?.filters?.cash || 'Efectivo')}
-                          </span>
                         </td>
                         <td className="px-5 py-3 text-right font-mono font-black text-black">{isNoPay ? '-' : formatRawNumber(log.amount || 0, state.settings)}</td>
                         <td className="px-5 py-3 text-right font-mono font-black text-blue-600 bg-blue-50/20">{isNoPay ? '-' : formatRawNumber(comm, state.settings)}</td>
