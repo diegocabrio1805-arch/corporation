@@ -33,8 +33,26 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
     return total;
   }, [state.users, currentBranchId]);
   
-  const activeSettings = currentBranchId && state.branchSettings ? (state.branchSettings[currentBranchId] || state.settings) : state.settings;
-  const parentIsolatedExpenses = activeSettings?.isolatedExpenses;
+  const branchSettings = currentBranchId && state.branchSettings ? state.branchSettings[currentBranchId] : undefined;
+  
+  // Construct a safe activeSettings that doesn't bleed branch-specific data from global settings
+  const activeSettings = {
+    ...(branchSettings || state.settings)
+  };
+
+  activeSettings.isolatedExpenses = branchSettings?.isolatedExpenses || [];
+  activeSettings.autoIsolatedFuelProjection = branchSettings?.autoIsolatedFuelProjection || false;
+  
+  if (branchSettings && 'isolatedProjectionAmount' in branchSettings) {
+      activeSettings.isolatedProjectionAmount = branchSettings.isolatedProjectionAmount;
+  } else {
+      delete activeSettings.isolatedProjectionAmount;
+  }
+  
+  activeSettings.defaultFuel = branchSettings?.defaultFuel || 0;
+  activeSettings.fuelHistory = branchSettings?.fuelHistory || [];
+
+  const parentIsolatedExpenses = activeSettings.isolatedExpenses;
 
   const [localExpenses, setLocalExpenses] = useState<IsolatedExpense[]>(parentIsolatedExpenses || []);
   const [localAutoProject, setLocalAutoProject] = useState(!!activeSettings?.autoIsolatedFuelProjection);
@@ -45,7 +63,7 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
       setLocalExpenses(parentIsolatedExpenses);
     }
     setLocalAutoProject(!!activeSettings?.autoIsolatedFuelProjection);
-    setLocalProjectAmount(activeSettings?.isolatedProjectionAmount || '');
+    setLocalProjectAmount(activeSettings?.isolatedProjectionAmount ?? '');
   }, [parentIsolatedExpenses, activeSettings?.autoIsolatedFuelProjection, activeSettings?.isolatedProjectionAmount]);
 
   const daysInMonth = useMemo(() => {
@@ -173,7 +191,7 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-1 bg-white pl-2 pr-1 py-1 rounded-xl border border-slate-200 shadow-sm">
                   <span className="text-slate-400 font-black pl-2">$</span>
                   <input 
                     type="number" 
@@ -182,10 +200,31 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
                     onChange={(e) => {
                       const val = e.target.value === '' ? '' : Number(e.target.value);
                       setLocalProjectAmount(val);
-                      updateSettings({ ...activeSettings, isolatedProjectionAmount: val === '' ? undefined : val });
+                    }}
+                    onBlur={() => {
+                      const val = localProjectAmount === '' ? undefined : Number(localProjectAmount);
+                      updateSettings({ ...activeSettings, isolatedProjectionAmount: val });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = localProjectAmount === '' ? undefined : Number(localProjectAmount);
+                        updateSettings({ ...activeSettings, isolatedProjectionAmount: val });
+                        e.currentTarget.blur();
+                      }
                     }}
                     className="w-24 text-sm font-mono font-bold outline-none bg-transparent text-slate-700"
                   />
+                  <button 
+                    onClick={() => {
+                      const val = localProjectAmount === '' ? undefined : Number(localProjectAmount);
+                      updateSettings({ ...activeSettings, isolatedProjectionAmount: val });
+                      alert("Monto guardado correctamente");
+                    }}
+                    title="Guardar Monto de Proyección"
+                    className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-sm"
+                  >
+                    <i className="fa-solid fa-floppy-disk text-[11px]"></i>
+                  </button>
                 </div>
               </div>
             )}

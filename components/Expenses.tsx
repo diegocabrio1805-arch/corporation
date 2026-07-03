@@ -64,7 +64,24 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
       ? state.currentUser.id 
       : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
   ) : 'none';
-  const activeSettings = currentBranchId && state.branchSettings ? (state.branchSettings[currentBranchId] || state.settings) : state.settings;
+  const branchSettings = currentBranchId && state.branchSettings ? state.branchSettings[currentBranchId] : undefined;
+  
+  // Construct a safe activeSettings that doesn't bleed branch-specific data from global settings
+  const activeSettings = {
+    ...(branchSettings || state.settings)
+  };
+
+  activeSettings.isolatedExpenses = branchSettings?.isolatedExpenses || [];
+  activeSettings.autoIsolatedFuelProjection = branchSettings?.autoIsolatedFuelProjection || false;
+  
+  if (branchSettings && 'isolatedProjectionAmount' in branchSettings) {
+      activeSettings.isolatedProjectionAmount = branchSettings.isolatedProjectionAmount;
+  } else {
+      delete activeSettings.isolatedProjectionAmount;
+  }
+  
+  activeSettings.defaultFuel = branchSettings?.defaultFuel || 0;
+  activeSettings.fuelHistory = branchSettings?.fuelHistory || [];
 
   const branchExpenses = useMemo(() => {
     if (!currentBranchId) return [];
