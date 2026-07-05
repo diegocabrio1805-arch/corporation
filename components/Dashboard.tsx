@@ -435,7 +435,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
       };
     });
 
-    return result.filter(r => r.todayAmount !== null || r.yesterdayAmount !== null);
+    return result.filter(r => r.todayAmount !== null || r.yesterdayAmount !== null || r.ganancia4Sem !== 0);
   }, [state.collectionLogs, state.clients, visibleCollectors, state.settings]);
 
   // --- LÓGICA AUDITOR GENERAL ---
