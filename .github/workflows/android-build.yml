@@ -113,10 +113,10 @@ jobs:
             - 🛠️ **R8/ProGuard**: Código optimizado y comprimido para menor consumo de RAM.
             - 📊 **Excel Profesional**: Importación y exportación masiva funcional (45 columnas).
             - 🏠 **Interfaz Superior**: Modals y ventanas emergentes corregidas.
+          fail_on_unmatched_files: false
           files: |
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Debug.apk
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_Optimized.apk
-            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_PlayStore.aab
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_*.apk
+            Anexo_Cobro_v${{ steps.package-version.outputs.version }}_*.aab
             Anexo_Cobro_v${{ steps.package-version.outputs.version }}_APK_Bundle.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
