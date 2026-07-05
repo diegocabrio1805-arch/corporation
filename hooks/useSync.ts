@@ -606,7 +606,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                                 await withTimeout(supabase.from('deleted_items').insert({
                                     table_name: table, record_id: item.data.id, branch_id: bId,
                                     deleted_at: new Date().toISOString()
-                                }), 15000);
+                                }), 15000).catch(e => console.warn('Ignored deleted_items insert error:', e));
                             }
                             const { error } = await withTimeout(supabase.from(table).delete().eq('id', item.data.id), 15000);
                             if (error) throw error;
