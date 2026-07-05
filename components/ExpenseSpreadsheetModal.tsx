@@ -188,7 +188,7 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
                   return (
                     <React.Fragment key={dayDate}>
                       {getVirtualFuelRow(dayDate, dayExpenses)}
-                      {dayExpenses.map(exp => (
+                      {dayExpenses.filter(e => !e.description?.includes('(ANULADO)')).map(exp => (
                         <ExpenseRow 
                           key={exp.id} 
                           date={dayDate} 

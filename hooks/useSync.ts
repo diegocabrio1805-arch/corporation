@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem } from '../types';
+import { Client, PaymentRecord, Loan, CollectionLog, User, AppState, AppSettings, Expense, DeletedItem, IsolatedExpense } from '../types';
 import { StorageService } from '../utils/localforageStorage';
 import { Network } from '@capacitor/network';
 import { App } from '@capacitor/app';
@@ -302,6 +302,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             let profilesQuery = supabase.from('profiles').select('*').order('updated_at', { ascending: true });
             let settingsQuery = supabase.from('branch_settings').select('*').order('updated_at', { ascending: true });
             let expensesQuery = supabase.from('expenses').select('*').order('updated_at', { ascending: true });
+            let isolatedExpensesQuery = supabase.from('isolated_expenses').select('*').order('updated_at', { ascending: true });
             let deletedItemsQuery = supabase.from('deleted_items').select('*').order('deleted_at', { ascending: true });
 
             let adjustedSyncTime: string | null = null;
@@ -326,6 +327,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                 // porque son pocos registros y es crítico no perder ningún usuario
                 settingsQuery = settingsQuery.gt('updated_at', adjustedSyncTime);
                 expensesQuery = expensesQuery.gt('updated_at', adjustedSyncTime);
+                isolatedExpensesQuery = isolatedExpensesQuery.gt('updated_at', adjustedSyncTime);
                 deletedItemsQuery = deletedItemsQuery.gt('deleted_at', adjustedSyncTime);
             } else {
                 // PROTECCIÓN: Durante un fullSync o recarga total, no descargar el historial completo de borrados
@@ -370,8 +372,9 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
             if (fullSync) await new Promise(r => setTimeout(r, 150));
 
             // LOTE 4: Gastos y Eliminados
-            const [expensesResult, deletedResult] = await Promise.all([
+            const [expensesResult, isolatedExpensesResult, deletedResult] = await Promise.all([
                 fetchAll(expensesQuery.abortSignal(controller.signal)),
+                fetchAll(isolatedExpensesQuery.abortSignal(controller.signal)),
                 fetchAll(deletedItemsQuery.abortSignal(controller.signal))
             ]);
 
@@ -412,6 +415,7 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     recordedBy: cl.recorded_by, collectorId: cl.collector_id, deletedAt: cl.deleted_at
                 })) as CollectionLog[],
                 expenses: (expensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id, addedBy: e.added_by })) as Expense[],
+                isolatedExpenses: (isolatedExpensesResult.data || []).map((e: any) => ({ ...e, branchId: e.branch_id })) as IsolatedExpense[],
                 users: (profilesResult.data || []).map((u: any) => ({ ...u, expiryDate: u.expiry_date, managedBy: u.managed_by, requiresLocation: u.requires_location, payConfig: u.pay_config })) as unknown as User[],
                 branchSettings: (settingsResult.data || []).reduce((acc: any, s: any) => {
                     acc[s.id] = s.settings;
@@ -552,12 +556,18 @@ export const useSync = (onDataUpdated?: (newData: Partial<AppState>, isFullSync?
                     date: d.date, branch_id: d.branchId, added_by: d.addedBy,
                     updated_at: new Date().toISOString()
                 })},
+                'ADD_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: false, mapper: (d) => ({
+                    id: d.id, description: d.description, amount: d.amount, category: d.category,
+                    date: d.date, branch_id: d.branchId,
+                    updated_at: new Date().toISOString()
+                })},
                 'UPDATE_SETTINGS': { items: [], table: 'branch_settings', isDelete: false, mapper: (d) => ({ id: d.branchId, settings: d.settings, updated_at: new Date().toISOString() }) },
                 'DELETE_LOG': { items: [], table: 'collection_logs', isDelete: true, mapper: (d) => d },
                 'DELETE_PAYMENT': { items: [], table: 'payments', isDelete: true, mapper: (d) => d },
                 'DELETE_LOAN': { items: [], table: 'loans', isDelete: true, mapper: (d) => d },
                 'DELETE_CLIENT': { items: [], table: 'clients', isDelete: true, mapper: (d) => d },
                 'DELETE_EXPENSE': { items: [], table: 'expenses', isDelete: true, mapper: (d) => d },
+                'DELETE_ISOLATED_EXPENSE': { items: [], table: 'isolated_expenses', isDelete: true, mapper: (d) => d },
                 'RENEW_LOAN': { items: [], table: 'loans', isDelete: false, mapper: (d) => d },
             };
 

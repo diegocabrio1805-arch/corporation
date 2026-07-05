@@ -23,6 +23,7 @@ export const useAppInitialization = () => {
     loans: [],
     payments: [],
     expenses: [],
+    isolatedExpenses: [],
     collectionLogs: [],
     users: [initialAdmin],
     currentUser: null,

@@ -1,4 +1,4 @@
-import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense } from '../types';
+import { AppState, User, Role, AppSettings, Client, Loan, CollectionLog, CollectionLogType, LoanStatus, PaymentStatus, PaymentRecord, CommissionBracket, Expense, IsolatedExpense } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import { Preferences } from '@capacitor/preferences';
 import { calculateTotalPaidFromLogs, formatCurrency, generateUUID } from '../utils/helpers';
@@ -113,10 +113,24 @@ export const useAppActions = (
     return user.managedBy || 'none';
   };
 
-  const updateSettings = async (newSettings: AppSettings) => {
-    const branchId = internalGetBranchId(state.currentUser);
-    setState(prev => ({ ...prev, settings: newSettings, branchSettings: { ...(prev.branchSettings || {}), [branchId]: newSettings } }));
+  const updateSettings = async (newSettings: AppSettings, targetBranchId?: string) => {
+    const branchId = targetBranchId || internalGetBranchId(state.currentUser);
+    const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+    const isMasterAdmin = state.currentUser?.id === SYSTEM_ADMIN_ID;
+    
+    // Only update the global settings object if we are editing the master admin's own branch
+    const shouldUpdateGlobal = isMasterAdmin && branchId === SYSTEM_ADMIN_ID;
+
+    const newState = { 
+      ...state, 
+      settings: shouldUpdateGlobal ? newSettings : state.settings,
+      branchSettings: { ...(state.branchSettings || {}), [branchId]: newSettings } 
+    };
+    
+    setState(newState);
+    if (immediateSave) immediateSave(newState);
     pushSettings(branchId, newSettings);
+    handleForceSync(false);
   };
 
   const addClient = async (client: Client, loan?: Loan) => {
@@ -613,7 +627,7 @@ export const useAppActions = (
   };
 
   const addExpense = (expense: Expense) => {
-    const branchId = internalGetBranchId(state.currentUser);
+    const branchId = expense.branchId || internalGetBranchId(state.currentUser);
     const newExpense = { ...expense, branchId, addedBy: state.currentUser?.id };
     const newState = { ...state, expenses: [newExpense, ...state.expenses] };
     setState(newState);
@@ -624,6 +638,9 @@ export const useAppActions = (
 
   const removeExpense = async (id: string) => {
     setState(prev => ({ ...prev, expenses: prev.expenses.filter(x => x.id !== id) }));
+    const branchId = internalGetBranchId(state.currentUser);
+    addToQueue('DELETE_EXPENSE', { id, branchId, deletedAt: new Date().toISOString() });
+    
     if (navigator.onLine) {
       try {
         await supabase.from('expenses').delete().eq('id', id);
@@ -641,6 +658,30 @@ export const useAppActions = (
       try {
         await supabase.from('expenses').update({ amount: updatedExpense.amount, description: updatedExpense.description, category: updatedExpense.category }).eq('id', updatedExpense.id);
       } catch (e) { console.error('Error updating expense remotely', e); }
+    }
+    await handleForceSync(false);
+  };
+
+  const addIsolatedExpenseAction = (expense: IsolatedExpense) => {
+    const branchId = internalGetBranchId(state.currentUser);
+    const newExpense = { ...expense, branchId, updated_at: new Date().toISOString() };
+    
+    setState(prev => {
+      const newState = { ...prev, isolatedExpenses: [newExpense, ...(prev.isolatedExpenses || [])] };
+      immediateSave(newState);
+      return newState;
+    });
+    
+    addToQueue('ADD_ISOLATED_EXPENSE', newExpense);
+    handleForceSync(true);
+  };
+
+  const removeIsolatedExpenseAction = async (id: string) => {
+    setState(prev => ({ ...prev, isolatedExpenses: (prev.isolatedExpenses || []).filter(x => x.id !== id) }));
+    if (navigator.onLine) {
+      try {
+        await supabase.from('isolated_expenses').delete().eq('id', id);
+      } catch (e) { console.error('Error deleting isolated expense remotely', e); }
     }
     await handleForceSync(false);
   };
@@ -718,7 +759,7 @@ export const useAppActions = (
     addClient, addLoan, updateClient, deleteClient, updateLoan, recalculateAllLoansBalances,
     recalculateLoanStatus, deleteLoan, addCollectionAttempt, deleteCollectionLog,
     updateCollectionLog, addBulkData, updateCollectionLogNotes, addExpense, removeExpense,
-    updateExpense, updateInitialCapital, updateCommissionBrackets, handleSyncUser,
+    updateExpense, addIsolatedExpenseAction, removeIsolatedExpenseAction, updateInitialCapital, updateCommissionBrackets, handleSyncUser,
     deleteRemoteClientAction, renewLoan
   };
 };

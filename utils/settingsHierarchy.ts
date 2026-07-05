@@ -19,6 +19,16 @@ export const resolveSettings = (
         ? currentUser.managedBy
         : currentUser.id;
 
+    // IMPORTANT: Strip isolated operational data if inheriting from the master admin.
+    // This prevents branch A from seeing master admin's expenses/fuel history when branch A has not yet saved its own.
+    if (managerOrSelfId !== SYSTEM_ADMIN_ID) {
+        settings.isolatedExpenses = [];
+        settings.fuelHistory = [];
+        settings.defaultFuel = 0;
+        settings.autoIsolatedFuelProjection = false;
+        delete settings.isolatedProjectionAmount;
+    }
+
     const branchSettings = allSettings[managerOrSelfId];
     const isValid = (val: any) => val && val !== '---' && val !== 'undefined' && String(val).trim() !== '';
 

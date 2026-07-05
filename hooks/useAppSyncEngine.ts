@@ -144,6 +144,7 @@ export const useAppSyncEngine = (
       if (mappedData.loans) updatedState.loans = mergeData(updatedState.loans, mappedData.loans, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.clients) updatedState.clients = mergeData(updatedState.clients, mappedData.clients, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.expenses) updatedState.expenses = mergeData(updatedState.expenses, mappedData.expenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
+      if (mappedData.isolatedExpenses) updatedState.isolatedExpenses = mergeData(updatedState.isolatedExpenses || [], mappedData.isolatedExpenses, pendingAddIds, pendingDeleteIds, !!isFullSync);
       if (mappedData.users) {
         updatedState.users = mergeData(updatedState.users, mappedData.users, pendingAddIds, pendingDeleteIds, !!isFullSync);
         if (prev.currentUser && mappedData.users.length > 0) {
@@ -163,7 +164,24 @@ export const useAppSyncEngine = (
         }
       }
 
-      if (newData.branchSettings) updatedState.branchSettings = { ...prev.branchSettings, ...newData.branchSettings };
+      if (newData.branchSettings) {
+        const pendingSettingsBranches = new Set<string>();
+        if (Array.isArray(queue)) {
+          queue.forEach((item: any) => {
+            if (item.operation === 'UPDATE_SETTINGS' && item.data && item.data.branchId) {
+              pendingSettingsBranches.add(item.data.branchId);
+            }
+          });
+        }
+        
+        const mergedSettings = { ...prev.branchSettings };
+        for (const [bId, bSet] of Object.entries(newData.branchSettings)) {
+          if (!pendingSettingsBranches.has(bId)) {
+            mergedSettings[bId] = bSet as any;
+          }
+        }
+        updatedState.branchSettings = mergedSettings;
+      }
 
       // Persistencia inmediata del nuevo estado sincronizado
       immediateSave(updatedState);
@@ -387,7 +405,7 @@ export const useAppSyncEngine = (
 
     const isOurBranch = (itemBranchId: string | undefined, itemAddedBy: string | undefined, itemCollectorId: string | undefined) => {
       const uName = (user.name || '').toUpperCase().trim();
-      const isSuperUser = ['FABIAN PEDROZO', 'ALTERFINZONA01'].includes(uName);
+      const isSuperUser = ['FABIAN PEDROZO'].includes(uName);
       if (isSuperUser) return true;
       
       const itemBranchLower = itemBranchId?.toLowerCase();

@@ -87,6 +87,8 @@ export interface IsolatedExpense {
   category: ExpenseCategory;
   amount: number;
   date: string;
+  branchId?: string; // ID de la sucursal (Gerente)
+  updated_at?: string; // Para sincronización
 }
 
 export interface PayConfig {
@@ -287,6 +289,7 @@ export interface AppState {
   loans: Loan[];
   payments: PaymentRecord[];
   expenses: Expense[];
+  isolatedExpenses: IsolatedExpense[];
   collectionLogs: CollectionLog[];
   users: User[];
   currentUser: User | null;

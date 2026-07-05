@@ -1,24 +1,36 @@
-import React, { useState, useMemo } from 'react';
-import { AppState, ExpenseCategory, IsolatedExpense } from '../types';
-import { formatCurrency, generateUUID } from '../utils/helpers';
+import React, { useState, useMemo, useEffect } from 'react';
+import { AppState, ExpenseCategory, Expense } from '../types';
+import { formatCurrency, generateUUID, formatLocalTime } from '../utils/helpers';
 
 interface IsolatedSpreadsheetModalProps {
   state: AppState;
   onClose: () => void;
-  updateSettings?: (settings: any) => void;
+  updateSettings?: (settings: any, targetBranchId?: string) => void;
+  addExpense?: (expense: Expense) => void;
+  removeExpense?: (id: string) => void;
+  updateExpense?: (expense: Expense) => void;
 }
 
-export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> = ({ state, onClose, updateSettings }) => {
+export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> = ({ state, onClose, updateSettings, addExpense, removeExpense, updateExpense }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const currentBranchId = state.currentUser ? (
-    (state.currentUser.role === 'ADMIN' || state.currentUser.role === 'MANAGER') 
-      ? state.currentUser.id 
-      : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
-  ) : 'none';
+  const isAdmin = state.currentUser?.role === 'ADMIN';
+  const SYSTEM_ADMIN_ID = 'b3716a78-fb4f-4918-8c0b-92004e3d63ec';
+  
+  const [selectedAdminBranchId, setSelectedAdminBranchId] = useState<string>(() => {
+    return state.currentUser?.id || SYSTEM_ADMIN_ID;
+  });
+
+  const currentBranchId = isAdmin 
+    ? selectedAdminBranchId 
+    : (state.currentUser ? (
+        state.currentUser.role === 'MANAGER' 
+          ? state.currentUser.id 
+          : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
+      ) : 'none');
 
   const totalMonthlyPayroll = React.useMemo(() => {
     let total = 0;
@@ -35,36 +47,80 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
   
   const branchSettings = currentBranchId && state.branchSettings ? state.branchSettings[currentBranchId] : undefined;
   
-  // Construct a safe activeSettings that doesn't bleed branch-specific data from global settings
-  const activeSettings = {
-    ...(branchSettings || state.settings)
-  };
-
-  activeSettings.isolatedExpenses = branchSettings?.isolatedExpenses || [];
-  activeSettings.autoIsolatedFuelProjection = branchSettings?.autoIsolatedFuelProjection || false;
-  
-  if (branchSettings && 'isolatedProjectionAmount' in branchSettings) {
-      activeSettings.isolatedProjectionAmount = branchSettings.isolatedProjectionAmount;
-  } else {
-      delete activeSettings.isolatedProjectionAmount;
+  // Leemos desde localStorage como backup de emergencia
+  const backupStateStr = localStorage.getItem('prestamaster_v2');
+  let backupAmount: number | undefined = undefined;
+  let backupAuto: boolean | undefined = undefined;
+  if (backupStateStr) {
+    try {
+      const backupState = JSON.parse(backupStateStr);
+      if (backupState.branchSettings && backupState.branchSettings[currentBranchId]) {
+         backupAmount = backupState.branchSettings[currentBranchId].isolatedProjectionAmount;
+         backupAuto = backupState.branchSettings[currentBranchId].autoIsolatedFuelProjection;
+      }
+    } catch(e) {}
   }
   
-  activeSettings.defaultFuel = branchSettings?.defaultFuel || 0;
-  activeSettings.fuelHistory = branchSettings?.fuelHistory || [];
+  // TERCERA CAPA DE SEGURIDAD: Storage directo blindado
+  const directStorageStr = localStorage.getItem(`fuel_config_${currentBranchId}`);
+  if (directStorageStr) {
+    try {
+      const parsedDirect = JSON.parse(directStorageStr);
+      if (backupAmount === undefined) backupAmount = parsedDirect.amount;
+      if (backupAuto === undefined) backupAuto = parsedDirect.auto;
+    } catch(e) {}
+  }
 
-  const parentIsolatedExpenses = activeSettings.isolatedExpenses;
+  // For display settings (company name, currency, etc.) use branchSettings normally
+  const activeSettings = {
+    ...(branchSettings || state.settings),
+    // STRICT ISOLATION: Never inherit projection fields from master's global state.settings
+    autoIsolatedFuelProjection: branchSettings?.autoIsolatedFuelProjection ?? backupAuto ?? false,
+    isolatedProjectionAmount: (branchSettings?.isolatedProjectionAmount ?? backupAmount) === 63300 
+      ? undefined 
+      : (branchSettings?.isolatedProjectionAmount ?? backupAmount)
+  };
 
-  const [localExpenses, setLocalExpenses] = useState<IsolatedExpense[]>(parentIsolatedExpenses || []);
-  const [localAutoProject, setLocalAutoProject] = useState(!!activeSettings?.autoIsolatedFuelProjection);
-  const [localProjectAmount, setLocalProjectAmount] = useState(activeSettings?.isolatedProjectionAmount || '');
+  const [localAutoProject, setLocalAutoProject] = useState<boolean>(!!activeSettings.autoIsolatedFuelProjection);
+  const [localProjectAmount, setLocalProjectAmount] = useState<string | number>(activeSettings.isolatedProjectionAmount ?? '');
 
   React.useEffect(() => {
-    if (parentIsolatedExpenses) {
-      setLocalExpenses(parentIsolatedExpenses);
+    setLocalAutoProject(!!activeSettings.autoIsolatedFuelProjection);
+    setLocalProjectAmount(activeSettings.isolatedProjectionAmount ?? '');
+  }, [activeSettings.autoIsolatedFuelProjection, activeSettings.isolatedProjectionAmount]);
+
+  const saveProjectionLocally = (autoProject: boolean, amount: string | number) => {
+    if (updateSettings) {
+      const parsedAmount = amount === '' ? undefined : Number(amount);
+      const newSettings = {
+        ...activeSettings,
+        autoIsolatedFuelProjection: autoProject,
+        isolatedProjectionAmount: parsedAmount
+      };
+      
+      // Guardado directo invulnerable a reseteos de caché de React
+      localStorage.setItem(`fuel_config_${currentBranchId}`, JSON.stringify({
+        auto: autoProject,
+        amount: parsedAmount
+      }));
+
+      updateSettings(newSettings, currentBranchId);
+      
+      // Update local state immediately for instant feedback
+      setLocalAutoProject(autoProject);
+      setLocalProjectAmount(amount);
     }
-    setLocalAutoProject(!!activeSettings?.autoIsolatedFuelProjection);
-    setLocalProjectAmount(activeSettings?.isolatedProjectionAmount ?? '');
-  }, [parentIsolatedExpenses, activeSettings?.autoIsolatedFuelProjection, activeSettings?.isolatedProjectionAmount]);
+  };
+
+  const parentExpenses = useMemo(() => {
+    if (!state.expenses) return [];
+    return state.expenses.filter((e: any) => {
+      if (currentBranchId === 'none') return false;
+      // Filter out corrupted 63300 if somehow present
+      if (e.amount === 63300 && e.description === 'COMBUSTIBLE DIARIO') return false;
+      return e.branchId === currentBranchId || e.branch_id === currentBranchId;
+    });
+  }, [state.expenses, currentBranchId]);
 
   const daysInMonth = useMemo(() => {
     if (!currentMonth) return [];
@@ -78,89 +134,112 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
     return days;
   }, [currentMonth]);
 
-  const fuelHistory = useMemo(() => {
-    return activeSettings?.fuelHistory || [];
-  }, [activeSettings]);
-
-  const getFuelAmountForDay = (dateStr: string) => {
-    return localProjectAmount || 0;
+  const getFuelAmountForDay = (_dateStr: string) => {
+    return Number(localProjectAmount) || 0;
   };
 
-  const addIsolatedExpense = (exp: IsolatedExpense) => {
-    if (!updateSettings) return;
-    const newExpenses = [...localExpenses, exp];
-    setLocalExpenses(newExpenses);
-    updateSettings({ ...activeSettings, isolatedExpenses: newExpenses });
+  // Days skipped by the user (trash on virtual row) — session only, no DB
+  const [skippedDays, setSkippedDays] = useState<Set<string>>(() => {
+     // Cargar días saltados de este mes desde localStorage al iniciar
+     const storageKey = `fuel_skipped_${currentBranchId}_${currentMonth}`;
+     try {
+       const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
+       return new Set(stored);
+     } catch(e) {
+       return new Set();
+     }
+  });
+
+  // Escuchar cambios de mes para cargar el caché correcto
+  useEffect(() => {
+     const storageKey = `fuel_skipped_${currentBranchId}_${currentMonth}`;
+     try {
+       const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
+       setSkippedDays(new Set(stored));
+     } catch(e) {
+       setSkippedDays(new Set());
+     }
+  }, [currentMonth, currentBranchId]);
+
+  const handleAddExpense = (exp: Expense) => {
+    if (addExpense) addExpense(exp);
   };
 
-  const removeIsolatedExpense = (id: string) => {
-    if (!updateSettings) return;
+  const handleRemoveExpense = (id: string) => {
     if (id.startsWith('virtual-')) {
-      const dayDate = id.replace('virtual-', '');
-      const omitExp: IsolatedExpense = {
-        id: generateUUID(),
-        description: 'COMBUSTIBLE (OMITIDO)',
-        amount: 0,
-        category: ExpenseCategory.OTHERS,
-        date: dayDate + 'T12:00:00.000Z'
-      };
-      const newExpenses = [...localExpenses, omitExp];
-      setLocalExpenses(newExpenses);
-      updateSettings({ ...activeSettings, isolatedExpenses: newExpenses });
+      if (window.confirm('¿Desea anular permanentemente la proyección de combustible para este día?')) {
+        const dayDate = id.replace('virtual-', '');
+        
+        // 1. Guardar localmente que este día se saltó la proyección
+        setSkippedDays(prev => {
+          const next = new Set(prev);
+          next.add(dayDate);
+          
+          // Persistir en localstorage para que sobreviva recargas
+          const storageKey = `fuel_skipped_${currentBranchId}_${currentMonth}`;
+          const currentSkipped = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          if (!currentSkipped.includes(dayDate)) {
+             localStorage.setItem(storageKey, JSON.stringify([...currentSkipped, dayDate]));
+          }
+          return next;
+        });
+
+        // 2. Crear un registro de gasto 0 anónimo para que el motor de sincronización lo registre
+        const newExp: Expense = {
+          id: generateUUID(),
+          description: 'COMBUSTIBLE DIARIO (ANULADO)',
+          amount: 0,
+          category: ExpenseCategory.TRANSPORT,
+          date: dayDate + 'T12:00:00.000Z'
+        };
+        if (addExpense) addExpense(newExp);
+      }
       return;
     }
-    const newExpenses = localExpenses.filter((e: IsolatedExpense) => e.id !== id);
-    setLocalExpenses(newExpenses);
-    updateSettings({ ...activeSettings, isolatedExpenses: newExpenses });
+    if (removeExpense) removeExpense(id);
   };
 
-  const getVirtualFuelRow = (dayDate: string, dayExpenses: IsolatedExpense[]) => {
+  const getVirtualFuelRow = (dayDate: string, dayExpenses: Expense[]) => {
     const today = new Date().toISOString().split('T')[0];
-    
     if (dayDate > today) return null;
-    
     const [y, m, d] = dayDate.split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    if (dateObj.getDay() === 0) return null; // No domingo
-
+    if (new Date(y, m - 1, d).getDay() === 0) return null; // No domingo
     if (!localAutoProject) return null;
-
-    const hasRealFuel = dayExpenses.some((e: IsolatedExpense) => e.description?.includes('COMBUSTIBLE'));
-    if (hasRealFuel) return null; 
-
-    const activeAmount = Number(getFuelAmountForDay(dayDate));
-    
+    const fuelAmt = getFuelAmountForDay(dayDate);
+    if (!fuelAmt || fuelAmt <= 0) return null;
+    if (skippedDays.has(dayDate)) return null;
+    const hasRealFuel = dayExpenses.some((e: Expense) => e.description?.includes('COMBUSTIBLE'));
+    if (hasRealFuel) return null;
     return (
-      <ProjectedExpenseRow 
+      <ProjectedExpenseRow
         key={`virtual-${dayDate}`}
         date={dayDate}
-        defaultAmount={activeAmount}
+        defaultAmount={fuelAmt}
         settings={activeSettings}
-        addIsolatedExpense={addIsolatedExpense}
-        removeIsolatedExpense={removeIsolatedExpense}
+        addExpense={handleAddExpense}
+        removeExpense={handleRemoveExpense}
       />
     );
   };
 
   const totalMonthExpenses = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
     return daysInMonth.reduce((acc, dayDate) => {
-      const realTotal = localExpenses.filter((e: IsolatedExpense) => e.date.startsWith(dayDate)).reduce((sum: number, e: IsolatedExpense) => sum + e.amount, 0);
-      
+      const realTotal = parentExpenses.filter((e: any) => e.date.startsWith(dayDate)).reduce((sum: number, e: any) => sum + e.amount, 0);
       let virtualTotal = 0;
+      const today = new Date().toISOString().split('T')[0];
       if (dayDate <= today && localAutoProject) {
         const [y, m, d] = dayDate.split('-').map(Number);
-        const dateObj = new Date(y, m - 1, d);
-        if (dateObj.getDay() !== 0) { 
-          const dayExps = localExpenses.filter((e: IsolatedExpense) => e.date.startsWith(dayDate));
-          const hasRealFuel = dayExps.some((e: IsolatedExpense) => e.description?.includes('COMBUSTIBLE'));
-          if (!hasRealFuel) virtualTotal = Number(getFuelAmountForDay(dayDate));
+        if (new Date(y, m - 1, d).getDay() !== 0) {
+          const dayExpenses = parentExpenses.filter((e: any) => e.date.startsWith(dayDate));
+          const hasRealFuel = dayExpenses.some((e: any) => e.description?.includes('COMBUSTIBLE'));
+          if (!hasRealFuel && !skippedDays.has(dayDate)) {
+            virtualTotal = getFuelAmountForDay(dayDate);
+          }
         }
       }
-      
-      return acc + realTotal + (virtualTotal > 0 ? virtualTotal : 0);
+      return acc + realTotal + virtualTotal;
     }, 0);
-  }, [daysInMonth, localExpenses, fuelHistory, localAutoProject, localProjectAmount]);
+  }, [daysInMonth, parentExpenses, localAutoProject, localProjectAmount, skippedDays]);
 
   return (
     <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm flex items-start justify-center z-[300] p-4 overflow-hidden pt-10 md:pt-10">
@@ -171,63 +250,74 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
               <i className="fa-solid fa-file-excel text-xl"></i>
             </div>
             <div>
-              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Planilla Operativa (Aislada)</h3>
+              <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-3">
+                Planilla Operativa (Aislada)
+                {isAdmin && (
+                  <select 
+                    value={selectedAdminBranchId}
+                    onChange={(e) => setSelectedAdminBranchId(e.target.value)}
+                    className="ml-2 text-sm font-bold bg-white border border-slate-300 text-slate-700 py-1 px-2 rounded-lg outline-none shadow-sm"
+                  >
+                    <option value={state.currentUser?.id || SYSTEM_ADMIN_ID}>Mi Sucursal (Maestro)</option>
+                    {(Array.isArray(state.users) ? state.users : []).filter(u => u.role === 'MANAGER' || u.role === 'ADMIN').map(u => {
+                      if (u.id === (state.currentUser?.id || SYSTEM_ADMIN_ID)) return null;
+                      return <option key={u.id} value={u.id}>{u.name}</option>;
+                    })}
+                  </select>
+                )}
+              </h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Este módulo NO afecta el Dashboard</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            {updateSettings && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer" 
-                     onClick={() => {
-                        const newVal = !localAutoProject;
-                        setLocalAutoProject(newVal);
-                        updateSettings({...activeSettings, autoIsolatedFuelProjection: newVal});
-                     }}>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Proyección Automática</span>
-                  <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${localAutoProject ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                    <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${localAutoProject ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 bg-white pl-2 pr-1 py-1 rounded-xl border border-slate-200 shadow-sm">
-                  <span className="text-slate-400 font-black pl-2">$</span>
-                  <input 
-                    type="number" 
-                    placeholder="Monto..."
-                    value={localProjectAmount}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? '' : Number(e.target.value);
-                      setLocalProjectAmount(val);
-                    }}
-                    onBlur={() => {
-                      const val = localProjectAmount === '' ? undefined : Number(localProjectAmount);
-                      updateSettings({ ...activeSettings, isolatedProjectionAmount: val });
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const val = localProjectAmount === '' ? undefined : Number(localProjectAmount);
-                        updateSettings({ ...activeSettings, isolatedProjectionAmount: val });
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    className="w-24 text-sm font-mono font-bold outline-none bg-transparent text-slate-700"
-                  />
-                  <button 
-                    onClick={() => {
-                      const val = localProjectAmount === '' ? undefined : Number(localProjectAmount);
-                      updateSettings({ ...activeSettings, isolatedProjectionAmount: val });
-                      alert("Monto guardado correctamente");
-                    }}
-                    title="Guardar Monto de Proyección"
-                    className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-sm"
-                  >
-                    <i className="fa-solid fa-floppy-disk text-[11px]"></i>
-                  </button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer" 
+                   onClick={() => {
+                      const newVal = !localAutoProject;
+                      setLocalAutoProject(newVal);
+                      saveProjectionLocally(newVal, localProjectAmount);
+                   }}>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Proyección Automática</span>
+                <div className={`w-10 h-5 flex items-center rounded-full p-1 transition-colors ${localAutoProject ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                  <div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${localAutoProject ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </div>
               </div>
-            )}
+
+              <div className="flex items-center gap-1 bg-white pl-2 pr-1 py-1 rounded-xl border border-slate-200 shadow-sm">
+                <span className="text-slate-400 font-black pl-2">$</span>
+                <input 
+                  type="number" 
+                  placeholder="Monto..."
+                  value={localProjectAmount}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : Number(e.target.value);
+                    setLocalProjectAmount(val);
+                  }}
+                  onBlur={() => {
+                    saveProjectionLocally(localAutoProject, localProjectAmount);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      saveProjectionLocally(localAutoProject, localProjectAmount);
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="w-24 text-sm font-mono font-bold outline-none bg-transparent text-slate-700"
+                />
+                <button 
+                  onClick={() => {
+                    saveProjectionLocally(localAutoProject, localProjectAmount);
+                    alert("Monto guardado correctamente");
+                  }}
+                  title="Guardar Monto de Proyección"
+                  className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-emerald-600 text-white rounded-lg transition-colors shadow-sm"
+                >
+                  <i className="fa-solid fa-floppy-disk text-[11px]"></i>
+                </button>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Mes y Año:</label>
               <input
@@ -257,22 +347,23 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {daysInMonth.map(dayDate => {
-                  const dayExpenses = localExpenses.filter((e: IsolatedExpense) => e.date.startsWith(dayDate));
+                  const dayExpenses = parentExpenses.filter((e: any) => e.date.startsWith(dayDate));
                   return (
                     <React.Fragment key={dayDate}>
                       {getVirtualFuelRow(dayDate, dayExpenses)}
-                      {dayExpenses.filter((e: IsolatedExpense) => !e.description?.includes('(OMITIDO)')).map((exp: IsolatedExpense) => (
+                      {dayExpenses.filter((e: any) => !e.description?.includes('(ANULADO)')).map((exp: any) => (
                         <ExpenseRow 
                           key={exp.id} 
                           date={dayDate} 
                           expense={exp} 
                           settings={activeSettings} 
-                          removeIsolatedExpense={removeIsolatedExpense}
+                          removeExpense={handleRemoveExpense}
+                          updateExpense={updateExpense}
                         />
                       ))}
                       <NewExpenseRow 
                         date={dayDate} 
-                        addIsolatedExpense={addIsolatedExpense} 
+                        addExpense={handleAddExpense} 
                       />
                     </React.Fragment>
                   );
@@ -309,7 +400,24 @@ export const IsolatedSpreadsheetModal: React.FC<IsolatedSpreadsheetModalProps> =
   );
 };
 
-const ExpenseRow = ({ date, expense, settings, removeIsolatedExpense }: any) => {
+const ExpenseRow = ({ date, expense, settings, removeExpense, updateExpense }: any) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [amount, setAmount] = useState<string | number>(expense.amount);
+
+  const handleDelete = () => {
+    if (window.confirm('¿Está seguro de que desea eliminar este gasto?')) {
+      setIsDeleting(true);
+      removeExpense(expense.id);
+    }
+  };
+
+  const handleUpdate = () => {
+    const newAmount = Number(amount);
+    if (newAmount !== expense.amount && updateExpense) {
+      updateExpense({ ...expense, amount: newAmount });
+    }
+  };
+
   return (
     <tr className="bg-white hover:bg-slate-50 transition-colors group border-l-4 border-l-transparent hover:border-l-emerald-400">
       <td className="px-4 py-2 border-r border-slate-100 text-xs font-bold text-slate-500 flex items-center gap-2">
@@ -325,15 +433,21 @@ const ExpenseRow = ({ date, expense, settings, removeIsolatedExpense }: any) => 
         <span className="bg-slate-100 px-2 py-1 rounded border border-slate-200">{expense.category}</span>
       </td>
       <td className="px-4 py-2 border-r border-slate-100 font-mono text-sm font-black text-slate-700">
-        {formatCurrency(expense.amount, settings)}
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 font-bold">$</span>
+          <input 
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            onBlur={handleUpdate}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            className="w-full bg-white border border-slate-200 rounded px-2 py-1 outline-none focus:border-emerald-500 text-slate-800 transition-colors"
+          />
+        </div>
       </td>
       <td className="px-4 py-2 text-center">
         <button 
-          onClick={() => {
-            if (window.confirm('¿Eliminar gasto?')) {
-              removeIsolatedExpense(expense.id);
-            }
-          }}
+          onClick={handleDelete}
           className="w-7 h-7 flex items-center justify-center bg-white hover:bg-red-50 text-slate-300 hover:text-red-500 border border-slate-200 rounded transition-colors shadow-sm mx-auto"
         >
           <i className="fa-solid fa-trash-can text-[10px]"></i>
@@ -343,23 +457,20 @@ const ExpenseRow = ({ date, expense, settings, removeIsolatedExpense }: any) => 
   );
 };
 
-const ProjectedExpenseRow = ({ date, defaultAmount, settings, addIsolatedExpense, removeIsolatedExpense }: any) => {
-  const [customAmount, setCustomAmount] = useState(defaultAmount.toString());
-
-  React.useEffect(() => {
-    setCustomAmount(defaultAmount.toString());
-  }, [defaultAmount]);
+const ProjectedExpenseRow = ({ date, defaultAmount, settings, addExpense, removeExpense }: any) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [customAmount, setCustomAmount] = useState<string | number>(defaultAmount);
 
   const handleSave = () => {
-    if (!customAmount || isNaN(Number(customAmount))) return;
-    const newExp: IsolatedExpense = {
+    setIsSaving(true);
+    const newExp: Expense = {
       id: generateUUID(),
       description: 'COMBUSTIBLE DIARIO',
       amount: Number(customAmount),
-      category: ExpenseCategory.TRANSPORTATION,
+      category: ExpenseCategory.TRANSPORT,
       date: date + 'T12:00:00.000Z'
     };
-    addIsolatedExpense(newExp);
+    addExpense(newExp);
   };
 
   return (
@@ -399,7 +510,7 @@ const ProjectedExpenseRow = ({ date, defaultAmount, settings, addIsolatedExpense
           </button>
           <button 
             onClick={() => {
-              removeIsolatedExpense(`virtual-${date}`);
+              removeExpense(`virtual-${date}`);
             }}
             className="w-7 h-7 flex items-center justify-center bg-white hover:bg-red-50 text-slate-300 hover:text-red-500 border border-slate-200 rounded transition-colors shadow-sm"
           >
@@ -411,21 +522,21 @@ const ProjectedExpenseRow = ({ date, defaultAmount, settings, addIsolatedExpense
   );
 };
 
-const NewExpenseRow = ({ date, addIsolatedExpense }: any) => {
+const NewExpenseRow = ({ date, addExpense }: any) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.OTHERS);
 
   const handleSave = () => {
     if (!description.trim() || !amount || isNaN(Number(amount))) return;
-    const newExp: IsolatedExpense = {
+    const newExp: Expense = {
       id: generateUUID(),
       description: description.trim(),
       amount: Number(amount),
       category,
       date: date + 'T12:00:00.000Z'
     };
-    addIsolatedExpense(newExp);
+    addExpense(newExp);
     setDescription('');
     setAmount('');
     setCategory(ExpenseCategory.OTHERS);

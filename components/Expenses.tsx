@@ -14,7 +14,7 @@ interface ExpensesProps {
   updateExpense: (expense: Expense) => void;
   updateInitialCapital: (amount: number) => void;
   onViewClientDossier?: (clientId: string) => void;
-  updateSettings?: (settings: any) => void;
+  updateSettings?: (settings: any, targetBranchId?: string) => void;
 }
 
 const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateExpense, updateInitialCapital, onViewClientDossier, updateSettings }) => {
@@ -721,7 +721,8 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
                                     setOptimisticFuel(newVal);
                                     
                                     if (updateSettings) {
-                                      updateSettings({ ...activeSettings, defaultFuel: newVal, fuelHistory: newHistory }).catch(e => console.error("Error en updateSettings", e));
+                                      // Pass currentBranchId explicitly to ensure isolated save per branch
+                                      updateSettings({ ...activeSettings, defaultFuel: newVal, fuelHistory: newHistory }, currentBranchId).catch((e: any) => console.error("Error en updateSettings", e));
                                     }
                                     
                                     setFormData({ ...formData, description: 'COMBUSTIBLE DIARIO', amount: newVal });
