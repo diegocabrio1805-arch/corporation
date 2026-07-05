@@ -1,11 +1,10 @@
 
 import React, { useState, useMemo } from 'react';
-import { Expense, AppState, ExpenseCategory, CollectionLogType, LoanStatus, Loan, CollectionLog } from '../types';
+import { Expense, AppState, ExpenseCategory, IsolatedExpense, CollectionLogType, LoanStatus, Loan, CollectionLog, Role } from '../types';
 import { formatCurrency, formatDate, getLocalDateStringForCountry, getDaysOverdue, generateUUID, calculateTotalPaidFromLogs, formatLocalDate, formatLocalTime } from '../utils/helpers';
 import { getTranslation } from '../utils/translations';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { ExpenseSpreadsheetModal } from './ExpenseSpreadsheetModal';
-import { IsolatedSpreadsheetModal } from './IsolatedSpreadsheetModal';
 
 interface ExpensesProps {
   state: AppState;
@@ -15,9 +14,11 @@ interface ExpensesProps {
   updateInitialCapital: (amount: number) => void;
   onViewClientDossier?: (clientId: string) => void;
   updateSettings?: (settings: any, targetBranchId?: string) => void;
+  addIsolatedExpenseAction?: (expense: IsolatedExpense) => void;
+  removeIsolatedExpenseAction?: (id: string) => void;
 }
 
-const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateExpense, updateInitialCapital, onViewClientDossier, updateSettings }) => {
+const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, updateExpense, updateInitialCapital, onViewClientDossier, updateSettings, addIsolatedExpenseAction, removeIsolatedExpenseAction }) => {
 
   // PROTECTION: If settings are not loaded yet, prevent crash
   if (!state.settings || !state.settings.country) {
@@ -28,12 +29,15 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
 
   const [showModal, setShowModal] = useState(false);
   const [showSpreadsheetModal, setShowSpreadsheetModal] = useState(false);
-  const [showIsolatedSpreadsheetModal, setShowIsolatedSpreadsheetModal] = useState(false);
   const [showCapitalModal, setShowCapitalModal] = useState(false);
   const [initialCapitalForm, setInitialCapitalForm] = useState(state.initialCapital);
   const [selectedMonthDetail, setSelectedMonthDetail] = useState<{ month: number; year: number; name: string } | null>(null);
+  const activeSettings = state.settings || {} as any;
   const [optimisticFuel, setOptimisticFuel] = useState<number | null>(null);
-
+  const [showLedger, setShowLedger] = useState(false);
+  const [topEditId, setTopEditId] = useState<string | null>(null);
+  const [topEditAmt, setTopEditAmt] = useState('');
+  
   const [formData, setFormData] = useState({
     description: '',
     amount: 0,
@@ -60,33 +64,30 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
   }, [state.collectionLogs]);
 
   const currentBranchId = state.currentUser ? (
-    (state.currentUser.role === 'ADMIN' || state.currentUser.role === 'MANAGER') 
+    (state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER) 
       ? state.currentUser.id 
       : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
   ) : 'none';
-  const branchSettings = currentBranchId && state.branchSettings ? state.branchSettings[currentBranchId] : undefined;
-  
-  // Construct a safe activeSettings that doesn't bleed branch-specific data from global settings
-  const activeSettings = {
-    ...(branchSettings || state.settings)
-  };
-
-  activeSettings.isolatedExpenses = branchSettings?.isolatedExpenses || [];
-  activeSettings.autoIsolatedFuelProjection = branchSettings?.autoIsolatedFuelProjection || false;
-  
-  if (branchSettings && 'isolatedProjectionAmount' in branchSettings) {
-      activeSettings.isolatedProjectionAmount = branchSettings.isolatedProjectionAmount;
-  } else {
-      delete activeSettings.isolatedProjectionAmount;
-  }
-  
-  activeSettings.defaultFuel = branchSettings?.defaultFuel || 0;
-  activeSettings.fuelHistory = branchSettings?.fuelHistory || [];
 
   const branchExpenses = useMemo(() => {
     if (!currentBranchId) return [];
     return (Array.isArray(state.expenses) ? state.expenses : []).filter(e => e.branchId === currentBranchId);
   }, [state.expenses, currentBranchId]);
+
+  // Dias del mes actual (Lunes a Domingo)
+  const currentMonthDays = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const days = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      days.push(d); // Incluir todos los días (incluso Domingos por ahora)
+    }
+    return days;
+  }, []);
+
 
   // 3. Gastos operativos totales
   const totalOperatingExpenses = useMemo(() => {
@@ -280,13 +281,7 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
             <i className="fa-solid fa-vault"></i>
             {state.settings.language === 'fr' ? 'CHARGER CAPITAL INITIAL' : state.settings.language === 'pt' ? 'CARREGAR CAPITAL INICIAL' : 'CARGAR CAPITAL INICIAL'}
           </button>
-          <button
-            onClick={() => setShowIsolatedSpreadsheetModal(true)}
-            className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <i className="fa-solid fa-file-excel"></i>
-            PLANILLA OPERATIVA
-          </button>
+
         </div>
       </div>
 
@@ -538,70 +533,115 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         ))}
       </div>
 
-      {/* TABLA DE GASTOS / SALIDAS DE CAPITAL */}
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-50 bg-slate-50/30">
+      {/* TABLA DE GASTOS / SALIDAS DE CAPITAL (LEDGER) */}
+      {showLedger && (
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden mb-6 animate-scaleIn">
+        <div className="p-4 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
           <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{state.settings.language === 'fr' ? 'Historique des Sorties (Dépenses)' : state.settings.language === 'pt' ? 'Histórico de Saídas (Despesas)' : 'Historial de Salidas (Gastos)'}</h3>
+          <button onClick={() => setShowLedger(false)} className="w-6 h-6 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full flex items-center justify-center transition-all"><i className="fa-solid fa-xmark text-xs"></i></button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
           <table className="w-full text-left min-w-[500px]">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
               <tr className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Description' : state.settings.language === 'pt' ? 'Descrição' : 'Descripción'}</th>
-                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Catégorie' : state.settings.language === 'pt' ? 'Categoria' : 'Categoría'}</th>
-                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Date' : state.settings.language === 'pt' ? 'Data' : 'Fecha'}</th>
-                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Montant' : state.settings.language === 'pt' ? 'Valor' : 'Monto'}</th>
-                <th className="px-5 py-4 text-right">---</th>
+                <th className="px-5 py-4 w-32">{state.settings.language === 'fr' ? 'Date' : state.settings.language === 'pt' ? 'Data' : 'Fecha'}</th>
+                <th className="px-5 py-4">{state.settings.language === 'fr' ? 'Dépenses' : state.settings.language === 'pt' ? 'Despesas' : 'Gastos del Día'}</th>
+                <th className="px-5 py-4 text-right w-32">{state.settings.language === 'fr' ? 'Total' : state.settings.language === 'pt' ? 'Total' : 'Total Día'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {branchExpenses.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center text-slate-400">
-                    <div className="flex flex-col items-center">
-                      <i className="fa-solid fa-receipt text-3xl mb-3 opacity-10"></i>
-                      <p className="text-[10px] font-black uppercase tracking-widest">{state.settings.language === 'fr' ? 'Aucune dépense enregistrée' : state.settings.language === 'pt' ? 'Nenhuma despesa registrada' : 'No hay gastos registrados'}</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                [...branchExpenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((exp) => (
-                  <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors text-[11px] font-bold">
-                    <td className="px-5 py-4 text-slate-800 uppercase truncate max-w-[150px]" title={exp.description || exp.category}>{exp.description || exp.category}</td>
-                    <td className="px-5 py-4">
-                      <span className="px-2 py-0.5 rounded-md text-[7px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200">
-                        {exp.category}
-                      </span>
+              {currentMonthDays.map((d, index) => {
+                const dateStr = d.toLocaleDateString('en-CA');
+                const dayExpenses = (state.isolatedExpenses || []).filter(e => e.branchId === currentBranchId && e.date.startsWith(dateStr));
+                const totalDay = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
+                const isToday = dateStr === new Date().toLocaleDateString('en-CA');
+                const sym = state.settings.country === 'CO' ? '$' : 'Gs.';
+                const fmtNum = (n: number) => formatCurrency(n, state.settings).replace(/[^0-9.,]/g, '').trim();
+                
+                return (
+                  <tr key={index} className={`transition-colors text-[11px] font-bold ${isToday ? 'bg-slate-800 text-white' : 'hover:bg-slate-50/50'}`}>
+                    <td className={`px-5 py-3 align-top border-r ${isToday ? 'border-slate-700' : 'border-slate-50'}`}>
+                      <span className={`text-[9px] block uppercase font-black ${isToday ? 'text-slate-400' : 'text-slate-400'}`}>{d.toLocaleDateString('es', { weekday: 'short' })}</span>
+                      <span className={`text-sm ${isToday ? 'text-white font-black' : 'text-slate-600'}`}>{d.toLocaleDateString('es', { day: '2-digit', month: '2-digit' })}</span>
                     </td>
-                    <td className="px-5 py-4 text-slate-400 whitespace-nowrap uppercase text-[10px]">{formatDate(exp.date)}</td>
-                    <td className="px-5 py-4 font-black text-red-600 font-mono whitespace-nowrap">{formatCurrency(exp.amount, state.settings)}</td>
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        onClick={() => removeExpense(exp.id)}
-                        className="w-9 h-9 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
-                      >
-                        <i className="fa-solid fa-trash-can"></i>
-                      </button>
+                    <td className="px-5 py-3 align-top">
+                      {dayExpenses.length > 0 ? (
+                        <div className="space-y-1.5">
+                           {dayExpenses.map(exp => {
+                             const isEditing = topEditId === exp.id;
+                             return (
+                               <div key={exp.id} className="flex justify-between items-center bg-white border border-slate-100 p-2 rounded-lg shadow-sm group">
+                                 <div className="flex items-center gap-2">
+                                   <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-slate-100 text-slate-500">{exp.category}</span>
+                                   <span className="text-slate-700">{exp.description || exp.category}</span>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                   {isEditing ? (
+                                     <div className="flex items-center gap-1">
+                                       <input 
+                                         type="number" 
+                                         autoFocus
+                                         className="w-20 border border-emerald-300 rounded px-1 py-0.5 text-xs font-black text-right outline-none focus:ring-1 focus:ring-emerald-500" 
+                                         value={topEditAmt} 
+                                         onChange={e => setTopEditAmt(e.target.value)} 
+                                       />
+                                       <button onClick={() => {
+                                         const amt = Number(topEditAmt);
+                                         if (amt > 0 && removeIsolatedExpenseAction && addIsolatedExpenseAction) {
+                                           removeIsolatedExpenseAction(exp.id);
+                                           addIsolatedExpenseAction({ ...exp, amount: amt, updated_at: new Date().toISOString() });
+                                         }
+                                         setTopEditId(null);
+                                       }} className="w-5 h-5 rounded bg-emerald-100 text-emerald-600 hover:bg-emerald-200 flex items-center justify-center">✓</button>
+                                       <button onClick={() => setTopEditId(null)} className="w-5 h-5 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center">✕</button>
+                                     </div>
+                                   ) : (
+                                     <>
+                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mr-2">
+                                         <button onClick={() => { setTopEditId(exp.id); setTopEditAmt(String(exp.amount)); }} className="w-5 h-5 rounded bg-blue-50 text-blue-500 hover:bg-blue-100 flex items-center justify-center transition-all"><i className="fa-solid fa-pen text-[9px]"></i></button>
+                                         <button onClick={() => { if(window.confirm('¿Eliminar este gasto?')) removeIsolatedExpenseAction?.(exp.id); }} className="w-5 h-5 rounded bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all"><i className="fa-solid fa-trash text-[9px]"></i></button>
+                                       </div>
+                                       <span className="font-mono font-black text-slate-800">{sym}{fmtNum(exp.amount)}</span>
+                                     </>
+                                   )}
+                                 </div>
+                               </div>
+                             );
+                           })}
+                        </div>
+                      ) : (
+                        <span className="text-slate-300 italic text-[10px] uppercase font-black">{state.settings.language === 'fr' ? 'Aucune dépense' : state.settings.language === 'pt' ? 'Sem despesas' : 'Sin gastos'}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 align-top text-right">
+                       <span className={`font-black font-mono text-sm ${totalDay > 0 ? (isToday ? 'text-red-400' : 'text-red-500') : (isToday ? 'text-slate-600' : 'text-slate-300')}`}>
+                         {totalDay > 0 ? `${sym}${fmtNum(totalDay)}` : '-'}
+                       </span>
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })}
             </tbody>
-            {branchExpenses.length > 0 && (
-              <tfoot className="bg-red-50/50 border-t border-red-100">
-                <tr>
-                  <td colSpan={3} className="px-5 py-4 text-right text-[10px] font-black text-red-800 uppercase tracking-widest">
-                    {state.settings.language === 'fr' ? 'TOTAL DES DÉPENSES :' : state.settings.language === 'pt' ? 'DESPESA TOTAL :' : 'GASTO TOTAL :'}
-                  </td>
-                  <td colSpan={2} className="px-5 py-4 font-black font-mono text-red-700 text-sm">
-                    {formatCurrency(branchExpenses.reduce((acc, curr) => acc + curr.amount, 0), state.settings)}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
+            <tfoot className="bg-red-50/50 border-t border-red-100">
+              <tr>
+                <td colSpan={2} className="px-5 py-4 text-right text-[10px] font-black text-red-800 uppercase tracking-widest">
+                  {state.settings.language === 'fr' ? 'TOTAL DU MOIS :' : state.settings.language === 'pt' ? 'TOTAL DO MÊS :' : 'TOTAL DEL MES :'}
+                </td>
+                <td className="px-5 py-4 font-black font-mono text-red-700 text-sm text-right">
+                  {(() => {
+                    const totalMes = currentMonthDays.reduce((acc, d) => {
+                      const dateStr = d.toLocaleDateString('en-CA');
+                      return acc + (state.isolatedExpenses || []).filter(e => e.branchId === currentBranchId && e.date.startsWith(dateStr)).reduce((sum, e) => sum + e.amount, 0);
+                    }, 0);
+                    return formatCurrency(totalMes, state.settings);
+                  })()}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
+      )}
 
       {/* MODAL CARGA CAPITAL INICIAL */}
       {
@@ -818,14 +858,6 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
         />
       )}
 
-      {/* NUEVA PLANILLA AISLADA */}
-      {showIsolatedSpreadsheetModal && (
-        <IsolatedSpreadsheetModal 
-          state={state} 
-          onClose={() => setShowIsolatedSpreadsheetModal(false)} 
-          updateSettings={updateSettings}
-        />
-      )}
 
       {/* MODAL DETALLE DE CLIENTES NUEVOS DEL MES */}
       {selectedMonthDetail && (
@@ -919,8 +951,421 @@ const Expenses: React.FC<ExpensesProps> = ({ state, addExpense, removeExpense, u
           </div>
         </div>
       )}
+
+      {/* ============================================================ */}
+      {/* GASTOS OPERATIVOS POR SUCURSAL                               */}
+      {/* Misma lógica de aislamiento que clientes y créditos          */}
+      {/* ============================================================ */}
+      <GastosOperativos
+        state={state}
+        currentBranchId={currentBranchId}
+        addIsolatedExpenseAction={addIsolatedExpenseAction}
+        removeIsolatedExpenseAction={removeIsolatedExpenseAction}
+        toggleLedger={() => setShowLedger(prev => !prev)}
+        showLedger={showLedger}
+      />
+
     </div >
   );
 };
 
 export default Expenses;
+
+// ============================================================
+// GASTOS OPERATIVOS — Planilla estilo Excel por sucursal
+// Aislamiento idéntico a créditos y clientes (branchId)
+// ============================================================
+
+interface GastosOperativosProps {
+  state: AppState;
+  currentBranchId: string;
+  addIsolatedExpenseAction?: (expense: IsolatedExpense) => void;
+  removeIsolatedExpenseAction?: (id: string) => void;
+  toggleLedger?: () => void;
+  showLedger?: boolean;
+}
+
+const CATS = [
+  { key: 'COMBUSTIBLE', icon: '⛽', label: 'Combustible', bg: 'bg-orange-100 text-orange-700' },
+  { key: 'REPARACION',  icon: '🔧', label: 'Reparación',  bg: 'bg-red-100 text-red-700'      },
+  { key: 'GOMERIA',     icon: '🛞', label: 'Gomería',      bg: 'bg-slate-100 text-slate-600'  },
+  { key: 'INSUMOS',     icon: '📦', label: 'Insumos',      bg: 'bg-blue-100 text-blue-700'    },
+  { key: 'OFICINA',     icon: '🏢', label: 'Oficina',      bg: 'bg-purple-100 text-purple-700'},
+  { key: 'OTROS',       icon: '🌐', label: 'Otros',        bg: 'bg-teal-100 text-teal-700'   },
+];
+
+const fmtNum = (n: number) =>
+  n.toLocaleString('es', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+const GastosOperativos: React.FC<GastosOperativosProps> = ({
+  state, currentBranchId, addIsolatedExpenseAction, removeIsolatedExpenseAction, toggleLedger, showLedger
+}) => {
+  const now = new Date();
+  const [year,  setYear]  = React.useState(now.getFullYear());
+  const [month, setMonth] = React.useState(now.getMonth());
+
+  // Combustible diario prefijado — localStorage por sucursal
+  const FUEL_KEY = `op_fuel_${currentBranchId}`;
+  const [fuelPreset, setFuelPreset] = React.useState<number>(() => {
+    try { return Number(localStorage.getItem(FUEL_KEY) || 0); } catch { return 0; }
+  });
+  const [fuelInput, setFuelInput] = React.useState<string>(() => {
+    try { const v = localStorage.getItem(FUEL_KEY); return v || ''; } catch { return ''; }
+  });
+  const saveFuelPreset = () => {
+    const n = Number(fuelInput);
+    if (isNaN(n) || n < 0) return;
+    setFuelPreset(n);
+    try { localStorage.setItem(FUEL_KEY, String(n)); } catch {}
+
+    if (n > 0 && addIsolatedExpenseAction) {
+      if (window.confirm(`¿Desea rellenar todos los días sin gastos de combustible del mes actual con ${fmtNum(n)}?`)) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        let addedCount = 0;
+        
+        for (let i = 1; i <= daysInMonth; i++) {
+          const d = new Date(year, month, i);
+          const dateStr = d.toLocaleDateString('en-CA');
+          
+          // Buscar si ya hay un gasto de COMBUSTIBLE en este día
+          const hasFuel = (state.isolatedExpenses || []).some(e => 
+            e.branchId === currentBranchId && 
+            e.category === 'COMBUSTIBLE' && 
+            e.date.startsWith(dateStr)
+          );
+          
+          if (!hasFuel) {
+            addedCount++;
+            setTimeout(() => {
+              addIsolatedExpenseAction({
+                id: generateUUID(),
+                branchId: currentBranchId,
+                description: 'Combustible diario',
+                amount: n,
+                category: 'COMBUSTIBLE',
+                date: dateStr + 'T12:00:00.000Z',
+                created_at: new Date().toISOString()
+              });
+            }, addedCount * 150); // Retardo escalonado para no saturar el estado
+          }
+        }
+      }
+    }
+  };
+
+  // Nueva fila
+  const [showForm, setShowForm] = React.useState(false);
+  const [newCat,  setNewCat]   = React.useState('COMBUSTIBLE');
+  const [newDesc, setNewDesc]  = React.useState('');
+  const [newAmt,  setNewAmt]   = React.useState('');
+  const [newDate, setNewDate]  = React.useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
+
+  const openForm = (cat = 'COMBUSTIBLE') => {
+    setNewCat(cat);
+    setNewDesc(cat === 'COMBUSTIBLE' ? 'Combustible diario' : '');
+    setNewAmt(cat === 'COMBUSTIBLE' && fuelPreset > 0 ? String(fuelPreset) : '');
+    setShowForm(true);
+  };
+
+  const handleGuardar = () => {
+    if (!newDesc.trim() || !newAmt || Number(newAmt) <= 0) return;
+    if (!addIsolatedExpenseAction) return;
+    addIsolatedExpenseAction({
+      id: generateUUID(),
+      description: newDesc.trim(),
+      amount: Number(newAmt),
+      category: newCat as any,
+      date: new Date(newDate + 'T12:00:00.000Z').toISOString(),
+    });
+    setShowForm(false);
+    setNewDesc(''); setNewAmt('');
+  };
+
+  // Edición inline
+  const [editId,   setEditId]   = React.useState<string | null>(null);
+  const [editDesc, setEditDesc] = React.useState('');
+  const [editAmt,  setEditAmt]  = React.useState('');
+  const [editCat,  setEditCat]  = React.useState('COMBUSTIBLE');
+  const [editDate, setEditDate] = React.useState('');
+
+  const startEdit = (g: IsolatedExpense) => {
+    setEditId(g.id);
+    setEditDesc(g.description);
+    setEditAmt(String(g.amount));
+    setEditCat(g.category as string);
+    setEditDate(g.date.slice(0, 10));
+  };
+
+  const saveEdit = () => {
+    if (!editId || !editDesc.trim() || !editAmt || Number(editAmt) <= 0) return;
+    if (!removeIsolatedExpenseAction || !addIsolatedExpenseAction) return;
+    removeIsolatedExpenseAction(editId);
+    addIsolatedExpenseAction({
+      id: editId,
+      description: editDesc.trim(),
+      amount: Number(editAmt),
+      category: editCat as any,
+      date: new Date(editDate + 'T12:00:00.000Z').toISOString(),
+    });
+    setEditId(null);
+  };
+
+  // Gastos filtrados por sucursal y mes — igual que clientes/créditos
+  const gastosMes = React.useMemo(() => {
+    if (!currentBranchId || currentBranchId === 'none') return [];
+    return (state.isolatedExpenses || [])
+      .filter(e => {
+        if (e.branchId !== currentBranchId) return false;
+        const d = new Date(e.date);
+        return d.getFullYear() === year && d.getMonth() === month;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [state.isolatedExpenses, currentBranchId, year, month]);
+  
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const gastosHoy = React.useMemo(() => gastosMes.filter(g => g.date.startsWith(todayStr)), [gastosMes, todayStr]);
+  const totalHoy = gastosHoy.reduce((s, e) => s + e.amount, 0);
+  const total = gastosMes.reduce((s, e) => s + e.amount, 0);
+
+  const nominaMensual = React.useMemo(() => {
+    let totalNomina = 0;
+    const branchUsers = (Array.isArray(state.users) ? state.users : []).filter(u => 
+      (u.managedBy || (u as any).managed_by || u.id) === currentBranchId
+    );
+    branchUsers.forEach(u => {
+      const cfg = u.payConfig;
+      if (cfg) {
+        if (cfg.scheme === 'monthly') totalNomina += (cfg.monthly || 0);
+        if (cfg.scheme === 'weekly') totalNomina += (cfg.weekly || 0) * 4;
+      }
+    });
+    return totalNomina;
+  }, [state.users, currentBranchId]);
+
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const prevMes = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const nextMes = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+  const sym = state.settings?.currencySymbol || '$';
+  const ci  = (key: string) => CATS.find(c => c.key === key) || CATS[5];
+
+  return (
+    <div className="mt-6 bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+
+      {/* Header */}
+      <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <h2 className="text-base font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
+              💼 GASTOS OPERATIVOS
+            </h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+              Solo visibles en esta sucursal
+            </p>
+          </div>
+
+          {/* Combustible prefijado */}
+          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
+            <span className="text-xl">⛽</span>
+            <div>
+              <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest mb-1">Combustible diario</p>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  value={fuelInput}
+                  onChange={e => setFuelInput(e.target.value)}
+                  placeholder="0"
+                  className="w-24 bg-white border border-orange-200 rounded-lg px-2 py-1 text-xs font-black text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+                <button
+                  onClick={saveFuelPreset}
+                  title="Guardar monto prefijado"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-lg text-xs font-black active:scale-95 transition-all"
+                >💾</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Nómina Mensual */}
+          {nominaMensual > 0 && (
+            <div className="bg-slate-900/5 border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-right shrink-0">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Nómina Mensual</p>
+              <p className="text-lg font-black font-mono text-emerald-600 flex items-center justify-end gap-1.5"><i className="fa-solid fa-money-check-dollar text-sm"></i>{sym}{fmtNum(nominaMensual)}</p>
+            </div>
+          )}
+
+          {/* Total */}
+          <div className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-right shrink-0">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Total del mes</p>
+            <p className="text-lg font-black font-mono">{sym}{fmtNum(total)}</p>
+          </div>
+        </div>
+
+        {/* Gasto Total (Suma) */}
+        <div className="bg-red-600 text-white px-5 py-2.5 rounded-xl text-right shrink-0 shadow-sm border border-red-700">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-red-200">Total General</p>
+          <p className="text-lg font-black font-mono">{sym}{fmtNum(total + nominaMensual)}</p>
+        </div>
+      </div>
+
+      {/* Navegador de mes */}
+      <div className="flex items-center justify-between px-6 py-3 bg-slate-50 border-b border-slate-100">
+        <button onClick={prevMes} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">‹</button>
+        <span className="text-sm font-black text-slate-700 uppercase tracking-widest">{MESES[month]} {year}</span>
+        <button onClick={nextMes} className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center font-black text-slate-600 hover:bg-slate-100 active:scale-95 transition-all">›</button>
+      </div>
+
+      {/* Planilla */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-100">
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-24">Fecha</th>
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Descripción</th>
+              <th className="px-4 py-2 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest w-36">Categoría</th>
+              <th className="px-4 py-2 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest w-32">Monto</th>
+              <th className="w-20"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+
+            {gastosHoy.length === 0 && !showForm && (
+              <tr><td colSpan={5} className="px-6 py-10 text-center text-slate-300">
+                <p className="text-3xl mb-1">📭</p>
+                <p className="text-xs font-bold uppercase tracking-widest">Sin gastos hoy</p>
+              </td></tr>
+            )}
+
+            {gastosHoy.map(g => {
+              const info = ci(g.category as string);
+              if (editId === g.id) {
+                return (
+                  <tr key={g.id} className="bg-blue-50">
+                    <td className="px-2 py-1.5">
+                      <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <select value={editCat} onChange={e => setEditCat(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {CATS.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <input type="number" value={editAmt} onChange={e => setEditAmt(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-2 py-1 text-xs font-black text-right focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <div className="flex gap-1">
+                        <button onClick={saveEdit} className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-blue-700 active:scale-95 transition-all">✓</button>
+                        <button onClick={() => setEditId(null)} className="bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-slate-300 active:scale-95 transition-all">✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={g.id} className="hover:bg-slate-50 transition-colors group">
+                  <td className="px-4 py-3 text-[11px] font-black text-slate-500 whitespace-nowrap uppercase">
+                    {new Date(g.date).toLocaleDateString('es', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-slate-700">{g.description}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${info.bg}`}>
+                      {info.icon} {info.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-black font-mono text-slate-800 text-right whitespace-nowrap">{sym}{fmtNum(g.amount)}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => startEdit(g)} title="Editar"
+                        className="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-500 flex items-center justify-center text-xs active:scale-90 transition-all">✏️</button>
+                      <button onClick={() => removeIsolatedExpenseAction?.(g.id)} title="Eliminar"
+                        className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 flex items-center justify-center text-xs active:scale-90 transition-all">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+
+            {/* Fila de nueva entrada */}
+            {showForm && (
+              <tr className="bg-emerald-50">
+                <td className="px-2 py-1.5">
+                  <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
+                    className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </td>
+                <td className="px-2 py-1.5">
+                  <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Descripción..." autoFocus
+                    className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </td>
+                <td className="px-2 py-1.5">
+                  <select value={newCat} onChange={e => {
+                    setNewCat(e.target.value);
+                    if (e.target.value === 'COMBUSTIBLE') { setNewDesc('Combustible diario'); if (fuelPreset > 0) setNewAmt(String(fuelPreset)); }
+                  }} className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    {CATS.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                  </select>
+                </td>
+                <td className="px-2 py-1.5">
+                  <input type="number" value={newAmt} onChange={e => setNewAmt(e.target.value)} placeholder="Monto"
+                    className="w-full border border-emerald-300 rounded-lg px-2 py-1 text-xs font-black text-right focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </td>
+                <td className="px-2 py-1.5">
+                  <div className="flex gap-1">
+                    <button onClick={handleGuardar} className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-emerald-700 active:scale-95 transition-all">✓</button>
+                    <button onClick={() => setShowForm(false)} className="bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-slate-300 active:scale-95 transition-all">✕</button>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+
+          {gastosHoy.length > 0 && (
+            <tfoot>
+              <tr className="bg-slate-900 text-white">
+                <td colSpan={3} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest">
+                  {gastosHoy.length} registro{gastosHoy.length !== 1 ? 's' : ''} hoy
+                </td>
+                <td className="px-4 py-3 text-right font-black font-mono text-base">{sym}{fmtNum(totalHoy)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      {/* Botones de agregar rápido */}
+      <div className="px-6 py-4 border-t border-slate-100 flex flex-wrap gap-2">
+        <button onClick={() => openForm('COMBUSTIBLE')}
+          className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">
+          ⛽ + Combustible{fuelPreset > 0 ? ` (${sym}${fmtNum(fuelPreset)})` : ''}
+        </button>
+        {CATS.slice(1).map(c => (
+          <button key={c.key} onClick={() => openForm(c.key)}
+            className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">
+            {c.icon} + {c.label}
+          </button>
+        ))}
+        {toggleLedger && (
+          <button 
+            onClick={toggleLedger}
+            className={`ml-auto px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${showLedger ? 'bg-slate-800 text-white border-slate-800' : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'}`}
+          >
+            <i className={`fa-solid ${showLedger ? 'fa-eye-slash' : 'fa-list'} mr-1.5`}></i>
+            Historial de Gastos
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+

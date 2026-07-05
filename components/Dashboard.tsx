@@ -744,45 +744,35 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
 
   const currentMonthTotalExpenses = useMemo(() => {
     const today = new Date();
-    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const todayStr = today.toISOString().split('T')[0];
+    const currentBranchId = state.currentUser?.role === Role.ADMIN || state.currentUser?.role === Role.MANAGER 
+      ? state.currentUser.id 
+      : (state.currentUser?.managedBy || (state.currentUser as any)?.managed_by || state.currentUser?.id);
 
     // 1. Nómina Mensual
     let totalSueldos = 0;
-    (Array.isArray(state.users) ? state.users : []).forEach(user => {
+    const branchUsers = (Array.isArray(state.users) ? state.users : []).filter(u => 
+      (u.managedBy || (u as any).managed_by || u.id) === currentBranchId
+    );
+    branchUsers.forEach(user => {
       const cfg = user.payConfig;
-      if (cfg && cfg.scheme === 'monthly') {
-        totalSueldos += (cfg.monthly || 0);
+      if (cfg) {
+        if (cfg.scheme === 'monthly') totalSueldos += (cfg.monthly || 0);
+        if (cfg.scheme === 'weekly') totalSueldos += (cfg.weekly || 0) * 4;
       }
     });
 
-    // 2. Gastos Aislados
+    // 2. Gastos Aislados (del mes actual)
     let totalMonthGastos = 0;
-    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const isolatedExpenses = state.settings?.isolatedExpenses || [];
-    const autoProject = !!state.settings?.autoIsolatedFuelProjection;
-    const projectAmount = Number(state.settings?.isolatedProjectionAmount || 0);
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayDate = `${currentMonthPrefix}-${String(day).padStart(2, '0')}`;
-      const dayExpenses = isolatedExpenses.filter((e: any) => e.date.startsWith(dayDate));
-      
-      const realTotal = dayExpenses.reduce((sum: number, e: any) => sum + e.amount, 0);
-      totalMonthGastos += realTotal;
-
-      if (dayDate <= todayStr && autoProject) {
-        const dateObj = new Date(today.getFullYear(), today.getMonth(), day);
-        if (dateObj.getDay() !== 0) {
-          const hasRealFuel = dayExpenses.some((e: any) => e.description?.includes('COMBUSTIBLE'));
-          if (!hasRealFuel) {
-            totalMonthGastos += projectAmount;
-          }
-        }
+    const isolatedExpenses = (state.isolatedExpenses || []).filter(e => e.branchId === currentBranchId);
+    isolatedExpenses.forEach(e => {
+      const d = new Date(e.date);
+      if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()) {
+        totalMonthGastos += e.amount;
       }
-    }
+    });
 
     return totalSueldos + totalMonthGastos;
-  }, [state.users, state.settings]);
+  }, [state.users, state.isolatedExpenses, state.currentUser]);
 
 
   return (
@@ -1142,9 +1132,9 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                       )}
                     </span>
                   </div>
-                  {/* Gastos */}
+                  {/* Total General (Gastos + Nómina) */}
                   <div className="px-4 py-2 border-r border-white/10 flex flex-col justify-center bg-slate-800/30">
-                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Gastos</span>
+                    <span className="text-[10px] lg:text-xs text-slate-400 font-black uppercase tracking-wider mb-1">Total General</span>
                     <span className="font-mono font-black text-rose-400 text-base lg:text-xl xl:text-2xl leading-none">
                       {formatCurrency(currentMonthTotalExpenses, state.settings)}
                     </span>

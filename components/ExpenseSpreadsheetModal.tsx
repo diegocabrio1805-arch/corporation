@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { AppState, ExpenseCategory, Expense } from '../types';
+import { AppState, ExpenseCategory, Expense, Role } from '../types';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import { supabase } from '../utils/supabaseClient';
 
@@ -30,7 +30,7 @@ export const ExpenseSpreadsheetModal: React.FC<ExpenseSpreadsheetModalProps> = (
   }, [currentMonth]);
 
   const currentBranchId = state.currentUser ? (
-    (state.currentUser.role === 'ADMIN' || state.currentUser.role === 'MANAGER') 
+    (state.currentUser.role === Role.ADMIN || state.currentUser.role === Role.MANAGER) 
       ? state.currentUser.id 
       : (state.currentUser.managedBy || (state.currentUser as any).managed_by || state.currentUser.id)
   ) : 'none';
