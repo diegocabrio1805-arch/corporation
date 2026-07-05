@@ -1017,6 +1017,29 @@ const GastosOperativos: React.FC<GastosOperativosProps> = ({
     if (isNaN(n) || n < 0) return;
     setFuelPreset(n);
     try { localStorage.setItem(FUEL_KEY, String(n)); } catch {}
+
+    if (n > 0 && addIsolatedExpenseAction) {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      
+      // Buscar si ya hay un gasto de COMBUSTIBLE HOY para esta sucursal
+      const existingFuel = (state.isolatedExpenses || []).find(e => 
+        e.branchId === currentBranchId && 
+        e.category === 'COMBUSTIBLE' && 
+        e.date.startsWith(todayStr)
+      );
+
+      // Creamos o actualizamos el gasto solo para hoy
+      addIsolatedExpenseAction({
+        id: existingFuel ? existingFuel.id : generateUUID(),
+        branchId: currentBranchId,
+        description: 'Combustible diario',
+        amount: n,
+        category: 'COMBUSTIBLE',
+        date: todayStr + 'T12:00:00.000Z',
+        created_at: existingFuel ? existingFuel.created_at : new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    }
   };
 
   // Nueva fila
